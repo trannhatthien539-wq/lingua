@@ -1,0 +1,1 @@
+export default function ProgressBar({ value, color = 'bg-ink dark:bg-lime' }) { return <div className="h-2 overflow-hidden rounded-full bg-ink/[0.08] dark:bg-white/[0.1]"><div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} /></div> }
