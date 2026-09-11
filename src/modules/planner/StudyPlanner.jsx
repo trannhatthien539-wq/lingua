@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
+import ReactPlayer from "react-player";
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -522,7 +523,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     const audioElement = audioRef.current;
     if (!audioElement) return undefined;
     const customBackground = audio.customBackground;
-    const source = audio.sound === "custom" && customBackground?.mediaType !== "video"
+    const source = audio.sound === "custom" && customBackground?.type !== "youtube"
       ? customBackground?.dataUrl
       : "";
     audioElement.pause();
@@ -587,7 +588,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         audio.alarm,
         audio.customAlarm?.dataUrl,
         audio.volume,
-        audio.sound === "custom" && audio.customBackground?.mediaType !== "video"
+        audio.sound === "custom" && audio.customBackground?.type !== "youtube"
           ? audio.customBackground?.dataUrl
           : "",
         timer.isRunning,
@@ -718,6 +719,18 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         active={timer.isRunning}
       />
       <audio ref={audioRef} preload="auto" aria-hidden="true" />
+      {audio.sound === "custom" && audio.customBackground?.type === "youtube" && (
+        <ReactPlayer
+          src={audio.customBackground.dataUrl}
+          playing={timer.isRunning && audio.volume > 0}
+          loop
+          volume={audio.volume / 100}
+          muted={audio.volume === 0}
+          width="0"
+          height="0"
+          style={{ display: "none" }}
+        />
+      )}
       <div className="space-y-6">
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="panel relative isolate overflow-hidden p-5">
