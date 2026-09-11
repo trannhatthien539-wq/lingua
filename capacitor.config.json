@@ -1,0 +1,9 @@
+{
+  "appId": "com.lingua.studyhub",
+  "appName": "Lingua - Study Hub",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
