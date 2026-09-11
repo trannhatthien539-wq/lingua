@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { parseAiJson, requestAi } from "../../services/aiService";
+import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
 import FlashcardModal from "../../components/learning/FlashcardModal";
@@ -627,7 +628,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const addCards = async (items) => {
-    const cards = items
+    const enrichedItems = await Promise.all(items.map(async (item) => ({
+      ...item,
+      imageUrl: item.imageUrl || await findVocabularyImageSafely(item.word),
+    })));
+    const cards = enrichedItems
       .map((item) => ({
         id: makeId("card"),
         deckId: selectedDeck.id,

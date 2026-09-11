@@ -9,6 +9,7 @@ import {
   where,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { isSafeImageSource } from "./imageService";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -68,7 +69,7 @@ const normalizeCard = (card) => ({
   interval: Number(card.interval) || 0,
   nextReviewDate: card.nextReviewDate || card.next_review_date || (card.reviewDate || card.review_date || "").slice(0, 10) || null,
   repetition: Number(card.repetition) || 0,
-  imageUrl: /^data:image\/[a-z0-9.+-]+;base64,/i.test(card.imageUrl || card.image_url || "") ? (card.imageUrl || card.image_url) : undefined,
+  imageUrl: isSafeImageSource(card.imageUrl || card.image_url || "") ? (card.imageUrl || card.image_url) : undefined,
   audioUrl: card.audioUrl || card.audio_url || "",
   needAiImage: Boolean(card.needAiImage),
 });

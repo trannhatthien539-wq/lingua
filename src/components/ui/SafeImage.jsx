@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import WordAvatar from "../WordAvatar";
+import { isSafeImageSource } from "../../services/imageService";
 
 export default function SafeImage({ src, alt = "", className = "", fallbackWord = alt }) {
-  const localImage = /^data:image\/[a-z0-9.+-]+;base64,/i.test(src || "");
+  const localImage = isSafeImageSource(src);
   const [failed, setFailed] = useState(!localImage);
 
-  useEffect(() => setFailed(!/^data:image\/[a-z0-9.+-]+;base64,/i.test(src || "")), [src]);
+  useEffect(() => setFailed(!isSafeImageSource(src)), [src]);
 
   if (failed) return <WordAvatar word={fallbackWord} alt={alt} className={className} />;
 

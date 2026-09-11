@@ -1,4 +1,5 @@
 import { speakText } from "./speech";
+import { isSafeImageSource } from "../services/imageService";
 
 export function cleanText(htmlString = "") {
   const withoutMedia = String(htmlString)
@@ -18,7 +19,7 @@ export function sanitizeCard(card = {}) {
     meaning: cleanText(card.meaning || "Chưa có nghĩa") || "Chưa có nghĩa",
     example: cleanText(card.example || ""),
     audioUrl: card.audioUrl || "",
-    imageUrl: /^data:image\/[a-z0-9.+-]+;base64,/i.test(card.imageUrl || "") ? card.imageUrl : undefined,
+    imageUrl: isSafeImageSource(card.imageUrl || "") ? card.imageUrl : undefined,
   };
 }
 
