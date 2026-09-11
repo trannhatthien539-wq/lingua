@@ -19,7 +19,6 @@ import {
   X,
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
-import ReactPlayer from "react-player";
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -95,11 +94,21 @@ export async function fetchMediaTitle(url) {
   }
 }
 
-function playChime(alarm = "chime", customSource = "", volume = 35) {
+function playChime(audioElement, alarm = "chime", customSource = "", volume = 35, backgroundSource = "", resumeBackground = false) {
+  if (!audioElement) return;
   if (customSource) {
-    const audio = new Audio(customSource);
-    audio.volume = volume / 100;
-    audio.play().catch(() => {});
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement.src = customSource;
+    audioElement.loop = false;
+    audioElement.volume = volume / 100;
+    audioElement.onended = () => {
+      if (!resumeBackground || !backgroundSource) return;
+      audioElement.src = backgroundSource;
+      audioElement.loop = true;
+      audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+    };
+    audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
     return;
   }
   try {
@@ -176,22 +185,6 @@ function FocusAudio({ sound, volume, active, customSource }) {
   return null;
 }
 
-function CustomBackgroundAudio({ source, active, volume }) {
-  return (
-    <ReactPlayer
-      src={source || undefined}
-      playing={active && Boolean(source)}
-      loop
-      volume={volume / 100}
-      muted={volume === 0}
-      width="0"
-      height="0"
-      style={{ display: "none" }}
-      config={{ file: { attributes: { preload: "auto" } } }}
-    />
-  );
-}
-
 function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
   const [tab, setTab] = useState("background");
   const [metadataLoading, setMetadataLoading] = useState(false);
@@ -203,14 +196,12 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
   const readFile = (event, key) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () =>
-      setAudio((current) => ({
-        ...current,
-        [key]: { name: file.name, title: file.name, thumbnail: "", type: "file", dataUrl: reader.result, sourceType: "file" },
-        ...(key === "customBackground" ? { sound: "custom" } : {}),
-      }));
-    reader.readAsDataURL(file);
+    const dataUrl = URL.createObjectURL(file);
+    setAudio((current) => ({
+      ...current,
+      [key]: { name: file.name, title: file.name, thumbnail: "", type: file.type, mediaType: file.type.startsWith("video/") ? "video" : "audio", dataUrl, sourceType: "file" },
+      ...(key === "customBackground" ? { sound: "custom" } : {}),
+    }));
     event.target.value = "";
   };
   const applyUrl = async () => {
@@ -315,6 +306,14 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
                   <Trash2 size={14} />
                 </button>
               </div>
+            )}
+            {audio.customBackground?.mediaType === "video" && (
+              <button
+                onClick={() => setAudio((current) => ({ ...current, customBackground: null, sound: "mute" }))}
+                className="mt-2 text-xs font-bold text-red-500"
+              >
+                Xóa video nền
+              </button>
             )}
           </div>}
           {tab === "alarm" && <div>
@@ -450,6 +449,7 @@ function ZenFocus({
 export default function StudyPlanner({ onStudyActivity, user }) {
   const [planner, setPlanner] = useState(() => readPlanner(user));
   const [taskInput, setTaskInput] = useState("");
+  const audioRef = useRef(null);
   const [audio, setAudio] = useState(() => {
     try {
       return (
@@ -489,13 +489,46 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     );
   }, [timer.mode, timer.secondsLeft]);
 
+  useEffect(() => {
+    const persistedAudio = {
+      ...audio,
+      sound: audio.sound === "custom" && audio.customBackground?.sourceType === "file" ? "mute" : audio.sound,
+      customBackground: audio.customBackground?.sourceType === "file" ? null : audio.customBackground,
+      customAlarm: audio.customAlarm?.sourceType === "file" ? null : audio.customAlarm,
+    };
+    localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(persistedAudio));
+  }, [audio]);
+
+  useEffect(() => {
+    const objectUrls = [audio.customBackground?.dataUrl, audio.customAlarm?.dataUrl];
+    return () => {
+      objectUrls.forEach((url) => {
+        if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+      });
+    };
+  }, [audio.customBackground?.dataUrl, audio.customAlarm?.dataUrl]);
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return undefined;
+    const customBackground = audio.customBackground;
+    const source = audio.sound === "custom" && customBackground?.mediaType !== "video"
+      ? customBackground?.dataUrl
+      : "";
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement.src = source || "";
+    audioElement.loop = true;
+    audioElement.volume = audio.volume / 100;
+    if (timer.isRunning && source && audio.volume > 0) {
+      audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+    }
+    return () => audioElement.pause();
+  }, [audio.sound, audio.customBackground?.dataUrl, audio.customBackground?.mediaType, audio.volume, timer.isRunning, timer.mode]);
+
   useEffect(
     () => localStorage.setItem(plannerStorageKey(user), JSON.stringify(planner)),
     [planner, user],
-  );
-  useEffect(
-    () => localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(audio)),
-    [audio],
   );
   useEffect(() => {
     const handler = () => setIsZen(Boolean(document.fullscreenElement));
@@ -539,7 +572,16 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         onStudyActivity?.();
         setToast("Hoàn thành phiên tập trung. Task đã được tick!");
       }
-      playChime(audio.alarm, audio.customAlarm?.dataUrl, audio.volume);
+      playChime(
+        audioRef.current,
+        audio.alarm,
+        audio.customAlarm?.dataUrl,
+        audio.volume,
+        audio.sound === "custom" && audio.customBackground?.mediaType !== "video"
+          ? audio.customBackground?.dataUrl
+          : "",
+        timer.isRunning,
+      );
       window.alert(
         timer.mode === "focus"
           ? "Hết 25 phút học. Nghỉ 5 phút nhé!"
@@ -636,9 +678,15 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           : "mute",
     }));
   const previewAlarm = (source) => {
-    const audioPreview = new Audio(source);
-    audioPreview.volume = audio.volume / 100;
-    audioPreview.play().catch(() => {});
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement.src = source;
+    audioElement.loop = false;
+    audioElement.volume = audio.volume / 100;
+    audioElement.onended = null;
+    audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
   };
   const resetAudio = () => {
     setAudio({
@@ -659,14 +707,20 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         volume={audio.volume}
         active={timer.isRunning}
       />
-      <CustomBackgroundAudio
-        source={audio.customBackground?.dataUrl}
-        active={timer.isRunning && audio.sound === "custom"}
-        volume={audio.volume}
-      />
+      <audio ref={audioRef} preload="auto" aria-hidden="true" />
       <div className="space-y-6">
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <section className="panel p-5">
+          <section className="panel relative isolate overflow-hidden p-5">
+            {audio.sound === "custom" && audio.customBackground?.mediaType === "video" && audio.customBackground.dataUrl && (
+              <video
+                src={audio.customBackground.dataUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover -z-10"
+              />
+            )}
             <div className="flex items-start justify-between">
               <div>
                 <p className="eyebrow">Daily checklist</p>
