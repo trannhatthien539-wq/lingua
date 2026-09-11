@@ -18,6 +18,8 @@ import confetti from "canvas-confetti";
 import { parseAiJson, requestAi } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
+import FlashcardModal from "../../components/learning/FlashcardModal";
+import { speakText } from "../../utils/speech";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -373,11 +375,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
                 <span
                   onClick={(event) => {
                     event.stopPropagation();
-                    window.speechSynthesis?.speak(
-                      Object.assign(new SpeechSynthesisUtterance(card.word), {
-                        lang: "en-US",
-                      }),
-                    );
+                    speakText(card.word);
                   }}
                   className="mt-6 inline-flex items-center gap-2 rounded-lg bg-ink/[0.06] px-3 py-2 text-xs font-bold dark:bg-white/10"
                 >
@@ -443,11 +441,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
           <p className="eyebrow">Nghe và gõ lại từ</p>
           <button
             onClick={() =>
-              window.speechSynthesis?.speak(
-                Object.assign(new SpeechSynthesisUtterance(card.word), {
-                  lang: "en-US",
-                }),
-              )
+              speakText(card.word)
             }
             className="mx-auto mt-6 flex items-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-ink"
           >
@@ -512,6 +506,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [error, setError] = useState("");
   const [practiceDeckId, setPracticeDeckId] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(true);
+  const [speakingWord, setSpeakingWord] = useState("");
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
 
@@ -674,13 +669,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     await dataService.deleteCard(cardId);
     updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
   }, [library.cards]);
-  const speak = (word) => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(word);
-      utterance.lang = "en-US";
-      window.speechSynthesis.speak(utterance);
-    }
+  const speak = (word, id = word) => {
+    setSpeakingWord(id);
+    speakText(word, { onEnd: () => setSpeakingWord("") });
   };
 
   if (libraryLoading) {
@@ -696,14 +687,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     );
     if (practiceDeck)
       return (
-        <PracticeSession
-          deck={practiceDeck}
-          cards={practiceCards}
-          onExit={() => setPracticeDeckId(null)}
-          onUpdateCard={updateCard}
-          onStudyActivity={onStudyActivity}
-          streak={streak}
-        />
+        <FlashcardModal deck={practiceDeck} cards={practiceCards} onClose={() => setPracticeDeckId(null)} onUpdateCard={updateCard} onStudyActivity={onStudyActivity} streak={streak} />
       );
   }
 
@@ -910,8 +894,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                     className="flex flex-wrap items-center gap-3 px-5 py-4"
                   >
                     <button
-                      onClick={() => speak(card.word)}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink/[0.1] text-ink/45 hover:text-ink dark:border-white/[0.1] dark:text-white/45 dark:hover:text-white"
+                      onClick={() => speak(card.word, card.id)}
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink/[0.1] text-ink/45 hover:text-ink dark:border-white/[0.1] dark:text-white/45 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`}
                       aria-label={`Nghe phát âm ${card.word}`}
                     >
                       <Volume2 size={16} />
@@ -925,9 +909,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                       <p className="mt-1 text-sm font-semibold">
                         {card.meaning}
                       </p>
-                      <p className="mt-1 text-xs leading-5 text-ink/45 dark:text-white/45">
-                        {card.example}
-                      </p>
+                      <button onClick={() => speak(card.example, `${card.id}-example`)} className={`mt-1 flex items-start gap-1 text-left text-xs leading-5 text-ink/45 dark:text-white/45 ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={13} className="mt-1 shrink-0" />{card.example}</button>
                     </div>
                     <select
                       value={card.level}

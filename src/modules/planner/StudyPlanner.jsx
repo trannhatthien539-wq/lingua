@@ -11,6 +11,7 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  Target,
   Trash2,
   Upload,
   Volume2,
@@ -39,6 +40,7 @@ const defaultTimer = {
   isRunning: false,
   endAt: null,
   sessions: 0,
+  focusTaskId: null,
 };
 const audioOptions = [
   { id: "rain", label: "🌧️ Tiếng mưa rơi" },
@@ -53,10 +55,11 @@ const alarmOptions = [
 ];
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
-const readPlanner = () => {
+const plannerStorageKey = (user) => user ? `${STORAGE_KEY}-${user.uid}` : `${STORAGE_KEY}-guest`;
+const readPlanner = (user) => {
   try {
     return (
-      JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+      JSON.parse(localStorage.getItem(plannerStorageKey(user))) || {
         days: {},
         timer: defaultTimer,
       }
@@ -444,8 +447,8 @@ function ZenFocus({
   );
 }
 
-export default function StudyPlanner({ onStudyActivity }) {
-  const [planner, setPlanner] = useState(readPlanner);
+export default function StudyPlanner({ onStudyActivity, user }) {
+  const [planner, setPlanner] = useState(() => readPlanner(user));
   const [taskInput, setTaskInput] = useState("");
   const [audio, setAudio] = useState(() => {
     try {
@@ -470,6 +473,7 @@ export default function StudyPlanner({ onStudyActivity }) {
   });
   const [isZen, setIsZen] = useState(false);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [toast, setToast] = useState("");
   const date = todayKey();
   const tasks = planner.days[date] || defaultTasks;
   const timer = planner.timer || defaultTimer;
@@ -486,8 +490,8 @@ export default function StudyPlanner({ onStudyActivity }) {
   }, [timer.mode, timer.secondsLeft]);
 
   useEffect(
-    () => localStorage.setItem(STORAGE_KEY, JSON.stringify(planner)),
-    [planner],
+    () => localStorage.setItem(plannerStorageKey(user), JSON.stringify(planner)),
+    [planner, user],
   );
   useEffect(
     () => localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(audio)),
@@ -515,14 +519,26 @@ export default function StudyPlanner({ onStudyActivity }) {
       const nextMode = timer.mode === "focus" ? "break" : "focus";
       setPlanner((current) => ({
         ...current,
+        days: timer.mode === "focus" && timer.focusTaskId
+          ? {
+              ...current.days,
+              [date]: (current.days[date] || defaultTasks).map((task) =>
+                task.id === timer.focusTaskId ? { ...task, completed: true } : task,
+              ),
+            }
+          : current.days,
         timer: {
           ...defaultTimer,
           mode: nextMode,
+          focusTaskId: timer.focusTaskId,
           sessions:
             timer.mode === "focus" ? timer.sessions + 1 : timer.sessions,
         },
       }));
-        if (timer.mode === "focus") onStudyActivity?.();
+      if (timer.mode === "focus") {
+        onStudyActivity?.();
+        setToast("Hoàn thành phiên tập trung. Task đã được tick!");
+      }
       playChime(audio.alarm, audio.customAlarm?.dataUrl, audio.volume);
       window.alert(
         timer.mode === "focus"
@@ -593,6 +609,11 @@ export default function StudyPlanner({ onStudyActivity }) {
         task.id === id ? { ...task, completed: !task.completed } : task,
       ),
     );
+  const focusTask = (id) => {
+    setTimer({ ...timer, mode: "focus", focusTaskId: id });
+    const task = tasks.find((item) => item.id === id);
+    setToast(task ? `Đã chọn mục tiêu: ${task.title}` : "Đã chọn mục tiêu phiên học.");
+  };
   const removeTask = (id) =>
     updateTasks(tasks.filter((task) => task.id !== id));
   const resetTimer = () =>
@@ -693,6 +714,7 @@ export default function StudyPlanner({ onStudyActivity }) {
                   >
                     {task.title}
                   </span>
+                  <button onClick={() => focusTask(task.id)} className={`grid h-8 w-8 place-items-center rounded-lg transition ${timer.focusTaskId === task.id ? "bg-lime text-ink" : "text-ink/35 hover:bg-ink/5 hover:text-ink dark:text-white/35 dark:hover:bg-white/10 dark:hover:text-white"}`} aria-label={`Tập trung vào ${task.title}`} title="Đặt làm mục tiêu Pomodoro"><Target size={15} /></button>
                   <button
                     onClick={() => removeTask(task.id)}
                     className="text-ink/20 opacity-0 group-hover:opacity-100 dark:text-white/20"
@@ -729,6 +751,7 @@ export default function StudyPlanner({ onStudyActivity }) {
               </div>
             </div>
             <div className="mt-6 text-center">
+              <p className="mb-4 min-h-5 text-xs font-bold text-sage">{timer.focusTaskId ? `Mục tiêu: ${tasks.find((task) => task.id === timer.focusTaskId)?.title || "Phiên học hiện tại"}` : "Chưa chọn mục tiêu phiên"}</p>
               <div
                 className="mx-auto grid h-52 w-52 place-items-center rounded-full"
                 style={{
@@ -836,6 +859,7 @@ export default function StudyPlanner({ onStudyActivity }) {
           onPreview={previewAlarm}
         />
       )}
+      {toast && <div className="fixed bottom-5 right-5 z-[120] flex items-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white shadow-xl dark:bg-lime dark:text-ink"><Check size={16} />{toast}<button onClick={() => setToast("")} aria-label="Đóng thông báo"><X size={14} /></button></div>}
     </>
   );
 }
