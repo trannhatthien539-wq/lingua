@@ -4,6 +4,8 @@ import {
   BrainCircuit,
   Check,
   Download,
+  ChevronDown,
+  ChevronRight,
   LayoutGrid,
   LoaderCircle,
   Maximize2,
@@ -257,6 +259,20 @@ function RoadmapNode({ id, data }) {
     </div>
   );
 }
+
+function MobileOutliner({ nodes, edges, onSelect, view, onViewChange }) {
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const children = useMemo(() => edges.reduce((map, edge) => ({ ...map, [edge.source]: [...(map[edge.source] || []), edge.target] }), {}), [edges]);
+  const byId = useMemo(() => Object.fromEntries(nodes.map((node) => [node.id, node])), [nodes]);
+  const roots = nodes.filter((node) => !edges.some((edge) => edge.target === node.id));
+  const toggleAll = (close) => setCollapsed(close ? new Set(nodes.map((node) => node.id)) : new Set());
+  const renderNode = (node, depth = 0) => {
+    const childIds = children[node.id] || [];
+    const isCollapsed = collapsed.has(node.id);
+    return <div key={node.id} className="relative"><button onClick={() => onSelect(node.id)} className="flex min-h-12 w-full items-center gap-2 border-b border-zinc-200/70 py-3 text-left dark:border-white/10" style={{ paddingLeft: `${depth * 18 + 8}px` }}><span onClick={(event) => { event.stopPropagation(); setCollapsed((current) => { const next = new Set(current); isCollapsed ? next.delete(node.id) : next.add(node.id); return next; }); }} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-white/60">{childIds.length ? (isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />) : <span className="h-1.5 w-1.5 rounded-full bg-teal-600" />}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-zinc-900 dark:text-white">{node.data.label}</strong><small className="block truncate text-xs text-zinc-500">{node.data.detail}</small></span></button>{!isCollapsed && childIds.map((id) => byId[id] && renderNode(byId[id], depth + 1))}</div>;
+  };
+  return <div className="md:hidden"><div className="mb-3 flex items-center justify-between gap-2"><div className="flex rounded-xl bg-zinc-100 p-1 dark:bg-white/10"><button onClick={() => onViewChange('tree')} className={`rounded-lg px-3 py-2 text-xs font-bold ${view === 'tree' ? 'bg-white shadow-sm dark:bg-[#29332f]' : 'text-zinc-500'}`}>Xem dạng cây</button><button onClick={() => onViewChange('canvas')} className={`rounded-lg px-3 py-2 text-xs font-bold ${view === 'canvas' ? 'bg-white shadow-sm dark:bg-[#29332f]' : 'text-zinc-500'}`}>Canvas</button></div><div className="flex gap-1"><button onClick={() => toggleAll(false)} className="rounded-lg border border-zinc-200 px-2 py-2 text-[10px] font-bold dark:border-white/10">Mở hết</button><button onClick={() => toggleAll(true)} className="rounded-lg border border-zinc-200 px-2 py-2 text-[10px] font-bold dark:border-white/10">Thu gọn</button></div></div>{view === 'tree' && <div className="rounded-xl border border-zinc-200/80 bg-white px-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#202724]">{roots.map((node) => renderNode(node))}</div>}</div>;
+}
 const nodeTypes = { topic: RoadmapNode };
 
 function RoadmapCanvas({
@@ -439,6 +455,7 @@ export default function StudyMindmap({ apiKey }) {
   const [status, setStatus] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState("TB");
+  const [mobileView, setMobileView] = useState("tree");
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 0.9 });
   const canvasRef = useRef(null);
   const fitViewRef = useRef(null);
@@ -803,7 +820,9 @@ export default function StudyMindmap({ apiKey }) {
           {error}
         </p>
       )}
-      <div className="panel overflow-hidden p-3">
+      <MobileOutliner nodes={nodes} edges={edges} onSelect={handleNodeClick} view={mobileView} onViewChange={setMobileView} />
+      {mobileView === "canvas" && <div className="panel h-[62vh] overflow-hidden p-1 md:hidden"><ReactFlowProvider><RoadmapCanvas nodes={decoratedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onSelect={handleNodeClick} onPaneClick={handlePaneClick} onEdgeClick={selectEdge} onEdgeDoubleClick={removeEdge} canvasRef={canvasRef} onViewportChange={setViewport} onFitViewReady={(fitView) => { fitViewRef.current = fitView; }} /></ReactFlowProvider></div>}
+      <div className="panel hidden overflow-hidden p-3 md:block">
         <ReactFlowProvider>
           <RoadmapCanvas
             nodes={decoratedNodes}

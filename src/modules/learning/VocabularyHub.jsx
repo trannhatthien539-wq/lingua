@@ -31,6 +31,8 @@ import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
 import SafeImage from "../../components/ui/SafeImage";
 import { dateKey } from "../../utils/srs";
+import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
+import { createStarterDeck } from "../../data/starterDeck";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -590,8 +592,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       try {
         let decks = await dataService.getDecks();
         if (!decks.length) {
-          const created = await dataService.createDeck("IELTS Speaking Part 1");
-          decks = [{ ...created, tags: created.tags || ["IELTS", "Speaking"], createdAt: created.createdAt || created.created_at }];
+          const seed = createStarterDeck();
+          const created = await dataService.createDeck(seed.title);
+          const seededCards = await Promise.all(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
+          decks = [{ ...created, title: seed.title, description: seed.description, tags: seed.tags, createdAt: created.createdAt || created.created_at }];
+          if (active) setLibrary({ decks, cards: seededCards });
+          return;
         }
         const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
         const initialCards = cardsByDeck.flat();
@@ -830,6 +836,17 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     updateLibrary({ cards: library.cards.filter((card) => card.deckId !== selectedDeck.id || !duplicateSet.has(card.id)).map((card) => keptCards.find((item) => item.id === card.id) || card) });
     setError(`Đã dọn ${duplicateIds.length} từ trùng lặp trong bộ.`);
   };
+  const restoreStarterDeck = async () => {
+    const seed = createStarterDeck();
+    const targetDeck = selectedDeck || await dataService.createDeck(seed.title);
+    const existingWords = new Set(library.cards.filter((card) => card.deckId === targetDeck.id).map((card) => normalizeWord(card.word)));
+    const newCards = seed.cards.filter((card) => !existingWords.has(normalizeWord(card.word))).map((card) => ({ ...card, deckId: targetDeck.id }));
+    if (!newCards.length) return setNotice("Bộ mẫu đã có đủ từ.");
+    const savedCards = await Promise.all(newCards.map((card) => dataService.addCard(card)));
+    updateLibrary({ decks: library.decks.some((deck) => deck.id === targetDeck.id) ? library.decks : [...library.decks, targetDeck], cards: [...savedCards, ...library.cards] });
+    setSelectedDeckId(targetDeck.id);
+    setNotice(`Đã khôi phục ${savedCards.length} từ mẫu.`);
+  };
   const removeCard = useCallback(async (cardId) => {
     await dataService.deleteCard(cardId);
     updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
@@ -875,6 +892,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   return (
     <div className="space-y-6">
+      <StudyAnalyticsWidget cards={deckCards} streak={streak} />
       <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
         <aside className="panel h-fit overflow-hidden p-4">
           <div className="flex items-center justify-between">
@@ -994,6 +1012,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 title="Dọn từ trùng"
               >
                 <Trash2 size={15} />
+              </button>
+              <button
+                onClick={restoreStarterDeck}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] text-ink/50 hover:border-sage hover:text-sage dark:border-white/[0.1] dark:text-white/50"
+                aria-label="Khôi phục bộ từ mẫu"
+                title="Khôi phục bộ từ mẫu"
+              >
+                <BookOpen size={15} />
               </button>
             </div>
           </div>

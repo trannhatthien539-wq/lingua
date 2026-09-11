@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AuthPage from './components/Auth/AuthPage'
-import { auth, googleProvider, onAuthStateChanged, signInWithPopup, signOut } from './services/firebase'
+import { auth, onAuthStateChanged, signOut } from './services/firebase'
+import { getGoogleRedirectResult, signInWithGoogle } from './services/authService'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary } from './services/dataService'
@@ -37,6 +38,12 @@ export default function App() {
     return () => window.removeEventListener('lingua:open-practice', openPractice)
   }, [])
   useEffect(() => {
+    getGoogleRedirectResult().then((result) => {
+      if (result?.user) {
+        setNotice('Đăng nhập Google thành công.')
+        window.setTimeout(() => setNotice(''), 2600)
+      }
+    }).catch(() => {})
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)
       setApiKey(readApiKeyForUser(nextUser))
@@ -54,7 +61,7 @@ export default function App() {
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider)
+      await signInWithGoogle()
       setNotice('Đăng nhập Google thành công.')
       window.setTimeout(() => setNotice(''), 2600)
     } catch (authError) {
@@ -72,5 +79,5 @@ export default function App() {
 
   if (showAuthPage && !user) return <AuthPage onGuest={() => setShowAuthPage(false)} />
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#151a18] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => setShowAuthPage(true)} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}>{activeTab === 'settings' && <AccountPanel user={user} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={setActiveTab} /></div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => setShowAuthPage(true)} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={setActiveTab} /></div>
 }
