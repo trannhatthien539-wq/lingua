@@ -1,6 +1,6 @@
 {
   "appId": "com.lingua.studyhub",
-  "appName": "Lingua - Study Hub",
+  "appName": "Lingua",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
