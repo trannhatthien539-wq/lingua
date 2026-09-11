@@ -592,7 +592,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           : "",
         timer.isRunning,
       );
-      window.alert(
+      setToast(
         timer.mode === "focus"
           ? "Hết 25 phút học. Nghỉ 5 phút nhé!"
           : "Hết giờ nghỉ. Sẵn sàng học tiếp chưa?",

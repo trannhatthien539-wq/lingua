@@ -424,7 +424,7 @@ function RoadmapCanvas({
           %
         </p>
       </div>
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-white/90 p-1.5 shadow-lg dark:bg-[#1b211f]/90">
+      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1 rounded-xl bg-white/90 p-1.5 shadow-lg md:flex dark:bg-[#1b211f]/90">
         <button
           onClick={zoomOut}
           className="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg hover:bg-ink/10 dark:hover:bg-white/10"
@@ -464,14 +464,34 @@ function RoadmapCanvas({
 
 function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
   const [notes, setNotes] = useState(node?.data.notes || "");
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragStart = useRef(null);
   useEffect(
     () => setNotes(node?.data.notes || ""),
     [node?.id, node?.data.notes],
   );
   if (!node) return null;
+  const handleTouchStart = (event) => {
+    dragStart.current = event.touches[0].clientY;
+  };
+  const handleTouchMove = (event) => {
+    if (dragStart.current === null) return;
+    setDragOffset(Math.max(0, event.touches[0].clientY - dragStart.current));
+  };
+  const handleTouchEnd = () => {
+    if (dragOffset > 80) onClose();
+    setDragOffset(0);
+    dragStart.current = null;
+  };
   return (
-    <aside className="fixed bottom-0 left-0 right-0 z-50 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t border-ink/[0.08] bg-white p-5 shadow-2xl md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-full md:max-w-sm md:rounded-none md:rounded-l-2xl md:border-l md:border-t-0 md:p-6 dark:border-white/[0.08] dark:bg-[#1b211f]">
-      <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-ink/15 md:hidden dark:bg-white/20" />
+    <aside
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ transform: `translateY(${dragOffset}px)` }}
+      className="fixed bottom-0 left-0 right-0 z-50 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t border-ink/[0.08] bg-white p-5 shadow-2xl transition-transform md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-full md:max-w-sm md:rounded-none md:rounded-l-2xl md:border-l md:border-t-0 md:p-6 md:!transform-none dark:border-white/[0.08] dark:bg-[#1b211f]"
+    >
+      <div className="mx-auto mb-4 h-1.5 w-12 touch-none rounded-full bg-ink/15 md:hidden dark:bg-white/20" />
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="eyebrow">Study drawer</p>
@@ -911,7 +931,7 @@ export default function StudyMindmap({ apiKey }) {
         </button>
       </section>
       {error && (
-        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
+        <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-200">
           {error}
         </p>
       )}
@@ -949,7 +969,7 @@ export default function StudyMindmap({ apiKey }) {
         <span>Chuột phải node để đổi trạng thái</span>
       </div>
       {status && (
-        <p className="rounded-xl bg-[#e6f3e8] p-3 text-sm text-[#568460] dark:bg-[#293f31] dark:text-[#a9d5af]">
+        <p role="status" aria-live="polite" className="rounded-xl bg-[#e6f3e8] p-3 text-sm text-[#568460] dark:bg-[#293f31] dark:text-[#a9d5af]">
           {status}
         </p>
       )}

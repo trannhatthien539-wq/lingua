@@ -96,7 +96,7 @@ function FieldLabel({ children }) {
 
 function ErrorMessage({ message, onClose }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl bg-red-50 p-3 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-200">
+    <div role="alert" className="flex items-start justify-between gap-3 rounded-xl bg-red-50 p-3 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-200">
       <span>{message}</span>
       <button onClick={onClose} aria-label="Đóng lỗi">
         <X size={15} />
@@ -106,7 +106,7 @@ function ErrorMessage({ message, onClose }) {
 }
 
 function SuccessMessage({ message, onClose }) {
-  return <div className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200"><span>{message}</span><button onClick={onClose} aria-label="Đóng thông báo"><X size={15} /></button></div>;
+  return <div role="status" aria-live="polite" className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200"><span>{message}</span><button onClick={onClose} aria-label="Đóng thông báo"><X size={15} /></button></div>;
 }
 
 function StatusBadge({ status }) {
@@ -836,16 +836,26 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     updateLibrary({ cards: library.cards.filter((card) => card.deckId !== selectedDeck.id || !duplicateSet.has(card.id)).map((card) => keptCards.find((item) => item.id === card.id) || card) });
     setError(`Đã dọn ${duplicateIds.length} từ trùng lặp trong bộ.`);
   };
-  const restoreStarterDeck = async () => {
+  const addIeltsDeck = async () => {
     const seed = createStarterDeck();
-    const targetDeck = selectedDeck || await dataService.createDeck(seed.title);
-    const existingWords = new Set(library.cards.filter((card) => card.deckId === targetDeck.id).map((card) => normalizeWord(card.word)));
-    const newCards = seed.cards.filter((card) => !existingWords.has(normalizeWord(card.word))).map((card) => ({ ...card, deckId: targetDeck.id }));
-    if (!newCards.length) return setNotice("Bộ mẫu đã có đủ từ.");
-    const savedCards = await Promise.all(newCards.map((card) => dataService.addCard(card)));
-    updateLibrary({ decks: library.decks.some((deck) => deck.id === targetDeck.id) ? library.decks : [...library.decks, targetDeck], cards: [...savedCards, ...library.cards] });
-    setSelectedDeckId(targetDeck.id);
-    setNotice(`Đã khôi phục ${savedCards.length} từ mẫu.`);
+    const existingDeck = library.decks.find((deck) => deck.title === seed.title);
+    if (existingDeck) {
+      setSelectedDeckId(existingDeck.id);
+      return setNotice("Bộ IELTS Speaking Part 1 đã có trong thư viện.");
+    }
+    setLoading("add-deck");
+    try {
+      const targetDeck = await dataService.createDeck(seed.title);
+      const newCards = seed.cards.map((card) => ({ ...card, deckId: targetDeck.id }));
+      const savedCards = await Promise.all(newCards.map((card) => dataService.addCard(card)));
+      updateLibrary({ decks: [...library.decks, { ...targetDeck, tags: seed.tags, description: seed.description }], cards: [...savedCards, ...library.cards] });
+      setSelectedDeckId(targetDeck.id);
+      setNotice(`Đã thêm bộ IELTS Speaking Part 1 với ${savedCards.length} từ.`);
+    } catch (requestError) {
+      setError(requestError.message || "Không thể thêm bộ IELTS lúc này.");
+    } finally {
+      setLoading("");
+    }
   };
   const removeCard = useCallback(async (cardId) => {
     await dataService.deleteCard(cardId);
@@ -863,7 +873,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   if (libraryLoading) {
-    return <div className="panel grid min-h-64 place-items-center p-8"><LoaderCircle className="animate-spin text-sage" size={24} /><p className="mt-3 text-sm text-ink/50 dark:text-white/50">Đang đồng bộ thư viện từ vựng...</p></div>;
+    return <div role="status" aria-live="polite" className="panel grid min-h-64 place-items-center p-8"><LoaderCircle className="animate-spin text-sage" size={24} aria-hidden="true" /><p className="mt-3 text-sm text-ink/50 dark:text-white/50">Đang đồng bộ thư viện từ vựng...</p></div>;
   }
 
   if (singleCardId) {
@@ -1014,12 +1024,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <Trash2 size={15} />
               </button>
               <button
-                onClick={restoreStarterDeck}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] text-ink/50 hover:border-sage hover:text-sage dark:border-white/[0.1] dark:text-white/50"
-                aria-label="Khôi phục bộ từ mẫu"
-                title="Khôi phục bộ từ mẫu"
+                onClick={addIeltsDeck}
+                disabled={loading === "add-deck"}
+                className="flex h-10 items-center gap-2 rounded-xl border border-ink/[0.1] px-3 text-xs font-bold text-ink/60 hover:border-sage hover:text-sage dark:border-white/[0.1] dark:text-white/60"
+                aria-label="Thêm bộ IELTS Speaking Part 1"
+                title="Thêm bộ IELTS Speaking Part 1"
               >
                 <BookOpen size={15} />
+                <span className="hidden sm:inline">Thêm bộ IELTS</span>
               </button>
             </div>
           </div>
