@@ -1,4 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
+import { getAnalytics, isSupported } from 'firebase/analytics'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
@@ -9,9 +10,11 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'lingua-49fc1.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '138926081617',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:138926081617:web:4d64b990f6dfc6c9e41a70',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-JG9KNJ4Y4Y',
 }
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+export const analyticsPromise = isSupported().then((supported) => supported ? getAnalytics(app) : null).catch(() => null)
 export default app
