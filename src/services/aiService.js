@@ -1,6 +1,9 @@
 const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
+export const generateSmartVocabularyPrompt = (topic, level, amount, existingWords = []) =>
+  `Bạn là giáo viên tiếng Anh. Tạo đúng ${amount} từ vựng theo chủ đề "${topic}" ở trình độ ${level}. TẤT CẢ TỪ PHẢI MỚI VÀ TUYỆT ĐỐI KHÔNG TRÙNG LẶP VỚI CÁC TỪ SAU ĐÂY: ${existingWords.join(", ") || "(chưa có từ nào)"}. Chỉ trả về JSON hợp lệ theo schema {"cards":[{"word":"...","ipa":"...","meaning":"nghĩa tiếng Việt","example":"câu ví dụ tiếng Anh"}]}. Không markdown.`;
+
 const httpErrorMessages = {
   400: "API Key không hợp lệ hoặc model không đúng.",
   403: "API Key không có quyền dùng dịch vụ AI này.",

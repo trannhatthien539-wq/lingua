@@ -17,7 +17,7 @@ import {
   FileUp,
 } from "lucide-react";
 import confetti from "canvas-confetti";
-import { parseAiJson, requestAi } from "../../services/aiService";
+import { generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../services/aiService";
 import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
@@ -81,8 +81,8 @@ function readLibrary() {
 
 const quickLookupPrompt = (word) =>
   `Tra cứu từ tiếng Anh "${word}". Chỉ trả về JSON hợp lệ theo schema {"ipa":"...","meaning":"nghĩa tiếng Việt ngắn gọn","example":"một câu ví dụ tiếng Anh"}. Không markdown.`;
-const generatePrompt = (topic, level, amount) =>
-  `Bạn là giáo viên tiếng Anh. Tạo đúng ${amount} từ vựng theo chủ đề "${topic}" ở trình độ ${level}. Chỉ trả về JSON hợp lệ theo schema {"cards":[{"word":"...","ipa":"...","meaning":"nghĩa tiếng Việt","example":"câu ví dụ tiếng Anh"}]}. Không markdown.`;
+const normalizeWord = (word = "") => word.trim().replace(/\s+/g, " ").toLowerCase();
+const titleCaseWord = (word = "") => word.trim().replace(/\s+/g, " ").split(" ").map((part) => part ? `${part[0].toUpperCase()}${part.slice(1).toLowerCase()}` : part).join(" ");
 
 function FieldLabel({ children }) {
   return (
@@ -628,7 +628,19 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const addCards = async (items) => {
-    const enrichedItems = await Promise.all(items.map(async (item) => ({
+    const existingWordList = deckCards.map((card) => normalizeWord(card.word));
+    const seenWords = new Set(existingWordList);
+    const uniqueItems = items.filter((item) => {
+      const key = normalizeWord(item.word);
+      if (!key || seenWords.has(key)) return false;
+      seenWords.add(key);
+      return true;
+    });
+    if (!uniqueItems.length) {
+      setError("Không có từ mới để thêm: tất cả từ AI trả về đều đã tồn tại trong bộ.");
+      return;
+    }
+    const enrichedItems = await Promise.all(uniqueItems.map(async (item) => ({
       ...item,
       imageUrl: item.imageUrl || await findVocabularyImageSafely(item.word),
     })));
@@ -636,7 +648,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       .map((item) => ({
         id: makeId("card"),
         deckId: selectedDeck.id,
-        word: item.word?.trim() || "",
+        word: titleCaseWord(item.word || ""),
         ipa: item.ipa || item.pronunciation || "",
         meaning: item.meaning || "",
         example: item.example || "",
@@ -697,11 +709,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     setLoading("generate");
     setError("");
     try {
+      const existingWordList = deckCards.map((card) => normalizeWord(card.word));
       const result = parseAiJson(
         await requestAi(
           localStorage.getItem(PROVIDER_STORAGE) || "gemini",
           apiKey,
-          generatePrompt(debouncedTopic, level, amount),
+          generateSmartVocabularyPrompt(debouncedTopic, level, amount, existingWordList),
           { json: true },
         ),
       );
@@ -717,6 +730,33 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     await dataService.updateCard(cardId, changes);
     updateLibrary({ cards: library.cards.map((card) => card.id === cardId ? { ...card, ...changes } : card) });
   }, [library.cards]);
+  const cleanupDuplicates = async () => {
+    const seen = new Map();
+    const duplicateIds = [];
+    const normalizedCards = deckCards.map((card) => {
+      const key = normalizeWord(card.word);
+      const canonicalWord = titleCaseWord(card.word);
+      if (seen.has(key)) {
+        duplicateIds.push(card.id);
+        return card;
+      }
+      seen.set(key, card.id);
+      return canonicalWord === card.word ? card : { ...card, word: canonicalWord };
+    });
+    const keptCards = normalizedCards.filter((card) => !duplicateIds.includes(card.id));
+    const changedCards = keptCards.filter((card) => card.word !== deckCards.find((item) => item.id === card.id)?.word);
+    if (!duplicateIds.length && !changedCards.length) {
+      setError("Bộ này không có từ trùng lặp.");
+      return;
+    }
+    await Promise.all([
+      ...changedCards.map((card) => dataService.updateCard(card.id, { word: card.word })),
+      ...duplicateIds.map((cardId) => dataService.deleteCard(cardId)),
+    ]);
+    const duplicateSet = new Set(duplicateIds);
+    updateLibrary({ cards: library.cards.filter((card) => card.deckId !== selectedDeck.id || !duplicateSet.has(card.id)).map((card) => keptCards.find((item) => item.id === card.id) || card) });
+    setError(`Đã dọn ${duplicateIds.length} từ trùng lặp trong bộ.`);
+  };
   const removeCard = useCallback(async (cardId) => {
     await dataService.deleteCard(cardId);
     updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
@@ -873,6 +913,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               >
                 <Check size={15} />
                 Ôn đến hạn ({dueCards.length})
+              </button>
+              <button
+                onClick={cleanupDuplicates}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] text-ink/50 hover:border-red-300 hover:text-red-500 dark:border-white/[0.1] dark:text-white/50"
+                aria-label="Dọn từ trùng"
+                title="Dọn từ trùng"
+              >
+                <Trash2 size={15} />
               </button>
             </div>
           </div>
