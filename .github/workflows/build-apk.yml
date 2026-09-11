@@ -25,10 +25,14 @@ jobs:
         run: npm ci
 
       - name: Install Capacitor
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android @codetrix-studio/capacitor-google-auth
 
       - name: Build web assets
-        run: npm run build
+        env:
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          test -n "$VITE_GOOGLE_WEB_CLIENT_ID"
+          npm run build
 
       - name: Initialize Capacitor when needed
         run: |

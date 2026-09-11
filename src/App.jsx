@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
-import { getGoogleRedirectResult, signInWithGoogle } from './services/authService'
+import { getGoogleRedirectResult, initializeNativeGoogleAuth, signInWithGoogle } from './services/authService'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary } from './services/dataService'
@@ -38,6 +38,10 @@ export default function App() {
     return () => window.removeEventListener('lingua:open-practice', openPractice)
   }, [])
   useEffect(() => {
+    initializeNativeGoogleAuth().catch((error) => {
+      if (error.message?.includes('VITE_GOOGLE_WEB_CLIENT_ID')) return
+      setNotice('Không thể khởi tạo đăng nhập Google trên thiết bị.')
+    })
     getGoogleRedirectResult().then((result) => {
       if (result?.user) {
         setNotice('Đăng nhập Google thành công.')
