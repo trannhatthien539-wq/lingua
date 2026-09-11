@@ -9,6 +9,7 @@ import {
   where,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { imageUrlForWord } from "../utils/srs";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -65,9 +66,12 @@ const normalizeCard = (card) => ({
   level: card.level || "B1",
   status: card.status || "new",
   reviewDate: card.reviewDate || card.review_date || null,
-    imageUrl: card.imageUrl || card.image_url || "",
-    audioUrl: card.audioUrl || card.audio_url || "",
-    needAiImage: Boolean(card.needAiImage),
+  interval: Number(card.interval) || 0,
+  nextReviewDate: card.nextReviewDate || card.next_review_date || (card.reviewDate || card.review_date || "").slice(0, 10) || null,
+  repetition: Number(card.repetition) || 0,
+  imageUrl: card.imageUrl || card.image_url || imageUrlForWord(card.word),
+  audioUrl: card.audioUrl || card.audio_url || "",
+  needAiImage: Boolean(card.needAiImage),
 });
 
 const withUserId = (data) => ({ ...data, userId: currentUser().uid });
@@ -151,20 +155,26 @@ const dataMethods = {
       level: normalized.level,
       status: normalized.status,
       reviewDate: normalized.reviewDate,
-        imageUrl: normalized.imageUrl,
-        audioUrl: normalized.audioUrl,
-        needAiImage: normalized.needAiImage,
+      interval: normalized.interval,
+      nextReviewDate: normalized.nextReviewDate,
+      repetition: normalized.repetition,
+      imageUrl: normalized.imageUrl,
+      audioUrl: normalized.audioUrl,
+      needAiImage: normalized.needAiImage,
     }));
     return { ...normalized, id: created.id };
   },
 
   async updateCard(id, changes) {
+    const normalizedChanges = { ...changes };
+    if (normalizedChanges.reviewDate && !normalizedChanges.nextReviewDate) normalizedChanges.nextReviewDate = String(normalizedChanges.reviewDate).slice(0, 10);
+    if (normalizedChanges.nextReviewDate && !normalizedChanges.reviewDate) normalizedChanges.reviewDate = `${normalizedChanges.nextReviewDate}T00:00:00.000Z`;
     if (!currentUser()) {
       const library = readLocal();
-      writeLocal({ ...library, cards: library.cards.map((card) => card.id === id ? { ...card, ...changes } : card) });
+      writeLocal({ ...library, cards: library.cards.map((card) => card.id === id ? { ...card, ...normalizedChanges } : card) });
       return;
     }
-    await updateDoc(doc(db, "vocabulary_cards", id), changes);
+    await updateDoc(doc(db, "vocabulary_cards", id), normalizedChanges);
   },
 
   async deleteCard(id) {

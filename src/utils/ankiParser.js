@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
+import { imageUrlForWord } from "./srs";
 
 const FIELD_SEPARATOR = "\x1f";
 let sqlPromise;
@@ -12,21 +13,20 @@ const stripHtml = (value = "") => {
   return documentFragment.body.textContent || "";
 };
 
-const firstMeaningfulField = (fields, index, fallback = "") => stripHtml(fields[index] || fallback).replace(/\s+/g, " ").trim();
-
 const findZipFile = (zip, name) => zip.file(name) || zip.file(new RegExp(`(^|/)${name}$`, "i"))[0];
 
 const isCodeField = (value) => /^[A-Z0-9]+(?:[_-][A-Z0-9]+)+$/i.test(value) || /^\d+[A-Z0-9_]+$/i.test(value);
 const isIpaField = (value) => /^\s*\/[^/]+\/\s*$/.test(value) || /\[[a-zəɪɔːʌɒθðŋɜː]+\]/i.test(value);
 const isAudioField = (value) => /\[sound:[^\]]+\]/i.test(value) || /\.(mp3|wav|ogg|m4a)(\s|$)/i.test(value);
-const isSingleWord = (value) => /^[A-Za-z][A-Za-z'’-]{1,30}$/.test(value) && !isCodeField(value);
-const generatedImageUrl = (word) => `https://image.pollinations.ai/prompt/${encodeURIComponent(`${word} minimalist illustration`)}?width=400&height=300&nologo=true`;
+const isEnglishField = (value) => /^[A-Za-z][A-Za-z'’\-]*(?:\s+[A-Za-z][A-Za-z'’\-]*){0,7}$/.test(value) && !isCodeField(value);
 
 const classifyFields = (rawFields, sortField) => {
-  const fields = rawFields.map((field) => stripHtml(field).replace(/\s+/g, " ").trim()).filter(Boolean);
+  const fields = rawFields.map((field) => stripHtml(field).replace(/\[sound:[^\]]+\]/gi, "").replace(/\s+/g, " ").trim()).filter(Boolean);
   const usable = fields.filter((field) => !isCodeField(field) && !isAudioField(field));
   const ipa = usable.find(isIpaField) || "";
-  const word = usable.find(isSingleWord) || stripHtml(sortField || "").split(/\s+/)[0] || usable[0] || "Từ chưa có tên";
+  const sorted = stripHtml(sortField || "").replace(/\s+/g, " ").trim();
+  const sortedWord = !isCodeField(sorted) && !isAudioField(sorted) && !isIpaField(sorted) ? sorted : "";
+  const word = sortedWord || usable.find((field) => field !== ipa && isEnglishField(field)) || usable.find((field) => field !== ipa) || "Từ chưa có tên";
   const remaining = usable.filter((field) => field !== word && field !== ipa);
   const meaning = remaining.find((field) => /[À-ỹ]/.test(field)) || remaining[0] || "Chưa có nghĩa";
   const example = remaining.find((field) => field !== meaning && field.length > 25) || "";
@@ -62,7 +62,7 @@ export async function parseAnkiFile(file, onProgress) {
       ipa,
       meaning,
       example,
-      imageUrl: generatedImageUrl(word),
+      imageUrl: imageUrlForWord(word),
       audioUrl: "",
       needAiImage: true,
       source: "anki",

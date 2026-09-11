@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Check, Volume2, X } from "lucide-react";
 import StudySummary from "./StudySummary";
 import { getPlayableAudio, sanitizeCard } from "../../utils/sanitizeCard";
+import { addDaysKey } from "../../utils/srs";
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
+const uniqueMeanings = (items) => items.filter((item, index, all) => all.findIndex((candidate) => candidate.trim().toLowerCase() === item.trim().toLowerCase()) === index);
 
 export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateCard, onStudyActivity }) {
   const safeCards = useMemo(() => cards.map(sanitizeCard), [cards]);
@@ -12,7 +14,11 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
   const [results, setResults] = useState([]);
   const [startedAt] = useState(Date.now());
   const card = safeCards[index];
-  const options = useMemo(() => card ? shuffle([card.meaning, ...shuffle(safeCards.filter((item) => item.id !== card.id).map((item) => item.meaning)).slice(0, 3)]) : [], [card, safeCards]);
+  const options = useMemo(() => {
+    if (!card) return [];
+    const distractors = uniqueMeanings(safeCards.filter((item) => item.id !== card.id).map((item) => item.meaning)).slice(0, 3);
+    return shuffle(uniqueMeanings([card.meaning, ...distractors]));
+  }, [card, safeCards]);
   const complete = index >= safeCards.length;
 
   const choose = (option) => {
@@ -20,7 +26,8 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
     const correct = option === card.meaning;
     setSelected(option);
     setResults((current) => [...current, { word: card.word, correct }]);
-    onUpdateCard(card.id, { status: correct ? "mastered" : "learning", reviewDate: new Date(Date.now() + (correct ? 7 : 1) * 86400000).toISOString() }).catch(() => {});
+    const interval = correct ? 5 : 1;
+    onUpdateCard(card.id, { status: correct ? "mastered" : "learning", interval, nextReviewDate: addDaysKey(interval), repetition: correct ? Number(card.repetition || 0) + 1 : 0 }).catch(() => {});
     window.setTimeout(async () => {
       if (index + 1 >= safeCards.length) await onStudyActivity?.();
       setIndex((current) => current + 1);

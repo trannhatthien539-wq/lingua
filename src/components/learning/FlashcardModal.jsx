@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Check, Volume2, X, RotateCcw } from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speech";
+import SafeImage from "../ui/SafeImage";
+import { addDaysKey } from "../../utils/srs";
 
-const REVIEW_DAYS = { again: 1, soon: 3, mastered: 7 };
+const REVIEW_DAYS = { again: 1, soon: 3, mastered: 5 };
 
 export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onStudyActivity, streak }) {
   const [queue, setQueue] = useState(() => cards.map((card) => ({ ...card })));
@@ -24,10 +26,14 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
   const rateCard = async (rating) => {
     if (!currentCard) return;
     const nextResults = [...results, rating];
-    const nextReviewDate = new Date(Date.now() + REVIEW_DAYS[rating] * 86400000).toISOString();
+    const interval = REVIEW_DAYS[rating];
+    const nextReviewDate = addDaysKey(interval);
     await onUpdateCard(currentCard.id, {
       status: rating === "mastered" ? "mastered" : "learning",
-      reviewDate: nextReviewDate,
+      interval,
+      nextReviewDate,
+      repetition: rating === "again" ? 0 : Number(currentCard.repetition || 0) + 1,
+      reviewDate: `${nextReviewDate}T00:00:00.000Z`,
     });
     setResults(nextResults);
     setFlipped(false);
@@ -81,10 +87,10 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
         <header className="flex items-center justify-between gap-4"><div><p className="eyebrow">SRS Flashcard · {deck.title}</p><p className="mt-1 text-sm font-bold">Thẻ {Math.min(index + 1, queue.length)}/{queue.length}</p></div><button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-ink/10 dark:border-white/10" aria-label="Thoát học"><X size={19} /></button></header>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10"><div className="h-full rounded-full bg-sage transition-all duration-500" style={{ width: `${progress}%` }} /></div>
         <div className="mt-10 [perspective:1200px]"><div role="button" tabIndex={0} onClick={() => setFlipped((value) => !value)} onKeyDown={(event) => event.key === "Enter" && setFlipped((value) => !value)} className={`relative min-h-[390px] w-full [transform-style:preserve-3d] transition-transform duration-500 ${flipped ? "[transform:rotateY(180deg)]" : ""}`} aria-label="Lật flashcard">
-          <div className="panel absolute inset-0 flex flex-col items-center justify-center p-8 [backface-visibility:hidden]"><p className="eyebrow">Mặt trước</p>{currentCard.imageUrl ? <img src={currentCard.imageUrl} alt={currentCard.word} className="mt-4 max-h-36 max-w-xs rounded-xl object-contain" /> : null}<p className="mt-7 font-display text-5xl font-bold sm:text-7xl">{currentCard.word}</p><button onClick={(event) => { event.stopPropagation(); speak(currentCard.word, `${currentCard.id}-word`); }} className={`mt-8 flex items-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-ink ${speaking === `${currentCard.id}-word` ? "animate-pulse" : ""}`}><Volume2 size={17} />Phát âm</button><p className="mt-8 text-xs text-ink/40 dark:text-white/40">Bấm Space hoặc click để xem nghĩa</p></div>
-          <div className="panel absolute inset-0 flex [transform:rotateY(180deg)] flex-col items-center justify-center p-8 text-center [backface-visibility:hidden]"><p className="eyebrow">Mặt sau</p>{currentCard.imageUrl ? <img src={currentCard.imageUrl} alt={currentCard.word} className="mt-3 max-h-24 max-w-xs rounded-lg object-contain" /> : null}<p className="mt-5 text-lg text-sage">{currentCard.ipa || "Chưa có IPA"}</p><p className="mt-2 font-display text-3xl font-bold">{currentCard.meaning}</p><button onClick={(event) => { event.stopPropagation(); speak(example, `${currentCard.id}-example`); }} className={`mt-7 flex max-w-lg items-start gap-2 rounded-xl bg-ink/[0.06] p-4 text-left text-sm leading-6 dark:bg-white/10 ${speaking === `${currentCard.id}-example` ? "text-sage" : ""}`}><Volume2 size={17} className="mt-1 shrink-0" />{example}</button><p className="mt-5 text-xs text-ink/40 dark:text-white/40">Nhấn số 1, 2 hoặc 3 để đánh giá</p></div>
+          <div className="panel absolute inset-0 flex flex-col items-center justify-center p-8 [backface-visibility:hidden]"><p className="eyebrow">Mặt trước</p><SafeImage src={currentCard.imageUrl} alt={currentCard.word} fallbackWord={currentCard.word} className="mt-4 h-36 w-48 rounded-xl object-contain" /><p className="mt-7 font-display text-5xl font-bold sm:text-7xl">{currentCard.word}</p><button onClick={(event) => { event.stopPropagation(); speak(currentCard.word, `${currentCard.id}-word`); }} className={`mt-8 flex items-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-ink ${speaking === `${currentCard.id}-word` ? "animate-pulse" : ""}`}><Volume2 size={17} />Phát âm</button><p className="mt-8 text-xs text-ink/40 dark:text-white/40">Bấm Space hoặc click để xem nghĩa</p></div>
+          <div className="panel absolute inset-0 flex [transform:rotateY(180deg)] flex-col items-center justify-center p-8 text-center [backface-visibility:hidden]"><p className="eyebrow">Mặt sau</p><SafeImage src={currentCard.imageUrl} alt={currentCard.word} fallbackWord={currentCard.word} className="mt-3 h-24 w-32 rounded-lg object-contain" /><p className="mt-5 text-lg text-sage">{currentCard.ipa || "Chưa có IPA"}</p><p className="mt-2 font-display text-3xl font-bold">{currentCard.meaning}</p><button onClick={(event) => { event.stopPropagation(); speak(example, `${currentCard.id}-example`); }} className={`mt-7 flex max-w-lg items-start gap-2 rounded-xl bg-ink/[0.06] p-4 text-left text-sm leading-6 dark:bg-white/10 ${speaking === `${currentCard.id}-example` ? "text-sage" : ""}`}><Volume2 size={17} className="mt-1 shrink-0" />{example}</button><p className="mt-5 text-xs text-ink/40 dark:text-white/40">Nhấn số 1, 2 hoặc 3 để đánh giá</p></div>
         </div></div>
-        <div className="mt-8 grid gap-3 sm:grid-cols-3"><button disabled={!flipped} onClick={() => rateCard("again")} className="rounded-xl border-2 border-orange-300 bg-orange-50 px-4 py-4 text-left text-sm font-bold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-orange-950/20"><span className="block text-xs opacity-70">1 · Chưa nhớ</span>Học lại ngay</button><button disabled={!flipped} onClick={() => rateCard("soon")} className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-4 text-left text-sm font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-950/20"><span className="block text-xs opacity-70">2 · Nhớ tạm</span>Ôn sau 3 ngày</button><button disabled={!flipped} onClick={() => rateCard("mastered")} className="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-4 text-left text-sm font-bold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-950/20"><span className="block text-xs opacity-70">3 · Đã thuộc</span>Ôn sau 7 ngày</button></div>
+        <div className="mt-8 grid gap-3 sm:grid-cols-3"><button disabled={!flipped} onClick={() => rateCard("again")} className="rounded-xl border-2 border-orange-300 bg-orange-50 px-4 py-4 text-left text-sm font-bold text-orange-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-orange-950/20"><span className="block text-xs opacity-70">1 · Chưa nhớ</span>Ôn lại ngày mai</button><button disabled={!flipped} onClick={() => rateCard("soon")} className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-4 text-left text-sm font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-amber-950/20"><span className="block text-xs opacity-70">2 · Nhớ vừa</span>Ôn sau 3 ngày</button><button disabled={!flipped} onClick={() => rateCard("mastered")} className="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-4 text-left text-sm font-bold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-950/20"><span className="block text-xs opacity-70">3 · Đã thuộc</span>Ôn sau 5 ngày</button></div>
         <p className="mt-5 flex items-center justify-center gap-2 text-xs text-ink/40 dark:text-white/40"><RotateCcw size={13} /> Thẻ chưa nhớ sẽ quay lại cuối hàng đợi</p>
       </div>
     </div>

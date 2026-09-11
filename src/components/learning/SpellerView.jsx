@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Headphones, Volume2, X } from "lucide-react";
 import StudySummary from "./StudySummary";
 import { getPlayableAudio, sanitizeCard } from "../../utils/sanitizeCard";
+import { addDaysKey } from "../../utils/srs";
 
 const mismatch = (actual, expected) => { const first = Math.max([...expected].findIndex((letter, index) => actual[index]?.toLowerCase() !== letter.toLowerCase()), 0); return `${actual.slice(0, first)}${actual[first] || "_"} → ${expected[first] || ""}`; };
 
@@ -22,7 +23,7 @@ export default function SpellerView({ deck, cards, onClose, onChangeMode, onUpda
     const correct = value.trim().toLowerCase() === card.word.toLowerCase();
     if (!correct) { setFeedback(`Chưa đúng: ${mismatch(value.trim(), card.word)}. Hãy gõ lại.`); return; }
     setFeedback(""); setResults((current) => [...current, { word: card.word, correct: true }]);
-    await onUpdateCard(card.id, { status: "mastered", reviewDate: new Date(Date.now() + 7 * 86400000).toISOString() });
+    await onUpdateCard(card.id, { status: "mastered", interval: 5, nextReviewDate: addDaysKey(5), repetition: Number(card.repetition || 0) + 1 });
     if (index + 1 >= safeCards.length) await onStudyActivity?.();
     setIndex((current) => current + 1); setValue("");
   };

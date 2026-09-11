@@ -1,4 +1,5 @@
 import { speakText } from "./speech";
+import { imageUrlForWord } from "./srs";
 
 export function cleanText(htmlString = "") {
   const withoutMedia = String(htmlString)
@@ -18,7 +19,7 @@ export function sanitizeCard(card = {}) {
     meaning: cleanText(card.meaning || "Chưa có nghĩa") || "Chưa có nghĩa",
     example: cleanText(card.example || ""),
     audioUrl: card.audioUrl || "",
-    imageUrl: card.imageUrl || "",
+    imageUrl: card.imageUrl || imageUrlForWord(card.word || "word"),
   };
 }
 

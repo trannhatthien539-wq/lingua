@@ -17,7 +17,7 @@ import {
   FileUp,
 } from "lucide-react";
 import confetti from "canvas-confetti";
-import { parseAiJson, requestAi } from "../../services/aiService";
+import { parseAiJson, requestAi, withGeneratedCardImages } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
 import FlashcardModal from "../../components/learning/FlashcardModal";
@@ -28,6 +28,8 @@ import QuizView from "../../components/learning/QuizView";
 import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
+import SafeImage from "../../components/ui/SafeImage";
+import { dateKey, imageUrlForWord } from "../../utils/srs";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -65,6 +67,10 @@ function readLibrary() {
       level: "B1",
       status: "new",
       reviewDate: null,
+      interval: 0,
+      nextReviewDate: null,
+      repetition: 0,
+      imageUrl: imageUrlForWord(item.word || "word"),
     }));
     return library;
   } catch {
@@ -514,6 +520,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [error, setError] = useState("");
   const [studyDeckId, setStudyDeckId] = useState(null);
   const [studyMode, setStudyMode] = useState(null);
+  const [studyCards, setStudyCards] = useState(null);
+  const [singleCardId, setSingleCardId] = useState(null);
+  const [activeFilter, setActiveFilter] = useState("all");
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [speakingWord, setSpeakingWord] = useState("");
   const [dataModal, setDataModal] = useState(null);
@@ -527,6 +536,18 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     () => library.cards.filter((card) => card.deckId === selectedDeck?.id),
     [library.cards, selectedDeck?.id],
   );
+  const today = dateKey();
+  const dueCards = useMemo(() => deckCards.filter((card) => {
+    const reviewDate = (card.nextReviewDate || card.reviewDate || "").slice(0, 10);
+    return card.status === "new" || Boolean(reviewDate && reviewDate <= today);
+  }), [deckCards, today]);
+  const filteredCards = useMemo(() => {
+    if (activeFilter === "due") return dueCards;
+    if (activeFilter === "mastered") return deckCards.filter((card) => card.status === "mastered");
+    if (activeFilter === "interval-3") return deckCards.filter((card) => Number(card.interval) === 3);
+    if (activeFilter === "interval-5") return deckCards.filter((card) => Number(card.interval) === 5);
+    return deckCards;
+  }, [activeFilter, deckCards, dueCards]);
 
   useEffect(() => {
     let active = true;
@@ -606,7 +627,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const addCards = async (items) => {
-    const cards = items
+    const cards = withGeneratedCardImages(items)
       .map((item) => ({
         id: makeId("card"),
         deckId: selectedDeck.id,
@@ -617,6 +638,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         level: item.level || level,
         status: "new",
         reviewDate: null,
+        interval: 0,
+        nextReviewDate: null,
+        repetition: 0,
+        imageUrl: item.imageUrl || imageUrlForWord(item.word || "word"),
       }))
       .filter((card) => card.word);
     const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
@@ -625,7 +650,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   const importDeck = async (title, items) => {
     const deck = await dataService.createDeck(title);
-    const importedCards = items.map((item) => ({ ...item, deckId: deck.id }));
+    const importedCards = items.map((item) => ({ ...item, deckId: deck.id, imageUrl: item.imageUrl || imageUrlForWord(item.word || "word") }));
     const savedCards = await Promise.all(importedCards.map((card) => dataService.addCard(card)));
     const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
     updateLibrary({ decks: [...library.decks, normalizedDeck], cards: [...savedCards, ...library.cards] });
@@ -696,19 +721,30 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     speakText(word, { onEnd: () => setSpeakingWord("") });
   };
 
+  const openStudy = (cards) => {
+    setStudyCards(cards);
+    setStudyDeckId(selectedDeck.id);
+    setStudyMode(null);
+  };
+
   if (libraryLoading) {
     return <div className="panel grid min-h-64 place-items-center p-8"><LoaderCircle className="animate-spin text-sage" size={24} /><p className="mt-3 text-sm text-ink/50 dark:text-white/50">Đang đồng bộ thư viện từ vựng...</p></div>;
+  }
+
+  if (singleCardId) {
+    const singleCard = deckCards.find((card) => card.id === singleCardId);
+    if (singleCard) return <FlashcardModal deck={selectedDeck} cards={[singleCard]} onClose={() => setSingleCardId(null)} onUpdateCard={updateCard} onStudyActivity={onStudyActivity} streak={streak} />;
   }
 
   if (studyDeckId) {
     const practiceDeck = library.decks.find(
       (deck) => deck.id === studyDeckId,
     );
-    const practiceCards = library.cards.filter(
+    const practiceCards = studyCards || library.cards.filter(
       (card) => card.deckId === studyDeckId,
     );
     if (practiceDeck) {
-      const closeStudy = () => { setStudyDeckId(null); setStudyMode(null); };
+      const closeStudy = () => { setStudyDeckId(null); setStudyMode(null); setStudyCards(null); };
       const chooseMode = (mode) => setStudyMode(mode);
       if (!studyMode) return <StudyHubModal deck={practiceDeck} cards={practiceCards.map(sanitizeCard)} onSelect={chooseMode} onClose={closeStudy} />;
       const sharedProps = { deck: practiceDeck, cards: practiceCards, onClose: closeStudy, onChangeMode: () => setStudyMode(null), onUpdateCard: updateCard, onStudyActivity };
@@ -818,12 +854,20 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 {deckCards.length} từ trong bộ
               </span>
               <button
-                onClick={() => { setStudyDeckId(selectedDeck.id); setStudyMode(null); }}
+                onClick={() => openStudy(deckCards)}
                 disabled={!deckCards.length}
                 className="flex items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-lime dark:text-ink"
               >
                 <Sparkles size={15} />
                 Bắt đầu học bộ này
+              </button>
+              <button
+                onClick={() => openStudy(dueCards)}
+                disabled={!dueCards.length}
+                className="flex items-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-2.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.1]"
+              >
+                <Check size={15} />
+                Ôn đến hạn ({dueCards.length})
               </button>
             </div>
           </div>
@@ -901,9 +945,20 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           )}
           <section className="panel overflow-hidden">
             <div className="border-b border-ink/[0.08] px-5 py-4 dark:border-white/[0.08]">
-              <p className="font-display font-bold">Từ trong bộ</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="font-display font-bold">Từ trong bộ</p>
+                <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]">
+                  {[
+                    ["all", `Tất cả (${deckCards.length})`],
+                    ["due", `Cần ôn hôm nay (${dueCards.length})`],
+                    ["interval-3", `Sau 3 ngày (${deckCards.filter((card) => Number(card.interval) === 3).length})`],
+                    ["interval-5", `Sau 5 ngày (${deckCards.filter((card) => Number(card.interval) === 5).length})`],
+                    ["mastered", `Đã thuộc (${deckCards.filter((card) => card.status === "mastered").length})`],
+                  ].map(([value, label]) => <button key={value} onClick={() => setActiveFilter(value)} className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-bold ${activeFilter === value ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>{label}</button>)}
+                </div>
+              </div>
             </div>
-            {deckCards.length === 0 ? (
+            {filteredCards.length === 0 ? (
               <div className="p-10 text-center">
                 <BookOpen
                   className="mx-auto text-ink/25 dark:text-white/25"
@@ -916,7 +971,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             ) : (
               <div className="divide-y divide-ink/[0.07] dark:divide-white/[0.07]">
-                {deckCards.map((card) => (
+                {filteredCards.map((card) => (
                   <article
                     key={card.id}
                     className="flex flex-wrap items-center gap-3 px-5 py-4"
@@ -928,9 +983,17 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                     >
                       <Volume2 size={16} />
                     </button>
+                    <button
+                      onClick={() => setSingleCardId(card.id)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-lime text-ink hover:bg-sage"
+                      aria-label={`Học từ ${card.word}`}
+                      title="Học từ này"
+                    >
+                      <BookOpen size={16} />
+                    </button>
                     <div className="min-w-[160px] flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        {card.imageUrl && <img src={card.imageUrl} alt="" className="h-8 w-8 rounded-md object-cover" />}
+                        <SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="h-8 w-8 rounded-md object-cover" />
                         <p className="font-display font-bold">{card.word}</p>
                         <span className="text-xs text-sage">{card.ipa}</span>
                         <StatusBadge status={card.status} />
@@ -959,7 +1022,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                       className="rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs outline-none dark:border-white/[0.1]"
                     >
                       {Object.entries(statuses).map(([value, label]) => (
-                        <option key={value} value={status}>
+                        <option key={value} value={value}>
                           {label}
                         </option>
                       ))}
