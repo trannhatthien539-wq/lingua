@@ -13,6 +13,8 @@ import {
   Volume2,
   X,
   XCircle,
+  Download,
+  FileUp,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { parseAiJson, requestAi } from "../../services/aiService";
@@ -20,6 +22,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
 import FlashcardModal from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
+import ImportExportModal from "../../components/learning/ImportExportModal";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -507,6 +510,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [practiceDeckId, setPracticeDeckId] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [speakingWord, setSpeakingWord] = useState("");
+  const [dataModal, setDataModal] = useState(null);
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
 
@@ -611,6 +615,16 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     updateLibrary({ cards: [...savedCards, ...library.cards] });
   };
 
+  const importDeck = async (title, items) => {
+    const deck = await dataService.createDeck(title);
+    const importedCards = items.map((item) => ({ ...item, deckId: deck.id }));
+    const savedCards = await Promise.all(importedCards.map((card) => dataService.addCard(card)));
+    const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
+    updateLibrary({ decks: [...library.decks, normalizedDeck], cards: [...savedCards, ...library.cards] });
+    setSelectedDeckId(normalizedDeck.id);
+    setDataModal(null);
+  };
+
   const lookupWord = async () => {
     if (!debouncedManualWord.trim()) return;
     if (!apiKey)
@@ -698,7 +712,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           <div className="flex items-center justify-between">
             <div>
               <p className="eyebrow">Library</p>
-              <h2 className="mt-1 font-display font-bold">Bộ chủ đề</h2>
+              <div className="flex items-center gap-2"><h2 className="mt-1 font-display font-bold">Bộ chủ đề</h2><button onClick={() => setDataModal("export")} className="grid h-7 w-7 place-items-center rounded-lg text-ink/45 hover:bg-ink/5 hover:text-ink dark:text-white/45 dark:hover:bg-white/10" aria-label="Xuất dữ liệu" title="Xuất dữ liệu"><Download size={14} /></button><button onClick={() => setDataModal("import")} className="grid h-7 w-7 place-items-center rounded-lg text-ink/45 hover:bg-ink/5 hover:text-ink dark:text-white/45 dark:hover:bg-white/10" aria-label="Nhập dữ liệu" title="Nhập dữ liệu"><FileUp size={14} /></button></div>
             </div>
             <span className="text-xs text-ink/40 dark:text-white/40">
               {library.decks.length} bộ
@@ -949,6 +963,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           </section>
         </main>
       </div>
+      {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
     </div>
   );
 }

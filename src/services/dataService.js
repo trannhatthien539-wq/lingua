@@ -65,6 +65,9 @@ const normalizeCard = (card) => ({
   level: card.level || "B1",
   status: card.status || "new",
   reviewDate: card.reviewDate || card.review_date || null,
+    imageUrl: card.imageUrl || card.image_url || "",
+    audioUrl: card.audioUrl || card.audio_url || "",
+    needAiImage: Boolean(card.needAiImage),
 });
 
 const withUserId = (data) => ({ ...data, userId: currentUser().uid });
@@ -148,6 +151,9 @@ const dataMethods = {
       level: normalized.level,
       status: normalized.status,
       reviewDate: normalized.reviewDate,
+        imageUrl: normalized.imageUrl,
+        audioUrl: normalized.audioUrl,
+        needAiImage: normalized.needAiImage,
     }));
     return { ...normalized, id: created.id };
   },
