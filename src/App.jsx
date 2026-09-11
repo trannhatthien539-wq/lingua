@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import AuthModal from './components/AuthModal'
-import { auth } from './services/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { auth, authPersistence } from './services/firebase'
+import { getRedirectResult, onAuthStateChanged } from 'firebase/auth'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -31,6 +31,7 @@ export default function App() {
   useEffect(() => {
     let active = true
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => { if (active) { setUser(currentUser); setAuthLoading(false) } })
+    authPersistence.then(() => getRedirectResult(auth)).then((result) => { if (active && result?.user) setUser(result.user) }).catch(() => {})
     return () => { active = false; unsubscribe() }
   }, [])
 
