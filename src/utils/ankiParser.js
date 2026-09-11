@@ -1,7 +1,6 @@
 import JSZip from "jszip";
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
-import { imageUrlForWord } from "./srs";
 
 const FIELD_SEPARATOR = "\x1f";
 let sqlPromise;
@@ -62,7 +61,7 @@ export async function parseAnkiFile(file, onProgress) {
       ipa,
       meaning,
       example,
-      imageUrl: imageUrlForWord(word),
+      imageUrl: "",
       audioUrl: "",
       needAiImage: true,
       source: "anki",

@@ -12,4 +12,3 @@ export const addDaysKey = (days, from = new Date()) => {
   return dateKey(value);
 };
 
-export const imageUrlForWord = (word = "word") => `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(word)}`;

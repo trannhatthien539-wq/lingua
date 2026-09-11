@@ -1,11 +1,6 @@
 const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-export const withGeneratedCardImages = (items = []) => items.map((item) => ({
-  ...item,
-  imageUrl: item.imageUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(item.word || "word")}`,
-}));
-
 const httpErrorMessages = {
   400: "API Key không hợp lệ hoặc model không đúng.",
   403: "API Key không có quyền dùng dịch vụ AI này.",
