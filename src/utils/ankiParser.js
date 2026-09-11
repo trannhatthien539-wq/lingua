@@ -14,23 +14,24 @@ const stripHtml = (value = "") => {
 
 const firstMeaningfulField = (fields, index, fallback = "") => stripHtml(fields[index] || fallback).replace(/\s+/g, " ").trim();
 
-const parseMediaManifest = async (zip) => {
-  const mediaFile = zip.file("media");
-  if (!mediaFile) return {};
-  try {
-    const raw = await mediaFile.async("string");
-    return JSON.parse(raw) || {};
-  } catch {
-    return {};
-  }
-};
-
-const mediaLookup = (media, filename = "") => {
-  const cleanName = decodeURIComponent(filename).replace(/^\.\//, "");
-  return media[filename] || media[cleanName] || media[cleanName.split("/").pop()];
-};
-
 const findZipFile = (zip, name) => zip.file(name) || zip.file(new RegExp(`(^|/)${name}$`, "i"))[0];
+
+const isCodeField = (value) => /^[A-Z0-9]+(?:[_-][A-Z0-9]+)+$/i.test(value) || /^\d+[A-Z0-9_]+$/i.test(value);
+const isIpaField = (value) => /^\s*\/[^/]+\/\s*$/.test(value) || /\[[a-zəɪɔːʌɒθðŋɜː]+\]/i.test(value);
+const isAudioField = (value) => /\[sound:[^\]]+\]/i.test(value) || /\.(mp3|wav|ogg|m4a)(\s|$)/i.test(value);
+const isSingleWord = (value) => /^[A-Za-z][A-Za-z'’-]{1,30}$/.test(value) && !isCodeField(value);
+const generatedImageUrl = (word) => `https://image.pollinations.ai/prompt/${encodeURIComponent(`${word} minimalist illustration`)}?width=400&height=300&nologo=true`;
+
+const classifyFields = (rawFields, sortField) => {
+  const fields = rawFields.map((field) => stripHtml(field).replace(/\s+/g, " ").trim()).filter(Boolean);
+  const usable = fields.filter((field) => !isCodeField(field) && !isAudioField(field));
+  const ipa = usable.find(isIpaField) || "";
+  const word = usable.find(isSingleWord) || stripHtml(sortField || "").split(/\s+/)[0] || usable[0] || "Từ chưa có tên";
+  const remaining = usable.filter((field) => field !== word && field !== ipa);
+  const meaning = remaining.find((field) => /[À-ỹ]/.test(field)) || remaining[0] || "Chưa có nghĩa";
+  const example = remaining.find((field) => field !== meaning && field.length > 25) || "";
+  return { word, ipa, meaning, example };
+};
 
 async function getSqlModule() {
   if (!sqlPromise) {
@@ -43,24 +44,7 @@ export async function parseAnkiFile(file, onProgress) {
   if (!file?.name?.toLowerCase().endsWith(".apkg")) throw new Error("Vui lòng chọn file Anki .apkg.");
   report(onProgress, 5, "Đang đọc file Anki...");
   const zip = await JSZip.loadAsync(file);
-  const manifest = await parseMediaManifest(zip);
-  const mediaEntries = Object.entries(manifest);
-  const media = {};
-  let processedMedia = 0;
-  for (const [archiveName, originalName] of mediaEntries) {
-    const entry = zip.file(archiveName);
-    if (entry) {
-      const blob = await entry.async("blob");
-      media[originalName] = {
-        name: originalName,
-        type: blob.type || "application/octet-stream",
-        url: URL.createObjectURL(blob),
-        size: blob.size,
-      };
-    }
-    processedMedia += 1;
-    report(onProgress, 10 + Math.round((processedMedia / Math.max(mediaEntries.length, 1)) * 25), `Đang trích xuất media ${processedMedia}/${mediaEntries.length}...`);
-  }
+  report(onProgress, 20, "Đã đọc gói Anki, bỏ qua media để tối ưu bộ nhớ...");
 
   const collectionEntry = findZipFile(zip, "collection.anki21") || findZipFile(zip, "collection.anki2");
   if (!collectionEntry) throw new Error("Không tìm thấy collection.anki2 hoặc collection.anki21 trong file Anki.");
@@ -71,24 +55,16 @@ export async function parseAnkiFile(file, onProgress) {
   const rows = db.exec("SELECT flds, sfld FROM notes")[0]?.values || [];
   const cards = rows.map(([flds, sortField], index) => {
     const fields = String(flds || "").split(FIELD_SEPARATOR);
-    const frontHtml = fields[0] || String(sortField || "");
-    const backHtml = fields[1] || fields[0] || "";
-    const imageMatch = frontHtml.match(/<img[^>]+src=["']?([^"' >]+)/i) || backHtml.match(/<img[^>]+src=["']?([^"' >]+)/i);
-    const soundMatch = `${frontHtml} ${backHtml}`.match(/\[sound:([^\]]+)\]/i);
-    const word = firstMeaningfulField(fields, 0, sortField);
-    const meaning = firstMeaningfulField(fields, 1, "Chưa có nghĩa");
-    const example = firstMeaningfulField(fields, 2, "");
-    const image = imageMatch ? mediaLookup(media, imageMatch[1]) : null;
-    const audio = soundMatch ? mediaLookup(media, soundMatch[1]) : null;
+    const { word, ipa, meaning, example } = classifyFields(fields, sortField);
     return {
       id: `anki-${Date.now()}-${index}`,
       word,
-      ipa: "",
+      ipa,
       meaning,
       example,
-      imageUrl: image?.url || "",
-      audioUrl: audio?.url || "",
-      needAiImage: !image,
+      imageUrl: generatedImageUrl(word),
+      audioUrl: "",
+      needAiImage: true,
       source: "anki",
       level: "B1",
       status: "new",
@@ -100,9 +76,9 @@ export async function parseAnkiFile(file, onProgress) {
   return {
     title: file.name.replace(/\.apkg$/i, ""),
     cards,
-    media,
-    mediaCount: Object.keys(media).length,
-    imageCount: Object.values(media).filter((item) => item.type.startsWith("image/")).length,
-    audioCount: Object.values(media).filter((item) => item.type.startsWith("audio/")).length,
+    media: {},
+    mediaCount: 0,
+    imageCount: 0,
+    audioCount: 0,
   };
 }
