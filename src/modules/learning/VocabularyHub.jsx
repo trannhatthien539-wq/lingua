@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { parseAiJson, requestAi } from "../../services/aiClient";
+import { dataService } from "../../services/dataService";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -516,7 +517,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
 }
 
 export default function VocabularyHub() {
-  const [library, setLibrary] = useState(readLibrary);
+  const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
   const [manualWord, setManualWord] = useState("");
@@ -526,6 +527,7 @@ export default function VocabularyHub() {
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
   const [practiceDeckId, setPracticeDeckId] = useState(null);
+  const [libraryLoading, setLibraryLoading] = useState(true);
 
   const selectedDeck =
     library.decks.find((deck) => deck.id === selectedDeckId) ||
@@ -535,10 +537,26 @@ export default function VocabularyHub() {
     [library.cards, selectedDeck?.id],
   );
 
-  useEffect(
-    () => localStorage.setItem(STORAGE_KEY, JSON.stringify(library)),
-    [library],
-  );
+  useEffect(() => {
+    let active = true;
+    const loadLibrary = async () => {
+      try {
+        let decks = await dataService.getDecks();
+        if (!decks.length) {
+          const created = await dataService.createDeck("IELTS Speaking Part 1");
+          decks = [{ ...created, tags: created.tags || ["IELTS", "Speaking"], createdAt: created.createdAt || created.created_at }];
+        }
+        const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
+        if (active) setLibrary({ decks, cards: cardsByDeck.flat() });
+      } catch (loadError) {
+        if (active) setError(loadError.message || "Không thể tải thư viện từ vựng.");
+      } finally {
+        if (active) setLibraryLoading(false);
+      }
+    };
+    loadLibrary();
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (!selectedDeck && library.decks[0])
       setSelectedDeckId(library.decks[0].id);
@@ -559,34 +577,28 @@ export default function VocabularyHub() {
 
   const updateLibrary = (changes) =>
     setLibrary((current) => ({ ...current, ...changes }));
-  const addDeck = (event) => {
+  const addDeck = async (event) => {
     event.preventDefault();
     const title = deckInput.trim();
     if (!title) return;
-    const deck = {
-      id: makeId("deck"),
-      title,
-      tags: [],
-      createdAt: new Date().toISOString(),
-    };
-    updateLibrary({ decks: [...library.decks, deck] });
-    setSelectedDeckId(deck.id);
+    const deck = await dataService.createDeck(title);
+    const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || deck.created_at };
+    updateLibrary({ decks: [...library.decks, normalizedDeck] });
+    setSelectedDeckId(normalizedDeck.id);
     setDeckInput("");
   };
-  const renameDeck = (deck) => {
+  const renameDeck = async (deck) => {
     const title = window.prompt("Tên mới của bộ thẻ:", deck.title)?.trim();
-    if (title)
-      updateLibrary({
-        decks: library.decks.map((item) =>
-          item.id === deck.id ? { ...item, title } : item,
-        ),
-      });
+    if (!title) return;
+    await dataService.updateDeck(deck.id, title);
+    updateLibrary({ decks: library.decks.map((item) => item.id === deck.id ? { ...item, title } : item) });
   };
-  const deleteDeck = (deck) => {
+  const deleteDeck = async (deck) => {
     if (library.decks.length === 1)
       return setError("Cần giữ lại ít nhất một bộ từ vựng.");
     if (!window.confirm(`Xóa bộ “${deck.title}” và toàn bộ từ trong bộ?`))
       return;
+    await dataService.deleteDeck(deck.id);
     const nextDecks = library.decks.filter((item) => item.id !== deck.id);
     updateLibrary({
       decks: nextDecks,
@@ -595,7 +607,7 @@ export default function VocabularyHub() {
     setSelectedDeckId(nextDecks[0].id);
   };
 
-  const addCards = (items) => {
+  const addCards = async (items) => {
     const cards = items
       .map((item) => ({
         id: makeId("card"),
@@ -609,7 +621,8 @@ export default function VocabularyHub() {
         reviewDate: null,
       }))
       .filter((card) => card.word);
-    updateLibrary({ cards: [...cards, ...library.cards] });
+    const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
+    updateLibrary({ cards: [...savedCards, ...library.cards] });
   };
 
   const lookupWord = async () => {
@@ -630,7 +643,7 @@ export default function VocabularyHub() {
           { json: true },
         ),
       );
-      addCards([{ ...result, word: manualWord }]);
+      await addCards([{ ...result, word: manualWord }]);
       setManualWord("");
     } catch (requestError) {
       setError(requestError.message);
@@ -656,7 +669,7 @@ export default function VocabularyHub() {
           { json: true },
         ),
       );
-      addCards(result.cards || []);
+      await addCards(result.cards || []);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -664,16 +677,14 @@ export default function VocabularyHub() {
     }
   };
 
-  const updateCard = (cardId, changes) =>
-    updateLibrary({
-      cards: library.cards.map((card) =>
-        card.id === cardId ? { ...card, ...changes } : card,
-      ),
-    });
-  const removeCard = (cardId) =>
-    updateLibrary({
-      cards: library.cards.filter((card) => card.id !== cardId),
-    });
+  const updateCard = async (cardId, changes) => {
+    await dataService.updateCard(cardId, changes);
+    updateLibrary({ cards: library.cards.map((card) => card.id === cardId ? { ...card, ...changes } : card) });
+  };
+  const removeCard = async (cardId) => {
+    await dataService.deleteCard(cardId);
+    updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
+  };
   const speak = (word) => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -682,6 +693,10 @@ export default function VocabularyHub() {
       window.speechSynthesis.speak(utterance);
     }
   };
+
+  if (libraryLoading) {
+    return <div className="panel grid min-h-64 place-items-center p-8"><LoaderCircle className="animate-spin text-sage" size={24} /><p className="mt-3 text-sm text-ink/50 dark:text-white/50">Đang đồng bộ thư viện từ vựng...</p></div>;
+  }
 
   if (practiceDeckId) {
     const practiceDeck = library.decks.find(

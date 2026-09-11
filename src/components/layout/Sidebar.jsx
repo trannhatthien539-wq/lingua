@@ -1,7 +1,8 @@
-import { Moon, Sun, Sparkles } from 'lucide-react'
+import { LogIn, LogOut, Moon, Sun, Sparkles } from 'lucide-react'
+import { supabase } from '../../services/supabaseClient'
 import { navigationItems } from '../../data/navigation'
 
-export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme }) {
+export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, user, onOpenAuth }) {
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-ink/[0.08] bg-white px-4 py-4 dark:border-white/[0.08] dark:bg-[#1b211f] lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
       <div className="flex items-center justify-between lg:block">
@@ -23,7 +24,7 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme }
         })}
       </nav>
       <div className="mt-auto hidden rounded-2xl bg-lime p-4 lg:block"><p className="text-xs font-bold uppercase tracking-[0.14em] text-ink/55">Streak hiện tại</p><p className="mt-2 font-display text-3xl font-bold">12 ngày</p><p className="mt-1 text-xs text-ink/60">Giữ nhịp học mỗi ngày.</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-ink/10"><div className="h-full w-[78%] rounded-full bg-ink" /></div></div>
-      <div className="mt-5 hidden items-center gap-3 border-t border-ink/[0.08] pt-5 lg:flex dark:border-white/[0.08]"><div className="grid h-8 w-8 place-items-center rounded-full bg-[#f2b880] text-xs font-bold">AT</div><div className="min-w-0"><p className="truncate text-xs font-bold">Alex Tran</p><p className="text-[11px] text-ink/40 dark:text-white/40">Bản cá nhân</p></div></div>
+      <div className="mt-5 hidden border-t border-ink/[0.08] pt-5 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f2b880] text-xs font-bold">{(user.email || '?').slice(0, 1).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{user.email}</p><button onClick={() => supabase.auth.signOut()} className="mt-1 flex items-center gap-1 text-[11px] text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white"><LogOut size={12} />Đăng xuất</button></div></div> : <div><p className="mb-2 text-[11px] leading-4 text-ink/45 dark:text-white/45">Đăng nhập để đồng bộ dữ liệu đám mây</p><button onClick={onOpenAuth} className="flex w-full items-center gap-2 rounded-xl bg-ink px-3 py-3 text-left text-xs font-bold text-white dark:bg-lime dark:text-ink"><LogIn size={15} />Đăng nhập / Đăng ký</button></div>}</div>
     </aside>
   )
 }
