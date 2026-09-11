@@ -500,7 +500,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
   );
 }
 
-export default function VocabularyHub({ onStudyActivity, streak, apiKey }) {
+export default function VocabularyHub({ onStudyActivity, streak, apiKey, user }) {
   const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
