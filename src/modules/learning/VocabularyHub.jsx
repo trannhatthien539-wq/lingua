@@ -525,6 +525,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey }) {
 
   useEffect(() => {
     let active = true;
+    setLibrary({ decks: [], cards: [] });
+    setSelectedDeckId(null);
+    setPracticeDeckId(null);
+    setError("");
+    setLibraryLoading(true);
     const loadLibrary = async () => {
       try {
         let decks = await dataService.getDecks();
@@ -542,7 +547,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey }) {
     };
     loadLibrary();
     return () => { active = false; };
-  }, []);
+  }, [user?.uid]);
   useEffect(() => {
     if (!selectedDeck && library.decks[0])
       setSelectedDeckId(library.decks[0].id);

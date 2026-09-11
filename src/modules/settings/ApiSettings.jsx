@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Check, CheckCircle2, KeyRound, Link2, Save } from 'lucide-react'
-import { getApiKeyStorageKey, PROVIDER_STORAGE } from '../../services/apiKeyStorage'
+import { getApiKeyStorageKey, PROVIDER_STORAGE, readApiKeyForUser } from '../../services/apiKeyStorage'
 
 export default function ApiSettings({ user, apiKey, setApiKey }) {
   const [provider, setProvider] = useState(() => localStorage.getItem(PROVIDER_STORAGE) || 'gemini')
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    setApiKey(user ? localStorage.getItem(getApiKeyStorageKey(user)) || '' : '')
+    setApiKey(readApiKeyForUser(user))
     setSaved(false)
   }, [user, setApiKey])
 

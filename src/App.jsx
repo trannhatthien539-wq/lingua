@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
-import { getApiKeyStorageKey, readApiKey } from './services/apiKeyStorage'
+import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
@@ -34,7 +34,7 @@ export default function App() {
   useEffect(() => {
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser)
-      setApiKey(readApiKey(nextUser))
+      setApiKey(readApiKeyForUser(nextUser))
       if (nextUser) {
         setActiveTab('vocabulary')
         setShowAuthPage(false)
@@ -48,10 +48,7 @@ export default function App() {
   const recordStudyActivity = () =>
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
   const handleSignOut = async () => {
-    const currentUser = auth.currentUser
     setApiKey('')
-    if (currentUser) localStorage.removeItem(getApiKeyStorageKey(currentUser))
-    localStorage.removeItem(getApiKeyStorageKey(null))
     localStorage.removeItem('lingua-ai-api-key')
     await signOut(auth)
     setShowAuthPage(true)
