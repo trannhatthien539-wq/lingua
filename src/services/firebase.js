@@ -1,20 +1,30 @@
-import { getApp, getApps, initializeApp } from 'firebase/app'
-import { getAnalytics, isSupported } from 'firebase/analytics'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeApp } from "firebase/app";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged 
+} from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDbfWmStltXb9l8YC5ySE7jtffoqU1J3hBY',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'lingua-49fc1.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'lingua-49fc1',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'lingua-49fc1.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '138926081617',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:138926081617:web:4d64b990f6dfc6c9e41a70',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-JG9KNJ4Y4Y',
-}
+  apiKey: "AIzaSyDbfWmStltxB9l8YC5ySE7jtffqU1J3hBY",
+  authDomain: "lingua-49fc1.firebaseapp.com",
+  projectId: "lingua-49fc1",
+  storageBucket: "lingua-49fc1.firebasestorage.app",
+  messagingSenderId: "138926081617",
+  appId: "1:138926081617:web:4d64b990f6dfc6c9e41a70",
+  measurementId: "G-JG9KNJ4Y4Y"
+};
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export const analyticsPromise = isSupported().then((supported) => supported ? getAnalytics(app) : null).catch(() => null)
-export default app
+// Khởi tạo app
+const app = initializeApp(firebaseConfig);
+
+// Khởi tạo các dịch vụ
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+export const db = getFirestore(app);
+
+// Export các hàm tiện ích
+export { signInWithPopup, signOut, onAuthStateChanged };
