@@ -23,6 +23,11 @@ import { dataService } from "../../services/dataService";
 import FlashcardModal from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
 import ImportExportModal from "../../components/learning/ImportExportModal";
+import StudyHubModal from "../../components/learning/StudyHubModal";
+import QuizView from "../../components/learning/QuizView";
+import SpellerView from "../../components/learning/SpellerView";
+import MatchingView from "../../components/learning/MatchingView";
+import { sanitizeCard } from "../../utils/sanitizeCard";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -507,7 +512,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [amount, setAmount] = useState("5");
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
-  const [practiceDeckId, setPracticeDeckId] = useState(null);
+  const [studyDeckId, setStudyDeckId] = useState(null);
+  const [studyMode, setStudyMode] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [speakingWord, setSpeakingWord] = useState("");
   const [dataModal, setDataModal] = useState(null);
@@ -526,7 +532,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     let active = true;
     setLibrary({ decks: [], cards: [] });
     setSelectedDeckId(null);
-    setPracticeDeckId(null);
+    setStudyDeckId(null);
+    setStudyMode(null);
     setError("");
     setLibraryLoading(true);
     const loadLibrary = async () => {
@@ -559,7 +566,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     );
     if (matchingDeck && library.cards.some((card) => card.deckId === matchingDeck.id)) {
       setSelectedDeckId(matchingDeck.id);
-      setPracticeDeckId(matchingDeck.id);
+      setStudyDeckId(matchingDeck.id);
+      setStudyMode("flashcard");
     }
     localStorage.removeItem("lingua-practice-topic");
     return undefined;
@@ -692,17 +700,23 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     return <div className="panel grid min-h-64 place-items-center p-8"><LoaderCircle className="animate-spin text-sage" size={24} /><p className="mt-3 text-sm text-ink/50 dark:text-white/50">Đang đồng bộ thư viện từ vựng...</p></div>;
   }
 
-  if (practiceDeckId) {
+  if (studyDeckId) {
     const practiceDeck = library.decks.find(
-      (deck) => deck.id === practiceDeckId,
+      (deck) => deck.id === studyDeckId,
     );
     const practiceCards = library.cards.filter(
-      (card) => card.deckId === practiceDeckId,
+      (card) => card.deckId === studyDeckId,
     );
-    if (practiceDeck)
-      return (
-        <FlashcardModal deck={practiceDeck} cards={practiceCards} onClose={() => setPracticeDeckId(null)} onUpdateCard={updateCard} onStudyActivity={onStudyActivity} streak={streak} />
-      );
+    if (practiceDeck) {
+      const closeStudy = () => { setStudyDeckId(null); setStudyMode(null); };
+      const chooseMode = (mode) => setStudyMode(mode);
+      if (!studyMode) return <StudyHubModal deck={practiceDeck} cards={practiceCards.map(sanitizeCard)} onSelect={chooseMode} onClose={closeStudy} />;
+      const sharedProps = { deck: practiceDeck, cards: practiceCards, onClose: closeStudy, onChangeMode: () => setStudyMode(null), onUpdateCard: updateCard, onStudyActivity };
+      if (studyMode === "quiz") return <QuizView {...sharedProps} />;
+      if (studyMode === "speller") return <SpellerView {...sharedProps} />;
+      if (studyMode === "matching") return <MatchingView {...sharedProps} />;
+      return <FlashcardModal {...sharedProps} streak={streak} />;
+    }
   }
 
   return (
@@ -804,7 +818,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 {deckCards.length} từ trong bộ
               </span>
               <button
-                onClick={() => setPracticeDeckId(selectedDeck.id)}
+                onClick={() => { setStudyDeckId(selectedDeck.id); setStudyMode(null); }}
                 disabled={!deckCards.length}
                 className="flex items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-lime dark:text-ink"
               >
@@ -916,6 +930,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                     </button>
                     <div className="min-w-[160px] flex-1">
                       <div className="flex flex-wrap items-center gap-2">
+                        {card.imageUrl && <img src={card.imageUrl} alt="" className="h-8 w-8 rounded-md object-cover" />}
                         <p className="font-display font-bold">{card.word}</p>
                         <span className="text-xs text-sage">{card.ipa}</span>
                         <StatusBadge status={card.status} />

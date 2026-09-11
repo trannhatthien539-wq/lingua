@@ -25,6 +25,11 @@ const parseMediaManifest = async (zip) => {
   }
 };
 
+const mediaLookup = (media, filename = "") => {
+  const cleanName = decodeURIComponent(filename).replace(/^\.\//, "");
+  return media[filename] || media[cleanName] || media[cleanName.split("/").pop()];
+};
+
 const findZipFile = (zip, name) => zip.file(name) || zip.file(new RegExp(`(^|/)${name}$`, "i"))[0];
 
 async function getSqlModule() {
@@ -73,8 +78,8 @@ export async function parseAnkiFile(file, onProgress) {
     const word = firstMeaningfulField(fields, 0, sortField);
     const meaning = firstMeaningfulField(fields, 1, "Chưa có nghĩa");
     const example = firstMeaningfulField(fields, 2, "");
-    const image = imageMatch ? media[imageMatch[1]] : null;
-    const audio = soundMatch ? media[soundMatch[1]] : null;
+    const image = imageMatch ? mediaLookup(media, imageMatch[1]) : null;
+    const audio = soundMatch ? mediaLookup(media, soundMatch[1]) : null;
     return {
       id: `anki-${Date.now()}-${index}`,
       word,
