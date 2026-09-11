@@ -41,6 +41,13 @@ const defaultTimer = {
   sessions: 0,
   focusTaskId: null,
 };
+const defaultAudio = {
+  sound: "mute",
+  volume: 35,
+  alarm: "chime",
+  customBackground: null,
+  customAlarm: null,
+};
 const audioOptions = [
   { id: "rain", label: "🌧️ Tiếng mưa rơi" },
   { id: "coffee", label: "☕ Không gian quán cà phê" },
@@ -57,14 +64,26 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 const plannerStorageKey = (user) => user ? `${STORAGE_KEY}-${user.uid}` : `${STORAGE_KEY}-guest`;
 const readPlanner = (user) => {
   try {
-    return (
-      JSON.parse(localStorage.getItem(plannerStorageKey(user))) || {
-        days: {},
-        timer: defaultTimer,
-      }
-    );
+    const stored = JSON.parse(localStorage.getItem(plannerStorageKey(user)));
+    return {
+      days: stored?.days && typeof stored.days === "object" ? stored.days : {},
+      timer: { ...defaultTimer, ...(stored?.timer || {}) },
+    };
   } catch {
     return { days: {}, timer: defaultTimer };
+  }
+};
+const readAudio = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(AUDIO_STORAGE_KEY));
+    const volume = Number(stored?.volume);
+    return {
+      ...defaultAudio,
+      ...stored,
+      volume: Number.isFinite(volume) ? Math.max(0, Math.min(100, volume)) : defaultAudio.volume,
+    };
+  } catch {
+    return defaultAudio;
   }
 };
 const formatTime = (seconds) =>
@@ -112,7 +131,9 @@ function playChime(audioElement, alarm = "chime", customSource = "", volume = 35
     return;
   }
   try {
-    const context = new AudioContext();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return undefined;
+    const context = new AudioContextClass();
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     oscillator.type =
@@ -141,7 +162,14 @@ function FocusAudio({ sound, volume, active, customSource }) {
   useEffect(() => {
     if (!active || sound === "mute") return undefined;
     if (customSource) return undefined;
-    const context = new AudioContext();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return undefined;
+    let context;
+    try {
+      context = new AudioContextClass();
+    } catch {
+      return undefined;
+    }
     const gain = context.createGain();
     gain.gain.value = (volume / 100) * 0.12;
     gain.connect(context.destination);
@@ -450,32 +478,12 @@ export default function StudyPlanner({ onStudyActivity, user }) {
   const [planner, setPlanner] = useState(() => readPlanner(user));
   const [taskInput, setTaskInput] = useState("");
   const audioRef = useRef(null);
-  const [audio, setAudio] = useState(() => {
-    try {
-      return (
-        JSON.parse(localStorage.getItem(AUDIO_STORAGE_KEY)) || {
-          sound: "mute",
-          volume: 35,
-          alarm: "chime",
-          customBackground: null,
-          customAlarm: null,
-        }
-      );
-    } catch {
-      return {
-        sound: "mute",
-        volume: 35,
-        alarm: "chime",
-        customBackground: null,
-        customAlarm: null,
-      };
-    }
-  });
+  const [audio, setAudio] = useState(readAudio);
   const [isZen, setIsZen] = useState(false);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   const [toast, setToast] = useState("");
   const date = todayKey();
-  const tasks = planner.days[date] || defaultTasks;
+  const tasks = Array.isArray(planner.days[date]) ? planner.days[date] : defaultTasks;
   const timer = planner.timer || defaultTimer;
   const completedCount = tasks.filter((task) => task.completed).length;
   const taskProgress = tasks.length
