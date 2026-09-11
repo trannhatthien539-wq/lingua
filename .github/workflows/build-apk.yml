@@ -30,9 +30,7 @@ jobs:
       - name: Build web assets
         env:
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
-        run: |
-          test -n "$VITE_GOOGLE_WEB_CLIENT_ID"
-          npm run build
+        run: npm run build
 
       - name: Initialize Capacitor when needed
         run: |
