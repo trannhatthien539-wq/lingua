@@ -1,21 +1,17 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getApp, getApps, initializeApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDbfWmStltxB9l8YC5ySE7jtffqU1J3hBY",
-  authDomain: "lingua-49fc1.firebaseapp.com",
-  projectId: "lingua-49fc1",
-  storageBucket: "lingua-49fc1.firebasestorage.app",
-  messagingSenderId: "138926081617",
-  appId: "1:138926081617:web:4d64b990f6dfc6c9e41a70",
-  measurementId: "G-JG9KNJ4Y4Y"
-};
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDbfWmStltXb9l8YC5ySE7jtffoqU1J3hBY',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'lingua-49fc1.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'lingua-49fc1',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'lingua-49fc1.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '138926081617',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:138926081617:web:4d64b990f6dfc6c9e41a70',
+}
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+export const auth = getAuth(app)
+export const db = getFirestore(app)
+export default app

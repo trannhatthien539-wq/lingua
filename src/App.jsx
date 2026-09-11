@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import AuthModal from './components/AuthModal'
-import { supabase } from './services/supabaseClient'
+import { auth } from './services/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -29,9 +30,8 @@ export default function App() {
   }, [])
   useEffect(() => {
     let active = true
-    supabase.auth.getSession().then(({ data: { session } }) => { if (active) setUser(session?.user || null) }).finally(() => { if (active) setAuthLoading(false) })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user || null))
-    return () => { active = false; subscription.unsubscribe() }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => { if (active) { setUser(currentUser); setAuthLoading(false) } })
+    return () => { active = false; unsubscribe() }
   }, [])
 
   if (authLoading) return <div className="grid min-h-screen place-items-center bg-[#151a18] text-white"><div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-lime" /></div>

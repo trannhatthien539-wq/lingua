@@ -1,5 +1,6 @@
 import { LogIn, LogOut, Moon, Sun, Sparkles } from 'lucide-react'
-import { supabase } from '../../services/supabaseClient'
+import { signOut } from 'firebase/auth'
+import { auth } from '../../services/firebase'
 import { navigationItems } from '../../data/navigation'
 
 export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, user, onOpenAuth }) {
@@ -24,7 +25,7 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
         })}
       </nav>
       <div className="mt-auto hidden rounded-2xl bg-lime p-4 lg:block"><p className="text-xs font-bold uppercase tracking-[0.14em] text-ink/55">Streak hiện tại</p><p className="mt-2 font-display text-3xl font-bold">12 ngày</p><p className="mt-1 text-xs text-ink/60">Giữ nhịp học mỗi ngày.</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-ink/10"><div className="h-full w-[78%] rounded-full bg-ink" /></div></div>
-      <div className="mt-5 hidden border-t border-ink/[0.08] pt-5 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f2b880] text-xs font-bold">{(user.email || '?').slice(0, 1).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{user.email}</p><button onClick={() => supabase.auth.signOut()} className="mt-1 flex items-center gap-1 text-[11px] text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white"><LogOut size={12} />Đăng xuất</button></div></div> : <div><p className="mb-2 text-[11px] leading-4 text-ink/45 dark:text-white/45">Đăng nhập để đồng bộ dữ liệu đám mây</p><button onClick={onOpenAuth} className="flex w-full items-center gap-2 rounded-xl bg-ink px-3 py-3 text-left text-xs font-bold text-white dark:bg-lime dark:text-ink"><LogIn size={15} />Đăng nhập / Đăng ký</button></div>}</div>
+      <div className="mt-5 hidden border-t border-ink/[0.08] pt-5 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f2b880] text-xs font-bold">{(user.email || '?').slice(0, 1).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{user.email}</p><button onClick={() => signOut(auth)} className="mt-1 flex items-center gap-1 text-[11px] text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white"><LogOut size={12} />Đăng xuất</button></div></div> : <div><p className="mb-2 text-[11px] leading-4 text-ink/45 dark:text-white/45">Đăng nhập để đồng bộ dữ liệu đám mây</p><button onClick={onOpenAuth} className="flex w-full items-center gap-2 rounded-xl bg-ink px-3 py-3 text-left text-xs font-bold text-white dark:bg-lime dark:text-ink"><LogIn size={15} />Đăng nhập / Đăng ký</button></div>}</div>
     </aside>
   )
 }
