@@ -1,0 +1,5 @@
+import { LogIn, LogOut, UserRound } from 'lucide-react';
+
+export default function AccountPanel({ user, onGoogleLogin, onSignOut }) {
+  return <section className="panel mb-6 p-5"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-lime text-ink"><UserRound size={19} /></div><div className="min-w-0"><p className="eyebrow">Tài khoản & Dữ liệu</p><h2 className="font-display text-lg font-bold">{user ? 'Đã đăng nhập' : 'Đang dùng với tư cách Khách'}</h2><p className="mt-1 truncate text-xs text-ink/50 dark:text-white/50">{user ? `${user.displayName || 'Tài khoản Google'} · ${user.email}` : 'Dữ liệu được lưu trên thiết bị này.'}</p></div></div>{user ? <button onClick={onSignOut} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600 dark:bg-red-950/30 dark:text-red-300"><LogOut size={16} />Đăng xuất</button> : <button onClick={onGoogleLogin} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink"><LogIn size={16} />Đăng nhập bằng Google</button>}</section>;
+}
