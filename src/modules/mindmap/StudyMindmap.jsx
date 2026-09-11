@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
+  BookOpen,
   BrainCircuit,
   Check,
   Download,
@@ -96,8 +97,8 @@ const initialEdges = [
     source: "root",
     target: "vocabulary",
     type: "smoothstep",
-    sourceHandle: "bottom",
-    targetHandle: "top",
+    sourceHandle: "bottom-source",
+    targetHandle: "top-target",
     style: { stroke: "#94a3b8", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed },
   },
@@ -106,8 +107,8 @@ const initialEdges = [
     source: "root",
     target: "grammar",
     type: "smoothstep",
-    sourceHandle: "bottom",
-    targetHandle: "top",
+    sourceHandle: "bottom-source",
+    targetHandle: "top-target",
     style: { stroke: "#94a3b8", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed },
   },
@@ -118,7 +119,22 @@ const readMap = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     return saved?.nodes?.length
-      ? saved
+      ? {
+          ...saved,
+          edges: (saved.edges || []).map((edge) => ({
+            ...edge,
+            sourceHandle: edge.sourceHandle?.endsWith("-source")
+              ? edge.sourceHandle
+              : edge.sourceHandle
+                ? `${edge.sourceHandle}-source`
+                : edge.sourceHandle,
+            targetHandle: edge.targetHandle?.endsWith("-target")
+              ? edge.targetHandle
+              : edge.targetHandle
+                ? `${edge.targetHandle}-target`
+                : edge.targetHandle,
+          })),
+        }
       : {
           name: "English Fluency Roadmap",
           nodes: initialNodes,
@@ -143,8 +159,8 @@ Chỉ trả về JSON hợp lệ, không markdown, schema: {"nodes":[{"id":"root
 
 const edgeStyle = { stroke: "#94a3b8", strokeWidth: 2 };
 const edgeHandles = (direction) => direction === "LR"
-  ? { sourceHandle: "right", targetHandle: "left" }
-  : { sourceHandle: "bottom", targetHandle: "top" };
+  ? { sourceHandle: "right-source", targetHandle: "left-target" }
+  : { sourceHandle: "bottom-source", targetHandle: "top-target" };
 
 export const getLayoutedElements = (nodes, edges, direction = "LR") => {
   const dagreGraph = new dagre.graphlib.Graph();
@@ -183,6 +199,54 @@ function RoadmapNode({ id, data }) {
       onDoubleClick={() => data.onEdit(id)}
       className={`group relative flex w-[260px] min-h-[90px] max-h-[140px] flex-col justify-center rounded-2xl border-2 bg-white p-3 shadow-sm transition ${statusClasses[data.status] || statusClasses.pending} ${data.status === "progress" ? "animate-pulse" : ""}`}
     >
+      {data.selected && (
+        <div className="nodrag nopan absolute -top-14 left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-2xl border border-zinc-200 bg-white/95 p-1 shadow-md backdrop-blur dark:border-white/10 dark:bg-[#202724]/95">
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onAddChild(id);
+            }}
+            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            aria-label="Thêm nhánh con"
+            title="Thêm nhánh con"
+          >
+            <Plus size={17} />
+          </button>
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onEdit(id);
+            }}
+            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            aria-label="Đổi tên node"
+            title="Đổi tên node"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onOpenDetails(id);
+            }}
+            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            aria-label="Mở ghi chú node"
+            title="Mở ghi chú node"
+          >
+            <BookOpen size={16} />
+          </button>
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onDelete(id);
+            }}
+            className="grid h-9 w-9 place-items-center rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+            aria-label="Xóa node"
+            title="Xóa node"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
       {directions.map(([direction, position]) => (
         <span key={direction}>
           <Handle
@@ -288,6 +352,7 @@ function RoadmapCanvas({
   onEdgeClick,
   onEdgeDoubleClick,
   onFitViewReady,
+  onAddRoot,
 }) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const clickTimer = useRef(null);
@@ -379,6 +444,20 @@ function RoadmapCanvas({
           <Maximize2 size={15} />
         </button>
       </div>
+      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white/95 p-1.5 shadow-md backdrop-blur md:hidden dark:border-white/10 dark:bg-[#1b211f]/95">
+        <button onClick={zoomIn} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Phóng to">
+          <Plus size={18} />
+        </button>
+        <button onClick={zoomOut} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Thu nhỏ">
+          <Minus size={18} />
+        </button>
+        <button onClick={fitView} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Căn giữa sơ đồ">
+          <Maximize2 size={17} />
+        </button>
+        <button onClick={onAddRoot} className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-white dark:bg-lime dark:text-ink" aria-label="Thêm chủ đề gốc">
+          <Plus size={18} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -391,7 +470,8 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
   );
   if (!node) return null;
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l border-ink/[0.08] bg-white p-6 shadow-2xl dark:border-white/[0.08] dark:bg-[#1b211f]">
+    <aside className="fixed bottom-0 left-0 right-0 z-50 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t border-ink/[0.08] bg-white p-5 shadow-2xl md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-full md:max-w-sm md:rounded-none md:rounded-l-2xl md:border-l md:border-t-0 md:p-6 dark:border-white/[0.08] dark:bg-[#1b211f]">
+      <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-ink/15 md:hidden dark:bg-white/20" />
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="eyebrow">Study drawer</p>
@@ -487,6 +567,22 @@ export default function StudyMindmap({ apiKey }) {
       ),
     [setNodes],
   );
+  const removeNode = useCallback(
+    (id = selectedId) => {
+      if (!id) return;
+      const hasChildren = edges.some((edge) => edge.source === id);
+      if (hasChildren && !window.confirm("Node này có nhánh con. Xóa node và các liên kết của nó?")) return;
+      setNodes((current) => current.filter((node) => node.id !== id));
+      setEdges((current) =>
+        current.filter((edge) => edge.source !== id && edge.target !== id),
+      );
+      if (selectedId === id) {
+        setSelectedId(null);
+        setDrawerOpen(false);
+      }
+    },
+    [edges, selectedId, setEdges, setNodes],
+  );
   const createNode = useCallback(
     (label, position, parentId = null) => {
       const node = {
@@ -549,6 +645,10 @@ export default function StudyMindmap({ apiKey }) {
     },
     [setNodes],
   );
+  const openNodeDetails = useCallback((id) => {
+    setSelectedId(id);
+    setDrawerOpen(true);
+  }, []);
   const decoratedNodes = useMemo(
     () =>
       nodes.map((node) => ({
@@ -560,9 +660,13 @@ export default function StudyMindmap({ apiKey }) {
           onEdit: setEditingId,
           onCommitEdit: commitEdit,
           onQuickAdd: quickAdd,
+          onAddChild: (id) => quickAdd(id, "right"),
+          onOpenDetails: openNodeDetails,
+          onDelete: removeNode,
+          selected: selectedId === node.id,
         },
       })),
-    [commitEdit, editingId, nodes, quickAdd, updateStatus],
+    [commitEdit, editingId, nodes, openNodeDetails, quickAdd, removeNode, selectedId, updateStatus],
   );
   useEffect(() => {
     localStorage.setItem(
@@ -599,17 +703,6 @@ export default function StudyMindmap({ apiKey }) {
       ),
     [setEdges],
   );
-  const removeNode = () => {
-    if (!selectedId) return;
-    setNodes((current) => current.filter((node) => node.id !== selectedId));
-    setEdges((current) =>
-      current.filter(
-        (edge) => edge.source !== selectedId && edge.target !== selectedId,
-      ),
-    );
-    setSelectedId(null);
-    setDrawerOpen(false);
-  };
   const selectEdge = useCallback((id) => {
     setSelectedEdgeId(id);
     setEdges((current) => current.map((edge) => ({
@@ -728,13 +821,15 @@ export default function StudyMindmap({ apiKey }) {
   const handleNodeClick = (id) => {
     setSelectedId(id);
     setSelectedEdgeId(null);
-    setDrawerOpen(true);
   };
   const handlePaneClick = () => {
     setDrawerOpen(false);
     setSelectedId(null);
     setSelectedEdgeId(null);
     setEdges((current) => current.map((edge) => ({ ...edge, selected: false, style: { stroke: "#94a3b8", strokeWidth: 2 } })));
+  };
+  const addRootNode = () => {
+    createNode("Chủ đề gốc mới", { x: 80, y: 80 });
   };
   return (
     <div className="space-y-5">
@@ -749,7 +844,7 @@ export default function StudyMindmap({ apiKey }) {
             />
             <Pencil size={15} className="text-ink/30 dark:text-white/30" />
           </div>
-          <p className="mt-1 text-sm text-ink/45 dark:text-white/45">
+          <p className="mt-1 hidden text-sm text-ink/45 dark:text-white/45 md:block">
             Double-click sửa · Tab thêm nhánh · Delete xóa · Space +
             kéo để pan
           </p>
@@ -821,7 +916,7 @@ export default function StudyMindmap({ apiKey }) {
         </p>
       )}
       <MobileOutliner nodes={nodes} edges={edges} onSelect={handleNodeClick} view={mobileView} onViewChange={setMobileView} />
-      {mobileView === "canvas" && <div className="panel h-[62vh] overflow-hidden p-1 md:hidden"><ReactFlowProvider><RoadmapCanvas nodes={decoratedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onSelect={handleNodeClick} onPaneClick={handlePaneClick} onEdgeClick={selectEdge} onEdgeDoubleClick={removeEdge} canvasRef={canvasRef} onViewportChange={setViewport} onFitViewReady={(fitView) => { fitViewRef.current = fitView; }} /></ReactFlowProvider></div>}
+      {mobileView === "canvas" && <div className="panel h-[62vh] overflow-hidden p-1 md:hidden"><ReactFlowProvider><RoadmapCanvas nodes={decoratedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onSelect={handleNodeClick} onPaneClick={handlePaneClick} onEdgeClick={selectEdge} onEdgeDoubleClick={removeEdge} canvasRef={canvasRef} onViewportChange={setViewport} onFitViewReady={(fitView) => { fitViewRef.current = fitView; }} onAddRoot={addRootNode} /></ReactFlowProvider></div>}
       <div className="panel hidden overflow-hidden p-3 md:block">
         <ReactFlowProvider>
           <RoadmapCanvas
@@ -837,6 +932,7 @@ export default function StudyMindmap({ apiKey }) {
             canvasRef={canvasRef}
             onViewportChange={setViewport}
             onFitViewReady={(fitView) => { fitViewRef.current = fitView; }}
+            onAddRoot={addRootNode}
           />
         </ReactFlowProvider>
       </div>
