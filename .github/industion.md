@@ -97,7 +97,6 @@ Provider hiện hỗ trợ:
 
 - Gemini REST API.
 - Groq OpenAI-compatible REST API.
-- Firebase Authentication và Firestore cho đăng nhập/cloud data.
 
 LocalStorage keys:
 
@@ -237,18 +236,7 @@ File chính: `src/modules/settings/ApiSettings.jsx`.
 
 Nơi duy nhất để nhập provider và API key. Không đưa khối API key trở lại đầu màn hình Vocabulary hoặc Grammar.
 
-## 11. Firebase
-
-Firebase client: `src/services/firebase.js`.
-
-- Auth: Firebase Email/Password và Google Popup.
-- Session: `onAuthStateChanged` trong `src/App.jsx`.
-- Firestore: `study_decks` và `vocabulary_cards`.
-- Persistence local-first: khi chưa đăng nhập, `dataService` dùng localStorage; khi đã đăng nhập, dùng Firestore theo `userId`.
-- Firebase config có thể đặt qua `VITE_FIREBASE_*`; hiện có fallback config cho project Lingua để development.
-- Không thêm lại Supabase hoặc import từ `supabaseClient.js`; các file Supabase cũ đã bị loại bỏ.
-
-## 12. Quy tắc phát triển
+## 11. Quy tắc phát triển
 
 - Dùng JavaScript/JSX, không chuyển sang TypeScript nếu chưa có yêu cầu.
 - Giữ feature code trong `src/modules` và shared UI trong `src/components`.
