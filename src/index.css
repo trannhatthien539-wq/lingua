@@ -5,7 +5,7 @@
 
 @layer base {
   :root { font-family: 'DM Sans', sans-serif; color: #18201d; background: #f6f7f5; font-synthesis: none; }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   body { margin: 0; min-width: 320px; min-height: 100vh; }
   button, input, textarea { font: inherit; }
   ::selection { background: #d9f06d; color: #18201d; }

@@ -876,7 +876,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
-        <aside className="panel h-fit p-4">
+        <aside className="panel h-fit overflow-hidden p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="eyebrow">Library</p>
@@ -900,12 +900,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <Plus size={15} />
             </button>
           </form>
-          <div className="mt-4 space-y-1">
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-1">
             {library.decks.map((deck) => (
               <button
                 key={deck.id}
                 onClick={() => setSelectedDeckId(deck.id)}
-                className={`group flex w-full items-center gap-2 rounded-xl p-3 text-left transition ${selectedDeck?.id === deck.id ? "bg-ink text-white dark:bg-lime dark:text-ink" : "hover:bg-ink/[0.05] dark:hover:bg-white/[0.08]"}`}
+                className={`group flex min-w-[190px] items-center gap-2 rounded-xl p-3 text-left transition xl:w-full ${selectedDeck?.id === deck.id ? "bg-ink text-white dark:bg-lime dark:text-ink" : "hover:bg-ink/[0.05] dark:hover:bg-white/[0.08]"}`}
               >
                 <BookOpen size={16} className="shrink-0" />
                 <span className="min-w-0 flex-1">
@@ -967,14 +967,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
               <span className="text-sm text-ink/40 dark:text-white/40">
                 {deckCards.length} từ trong bộ
               </span>
               <button
                 onClick={() => openStudy(deckCards)}
                 disabled={!deckCards.length}
-                className="flex items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-lime dark:text-ink"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-3 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:py-2.5 dark:bg-lime dark:text-ink"
               >
                 <Sparkles size={15} />
                 Bắt đầu học bộ này
@@ -982,7 +982,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <button
                 onClick={() => openStudy(dueCards)}
                 disabled={!dueCards.length}
-                className="flex items-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-2.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.1]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:py-2.5 dark:border-white/[0.1]"
               >
                 <Check size={15} />
                 Ôn đến hạn ({dueCards.length})
@@ -1003,7 +1003,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <p className="mt-1 text-xs text-ink/40 dark:text-white/40">
                 AI sẽ tra IPA, nghĩa và ví dụ trước khi lưu.
               </p>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input
                   value={manualWord}
                   onChange={(event) => setManualWord(event.target.value)}
@@ -1014,7 +1014,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <button
                   onClick={lookupWord}
                   disabled={loading === "lookup"}
-                  className="flex items-center gap-2 rounded-xl bg-ink px-3 text-sm font-bold text-white disabled:opacity-60 dark:bg-lime dark:text-ink"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto dark:bg-lime dark:text-ink"
                 >
                   {loading === "lookup" ? (
                     <LoaderCircle size={15} className="animate-spin" />
@@ -1026,7 +1026,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <button
                   onClick={saveLookupResult}
                   disabled={!lookupResult || loading === "lookup-save"}
-                  className="flex items-center gap-2 rounded-xl bg-lime px-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-lime px-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   <Plus size={15} />Thêm vào bộ này
                 </button>

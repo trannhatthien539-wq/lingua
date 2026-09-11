@@ -5,7 +5,7 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
   const currentStreak = streak?.currentStreak || 0
   const streakProgress = Math.min(100, Math.round((currentStreak / 7) * 100))
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-ink/[0.08] bg-white px-4 py-4 dark:border-white/[0.08] dark:bg-[#1b211f] lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+    <aside className="hidden w-full shrink-0 flex-col border-b border-ink/[0.08] bg-white px-4 py-4 dark:border-white/[0.08] dark:bg-[#1b211f] md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
       <div className="flex items-center justify-between lg:block">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-lime dark:bg-lime dark:text-ink"><Sparkles size={19} /></div>

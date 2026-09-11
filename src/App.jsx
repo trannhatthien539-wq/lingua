@@ -14,6 +14,7 @@ import StudyMindmap from './modules/mindmap/StudyMindmap'
 import ApiSettings from './modules/settings/ApiSettings'
 import { GrammarChecker } from './modules/learning/GrammarAndVocabulary'
 import VocabularyHub from './modules/learning/VocabularyHub'
+import MobileBottomNav from './components/MobileBottomNav'
 
 const modules = { vocabulary: VocabularyHub, grammar: GrammarChecker, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
 
@@ -58,5 +59,5 @@ export default function App() {
 
   if (showAuthPage && !user) return <AuthPage onGuest={() => setShowAuthPage(false)} />
 
-  return <div className="min-h-screen bg-mist text-ink transition-colors dark:bg-[#151a18] dark:text-white"><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => setShowAuthPage(true)} onSignOut={handleSignOut} /><main className="min-h-screen lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} /></div></div></main></div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#151a18] dark:text-white"><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => setShowAuthPage(true)} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} /></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={setActiveTab} /></div>
 }
