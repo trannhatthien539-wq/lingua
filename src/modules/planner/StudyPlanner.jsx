@@ -444,7 +444,7 @@ function ZenFocus({
   );
 }
 
-export default function StudyPlanner() {
+export default function StudyPlanner({ onStudyActivity }) {
   const [planner, setPlanner] = useState(readPlanner);
   const [taskInput, setTaskInput] = useState("");
   const [audio, setAudio] = useState(() => {
@@ -522,6 +522,7 @@ export default function StudyPlanner() {
             timer.mode === "focus" ? timer.sessions + 1 : timer.sessions,
         },
       }));
+        if (timer.mode === "focus") onStudyActivity?.();
       playChime(audio.alarm, audio.customAlarm?.dataUrl, audio.volume);
       window.alert(
         timer.mode === "focus"

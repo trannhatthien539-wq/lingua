@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import AuthModal from './components/AuthModal'
+import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged } from './services/firebase'
+import { readGuestStreak, updateUserStreak } from './services/streakService'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -17,7 +18,8 @@ const modules = { vocabulary: VocabularyHub, grammar: GrammarChecker, planner: S
 export default function App() {
   const [activeTab, setActiveTab] = useState('vocabulary')
   const [user, setUser] = useState(null)
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [showAuthPage, setShowAuthPage] = useState(false)
+  const [streak, setStreak] = useState(() => readGuestStreak())
   const { theme, toggleTheme } = useTheme()
   const activeItem = navigationItems.find((item) => item.id === activeTab)
   const ActiveModule = modules[activeTab]
@@ -27,8 +29,22 @@ export default function App() {
     return () => window.removeEventListener('lingua:open-practice', openPractice)
   }, [])
   useEffect(() => {
-    return onAuthStateChanged(auth, setUser)
+    return onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser)
+      if (nextUser) {
+        setActiveTab('vocabulary')
+        setShowAuthPage(false)
+        updateUserStreak(nextUser.uid).then(setStreak).catch(() => setStreak({ currentStreak: 0, lastActiveDate: null, totalSessions: 0 }))
+      } else {
+        setStreak(readGuestStreak())
+      }
+    })
   }, [])
 
-  return <div className="min-h-screen bg-mist text-ink transition-colors dark:bg-[#151a18] dark:text-white"><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} /><main className="min-h-screen lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}><ActiveModule /></div></div></main><AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onAuthSuccess={() => setIsAuthModalOpen(false)} /></div>
+  const recordStudyActivity = () =>
+    updateUserStreak(user?.uid).then(setStreak).catch(() => {})
+
+  if (showAuthPage && !user) return <AuthPage onGuest={() => setShowAuthPage(false)} />
+
+  return <div className="min-h-screen bg-mist text-ink transition-colors dark:bg-[#151a18] dark:text-white"><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => setShowAuthPage(true)} /><main className="min-h-screen lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} /></div></div></main></div>
 }

@@ -22,7 +22,6 @@ const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
 const API_KEY_STORAGE = "lingua-ai-api-key";
 const PROVIDER_STORAGE = "lingua-ai-provider";
-const STREAK_STORAGE = "lingua-study-streak";
 const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const statuses = { new: "Mới", learning: "Đang học", mastered: "Thuộc" };
 
@@ -118,7 +117,7 @@ function playQuizSound(correct) {
   oscillator.stop(context.currentTime + 0.22);
 }
 
-function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
+function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, streak }) {
   const [mode, setMode] = useState("flashcard");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -127,11 +126,6 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
   const [spelling, setSpelling] = useState("");
   const [results, setResults] = useState([]);
   const [completed, setCompleted] = useState(false);
-  const [streak, setStreak] = useState(() =>
-    JSON.parse(
-      localStorage.getItem(STREAK_STORAGE) || '{"current":0,"totalSessions":0}',
-    ),
-  );
   const card = cards[index];
   const quizOptions = useMemo(() => {
     if (!card) return [];
@@ -161,21 +155,8 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [answer, cards.length, index, mode, quizOptions]);
 
-  const finish = (nextResults) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const stored = JSON.parse(
-      localStorage.getItem(STREAK_STORAGE) || '{"current":0,"totalSessions":0}',
-    );
-    const nextStreak =
-      stored.lastDate === today
-        ? stored
-        : {
-            current: (stored.current || 0) + 1,
-            totalSessions: (stored.totalSessions || 0) + 1,
-            lastDate: today,
-          };
-    localStorage.setItem(STREAK_STORAGE, JSON.stringify(nextStreak));
-    setStreak(nextStreak);
+  const finish = async (nextResults) => {
+    await onStudyActivity?.();
     setResults(nextResults);
     setCompleted(true);
   };
@@ -286,10 +267,10 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
               Streak học tập
             </p>
             <p className="mt-1 font-display text-2xl font-bold">
-              {streak.current} ngày liên tiếp
+              {streak?.currentStreak || 0} ngày liên tiếp
             </p>
             <p className="mt-1 text-xs text-ink/60">
-              Tổng số phiên: {streak.totalSessions}
+              Tổng số phiên: {streak?.totalSessions || 0}
             </p>
           </div>
           <button
@@ -365,7 +346,10 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
       {mode === "flashcard" && (
         <section className="mx-auto max-w-2xl">
           <button
-            onClick={() => setFlipped((value) => !value)}
+            onClick={() => {
+              if (!flipped) onStudyActivity?.();
+              setFlipped((value) => !value);
+            }}
             className="panel flex min-h-[330px] w-full flex-col items-center justify-center p-8 text-center transition hover:-translate-y-1"
           >
             <p className="eyebrow">
@@ -516,7 +500,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard }) {
   );
 }
 
-export default function VocabularyHub() {
+export default function VocabularyHub({ onStudyActivity, streak }) {
   const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
@@ -712,6 +696,8 @@ export default function VocabularyHub() {
           cards={practiceCards}
           onExit={() => setPracticeDeckId(null)}
           onUpdateCard={(cardId, changes) => updateCard(cardId, changes)}
+          onStudyActivity={onStudyActivity}
+          streak={streak}
         />
       );
   }
