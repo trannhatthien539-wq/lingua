@@ -42,6 +42,12 @@ const readLocal = () => {
 const writeLocal = (library) => localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
 const currentUser = () => auth.currentUser;
 
+export const clearGuestVocabulary = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(OLD_STORAGE_KEY);
+  localStorage.removeItem("lingua-practice-topic");
+};
+
 const normalizeDeck = (deck) => ({
   id: deck.id,
   title: deck.title || "",

@@ -3,6 +3,7 @@ import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
+import { clearGuestVocabulary } from './services/dataService'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -49,6 +50,7 @@ export default function App() {
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
   const handleSignOut = async () => {
     setApiKey('')
+    clearGuestVocabulary()
     localStorage.removeItem('lingua-ai-api-key')
     await signOut(auth)
     setShowAuthPage(true)
