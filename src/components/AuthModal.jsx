@@ -1,17 +1,42 @@
-import { useState } from 'react'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithRedirect } from 'firebase/auth'
-import { AlertCircle, Loader2, Lock, LogIn, Mail, UserPlus, X } from 'lucide-react'
-import { auth, googleProvider } from '../services/firebase'
+import { useState } from "react";
+import { X } from "lucide-react";
+import { auth, googleProvider, signInWithPopup } from "../services/firebase";
 
-export default function AuthModal({ isOpen, onClose }) {
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
-  if (!isOpen) return null
-  const readableError = (error) => ({ 'auth/api-key-not-valid': 'Firebase API key không hợp lệ. Hãy thay bằng Web API key đúng trong Firebase Console.', 'auth/invalid-credential': 'Email hoặc mật khẩu không chính xác.', 'auth/email-already-in-use': 'Email này đã được sử dụng.', 'auth/weak-password': 'Mật khẩu cần tối thiểu 6 ký tự.', 'auth/invalid-email': 'Email không hợp lệ.', 'auth/unauthorized-domain': `Domain này chưa được Firebase cho phép. Hãy thêm ${window.location.hostname} vào Authentication > Settings > Authorized domains.`, 'auth/operation-not-supported-in-this-environment': 'Google Login cần chạy trên HTTPS hoặc localhost.', 'auth/popup-blocked': 'Trình duyệt đã chặn popup. Hãy cho phép popup hoặc thử lại.', 'auth/popup-closed-by-user': 'Bạn đã đóng cửa sổ đăng nhập Google.' }[error.code] || `Không thể đăng nhập Google (${error.code || 'unknown'}). Kiểm tra Firebase config.`)
-  const handleSubmit = async (event) => { event.preventDefault(); setLoading(true); setErrorMsg(''); try { if (isSignUp) await createUserWithEmailAndPassword(auth, email, password); else await signInWithEmailAndPassword(auth, email, password); onClose() } catch (error) { setErrorMsg(readableError(error)) } finally { setLoading(false) } }
-  const handleGoogleLogin = async () => { setLoading(true); setErrorMsg(''); try { await signInWithRedirect(auth, googleProvider) } catch (error) { setErrorMsg(readableError(error)); setLoading(false) } }
-  return <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"><div className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-7 shadow-2xl"><button onClick={onClose} className="absolute right-5 top-5 text-slate-400" aria-label="Đóng"><X size={20} /></button><div className="mb-6 text-center"><h2 className="text-2xl font-bold text-slate-800">{isSignUp ? 'Tạo tài khoản' : 'Chào mừng trở lại'}</h2><p className="mt-1 text-sm text-slate-500">{isSignUp ? 'Lưu tiến độ học tập trên mọi thiết bị' : 'Đăng nhập để tiếp tục lộ trình học'}</p></div>{errorMsg && <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600"><AlertCircle size={16} />{errorMsg}</div>}<form onSubmit={handleSubmit} className="space-y-3.5"><label className="block text-xs font-semibold text-slate-600">Email<div className="relative mt-1"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@gmail.com" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-800" /></div></label><label className="block text-xs font-semibold text-slate-600">Mật khẩu<div className="relative mt-1"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-slate-800" /></div></label><button disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-medium text-white disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={18} /> : isSignUp ? <><UserPlus size={18} />Đăng ký</> : <><LogIn size={18} />Đăng nhập</>}</button></form><div className="my-5 text-center text-xs text-slate-400">hoặc</div><button onClick={handleGoogleLogin} disabled={loading} className="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">Tiếp tục với Google</button><p className="mt-5 text-center text-xs text-slate-500">{isSignUp ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? '}<button onClick={() => { setIsSignUp((value) => !value); setErrorMsg('') }} className="font-semibold text-slate-900">{isSignUp ? 'Đăng nhập ngay' : 'Đăng ký miễn phí'}</button></p></div></div>
+export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      onAuthSuccess?.();
+    } catch (signInError) {
+      setError(signInError.code === "auth/popup-closed-by-user"
+        ? "Cửa sổ đăng nhập đã được đóng."
+        : `Đăng nhập thất bại: ${signInError.message || "Vui lòng thử lại."}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="panel w-full max-w-sm p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <div className="flex items-start justify-between gap-4">
+          <div><p className="eyebrow">Lingua account</p><h2 id="auth-modal-title" className="mt-1 font-display text-xl font-bold">Đăng nhập để đồng bộ</h2></div>
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-lg text-ink/45 hover:bg-ink/5 hover:text-ink dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white" aria-label="Đóng"><X size={17} /></button>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-ink/55 dark:text-white/55">Lưu bộ từ vựng trên mọi thiết bị bằng tài khoản Google của bạn.</p>
+        <button onClick={handleGoogleSignIn} disabled={loading} className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm font-bold text-ink shadow-sm transition hover:border-ink/25 hover:shadow-md disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.35 12.23c0-.71-.06-1.4-.18-2.05H12v3.88h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.22Z"/><path fill="#34A853" d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.6Z"/><path fill="#FBBC05" d="M6.54 13.69A5.86 5.86 0 0 1 6.23 12c0-.59.11-1.17.31-1.69V7.78H3.3A9.76 9.76 0 0 0 2.26 12c0 1.53.37 2.97 1.04 4.22l3.24-2.53Z"/><path fill="#EA4335" d="M12 6.28c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.34 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C7.31 8 9.46 6.28 12 6.28Z"/></svg>
+          {loading ? "Đang đăng nhập..." : "Tiếp tục với Google"}
+        </button>
+        {error && <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
+      </div>
+    </div>
+  );
 }
