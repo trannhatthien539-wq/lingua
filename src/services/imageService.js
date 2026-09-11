@@ -4,21 +4,24 @@ const isAllowedImageUrl = (value = "") => /^https:\/\/api\.openverse\.org\/v1\/i
 
 export const isSafeImageSource = (value = "") => isAllowedImageUrl(value);
 
-export async function findVocabularyImage(word, signal) {
-  const query = encodeURIComponent(String(word || "").trim());
+export async function findVocabularyImage(word, context = "", signal) {
+  const query = encodeURIComponent(`${String(word || "").trim()} ${String(context || "").trim()}`.trim());
   if (!query) return "";
-  const response = await fetch(`${OPENVERSE_ENDPOINT}?q=${query}&category=illustration&license=pdm,cc0,by&filter_dead=true&page_size=5`, { signal });
-  if (!response.ok) throw new Error(`Openverse image search failed: ${response.status}`);
-  const payload = await response.json();
-  const result = payload.results?.find((item) => isAllowedImageUrl(item.thumbnail)) || payload.results?.find((item) => isAllowedImageUrl(item.url));
-  return result?.thumbnail || result?.url || "";
+  for (const category of ["illustration", "photograph"]) {
+    const response = await fetch(`${OPENVERSE_ENDPOINT}?q=${query}&category=${category}&license=pdm,cc0,by&filter_dead=true&page_size=5`, { signal });
+    if (!response.ok) continue;
+    const payload = await response.json();
+    const result = payload.results?.find((item) => isAllowedImageUrl(item.thumbnail)) || payload.results?.find((item) => isAllowedImageUrl(item.url));
+    if (result?.thumbnail || result?.url) return result.thumbnail || result.url;
+  }
+  return "";
 }
 
-export async function findVocabularyImageSafely(word) {
+export async function findVocabularyImageSafely(word, context = "") {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 5000);
   try {
-    return await findVocabularyImage(word, controller.signal);
+    return await findVocabularyImage(word, context, controller.signal);
   } catch {
     return "";
   } finally {

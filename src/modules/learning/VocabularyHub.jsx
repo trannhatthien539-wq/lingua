@@ -594,7 +594,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           decks = [{ ...created, tags: created.tags || ["IELTS", "Speaking"], createdAt: created.createdAt || created.created_at }];
         }
         const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
-        if (active) setLibrary({ decks, cards: cardsByDeck.flat() });
+        const initialCards = cardsByDeck.flat();
+        if (active) setLibrary({ decks, cards: initialCards });
+        void Promise.all(initialCards.filter((card) => !card.imageUrl).map(async (card) => {
+          const imageUrl = await findVocabularyImageSafely(card.word, card.meaning);
+          if (!imageUrl) return;
+          try { await dataService.updateCard(card.id, { imageUrl }); } catch { return; }
+          if (active) setLibrary((current) => ({ ...current, cards: current.cards.map((item) => item.id === card.id ? { ...item, imageUrl } : item) }));
+        }));
       } catch (loadError) {
         if (active) setError(loadError.message || "Không thể tải thư viện từ vựng.");
       } finally {
@@ -670,7 +677,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     }
     const enrichedItems = await Promise.all(uniqueItems.map(async (item) => ({
       ...item,
-      imageUrl: item.imageUrl || await findVocabularyImageSafely(item.word),
+      imageUrl: item.imageUrl || await findVocabularyImageSafely(item.word, item.meaning),
     })));
     const cards = enrichedItems
       .map((item) => ({
