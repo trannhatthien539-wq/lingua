@@ -135,8 +135,13 @@ const dataMethods = {
 
   async getCards(deckId) {
     if (!currentUser()) return readLocal().cards.filter((card) => card.deckId === deckId).map(normalizeCard);
-    const cards = await getUserDocuments("vocabulary_cards");
-    return cards.filter((card) => card.deckId === deckId).map(normalizeCard);
+    const user = currentUser();
+    const snapshot = await getDocs(query(
+      collection(db, "vocabulary_cards"),
+      where("userId", "==", user.uid),
+      where("deckId", "==", deckId),
+    ));
+    return snapshot.docs.map((item) => normalizeCard({ id: item.id, ...item.data() }));
   },
 
   async addCard(card) {
