@@ -17,6 +17,7 @@ const modules = { vocabulary: VocabularyHub, grammar: GrammarChecker, planner: S
 export default function App() {
   const [activeTab, setActiveTab] = useState('vocabulary')
   const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
   const activeItem = navigationItems.find((item) => item.id === activeTab)
@@ -28,10 +29,13 @@ export default function App() {
   }, [])
   useEffect(() => {
     let active = true
-    supabase.auth.getSession().then(({ data: { session } }) => { if (active) setUser(session?.user || null) })
+    supabase.auth.getSession().then(({ data: { session } }) => { if (active) setUser(session?.user || null) }).finally(() => { if (active) setAuthLoading(false) })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user || null))
     return () => { active = false; subscription.unsubscribe() }
   }, [])
+
+  if (authLoading) return <div className="grid min-h-screen place-items-center bg-[#151a18] text-white"><div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-lime" /></div>
+  if (!user) return <div className="min-h-screen bg-[#151a18]"><AuthModal isOpen onClose={() => {}} onAuthSuccess={() => {}} /></div>
 
   return <div className="min-h-screen bg-mist text-ink transition-colors dark:bg-[#151a18] dark:text-white"><Sidebar activeTab={activeTab} onTabChange={setActiveTab} theme={theme} onToggleTheme={toggleTheme} user={user} onOpenAuth={() => setIsAuthModalOpen(true)} /><main className="min-h-screen lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} /><div className="animate-[fade-in_400ms_ease-out]" key={activeTab}><ActiveModule /></div></div></main><AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onAuthSuccess={() => setIsAuthModalOpen(false)} /></div>
 }
