@@ -31,25 +31,35 @@ export async function updateUserStreak(userId = auth.currentUser?.uid) {
     return next;
   }
 
-  const statsRef = doc(db, "users", userId);
-  const snapshot = await getDoc(statsRef);
-  const stored = snapshot.exists() ? { ...emptyStreak, ...snapshot.data() } : emptyStreak;
-  const today = todayKey();
-  const next = stored.lastActiveDate === today
-    ? stored
-    : {
-        ...stored,
-        currentStreak: stored.lastActiveDate === yesterdayKey() ? stored.currentStreak + 1 : 1,
-        lastActiveDate: today,
-        totalSessions: (stored.totalSessions || 0) + 1,
-      };
+  try {
+    const statsRef = doc(db, "users", userId);
+    const snapshot = await getDoc(statsRef);
+    const stored = snapshot.exists() ? { ...emptyStreak, ...snapshot.data() } : emptyStreak;
+    const today = todayKey();
+    const next = stored.lastActiveDate === today
+      ? stored
+      : {
+          ...stored,
+          currentStreak: stored.lastActiveDate === yesterdayKey() ? stored.currentStreak + 1 : 1,
+          lastActiveDate: today,
+          totalSessions: (stored.totalSessions || 0) + 1,
+        };
 
-  await setDoc(statsRef, { currentStreak: next.currentStreak, lastActiveDate: next.lastActiveDate, totalSessions: next.totalSessions }, { merge: true });
-  return next;
+    await setDoc(statsRef, { currentStreak: next.currentStreak, lastActiveDate: next.lastActiveDate, totalSessions: next.totalSessions }, { merge: true });
+    return next;
+  } catch (error) {
+    console.error("Lingua streak update error", error);
+    throw new Error("Không thể cập nhật chuỗi học tập. Vui lòng thử lại sau.");
+  }
 }
 
 export async function getUserStreak(userId = auth.currentUser?.uid) {
   if (!userId) return readGuestStreak();
-  const snapshot = await getDoc(doc(db, "users", userId));
-  return snapshot.exists() ? { ...emptyStreak, ...snapshot.data() } : emptyStreak;
+  try {
+    const snapshot = await getDoc(doc(db, "users", userId));
+    return snapshot.exists() ? { ...emptyStreak, ...snapshot.data() } : emptyStreak;
+  } catch (error) {
+    console.error("Lingua streak read error", error);
+    throw new Error("Không thể tải chuỗi học tập. Vui lòng thử lại sau.");
+  }
 }

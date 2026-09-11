@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -15,12 +15,12 @@ import {
   XCircle,
 } from "lucide-react";
 import confetti from "canvas-confetti";
-import { parseAiJson, requestAi } from "../../services/aiClient";
+import { parseAiJson, requestAi } from "../../services/aiService";
+import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
-const API_KEY_STORAGE = "lingua-ai-api-key";
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const statuses = { new: "Mới", learning: "Đang học", mastered: "Thuộc" };
@@ -500,7 +500,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
   );
 }
 
-export default function VocabularyHub({ onStudyActivity, streak }) {
+export default function VocabularyHub({ onStudyActivity, streak, apiKey }) {
   const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
@@ -512,6 +512,8 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
   const [error, setError] = useState("");
   const [practiceDeckId, setPracticeDeckId] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(true);
+  const debouncedManualWord = useDebounce(manualWord);
+  const debouncedTopic = useDebounce(topic);
 
   const selectedDeck =
     library.decks.find((deck) => deck.id === selectedDeckId) ||
@@ -610,8 +612,7 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
   };
 
   const lookupWord = async () => {
-    if (!manualWord.trim()) return;
-    const apiKey = localStorage.getItem(API_KEY_STORAGE) || "";
+    if (!debouncedManualWord.trim()) return;
     if (!apiKey)
       return setError(
         "Hãy lưu API key trong tab Cài đặt API trước khi tra từ.",
@@ -623,11 +624,11 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
         await requestAi(
           localStorage.getItem(PROVIDER_STORAGE) || "gemini",
           apiKey,
-          quickLookupPrompt(manualWord),
+          quickLookupPrompt(debouncedManualWord),
           { json: true },
         ),
       );
-      await addCards([{ ...result, word: manualWord }]);
+      await addCards([{ ...result, word: debouncedManualWord }]);
       setManualWord("");
     } catch (requestError) {
       setError(requestError.message);
@@ -637,7 +638,6 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
   };
 
   const generateVocabulary = async () => {
-    const apiKey = localStorage.getItem(API_KEY_STORAGE) || "";
     if (!apiKey)
       return setError(
         "Hãy lưu API key trong tab Cài đặt API trước khi dùng AI.",
@@ -649,7 +649,7 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
         await requestAi(
           localStorage.getItem(PROVIDER_STORAGE) || "gemini",
           apiKey,
-          generatePrompt(topic, level, amount),
+          generatePrompt(debouncedTopic, level, amount),
           { json: true },
         ),
       );
@@ -661,14 +661,14 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
     }
   };
 
-  const updateCard = async (cardId, changes) => {
+  const updateCard = useCallback(async (cardId, changes) => {
     await dataService.updateCard(cardId, changes);
     updateLibrary({ cards: library.cards.map((card) => card.id === cardId ? { ...card, ...changes } : card) });
-  };
-  const removeCard = async (cardId) => {
+  }, [library.cards]);
+  const removeCard = useCallback(async (cardId) => {
     await dataService.deleteCard(cardId);
     updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
-  };
+  }, [library.cards]);
   const speak = (word) => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -695,7 +695,7 @@ export default function VocabularyHub({ onStudyActivity, streak }) {
           deck={practiceDeck}
           cards={practiceCards}
           onExit={() => setPracticeDeckId(null)}
-          onUpdateCard={(cardId, changes) => updateCard(cardId, changes)}
+          onUpdateCard={updateCard}
           onStudyActivity={onStudyActivity}
           streak={streak}
         />

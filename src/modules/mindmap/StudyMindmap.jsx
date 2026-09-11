@@ -34,10 +34,10 @@ import {
 import { toPng } from "html-to-image";
 import dagre from "dagre";
 import "@xyflow/react/dist/style.css";
-import { parseAiJson, requestAi } from "../../services/aiClient";
+import { parseAiJson, requestAi } from "../../services/aiService";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const STORAGE_KEY = "lingua-study-mindmap";
-const API_KEY_STORAGE = "lingua-ai-api-key";
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const NODE_WIDTH = 260;
 const NODE_HEIGHT = 100;
@@ -422,7 +422,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
   );
 }
 
-export default function StudyMindmap() {
+export default function StudyMindmap({ apiKey }) {
   const saved = readMap();
   const [mapName, setMapName] = useState(
     saved.name || "English Fluency Roadmap",
@@ -434,6 +434,7 @@ export default function StudyMindmap() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState("");
+  const debouncedTopic = useDebounce(topic);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -663,8 +664,7 @@ export default function StudyMindmap() {
     link.click();
   };
   const generateRoadmap = async () => {
-    const apiKey = localStorage.getItem(API_KEY_STORAGE);
-    if (!topic.trim()) return setError("Hãy nhập chủ đề roadmap.");
+    if (!debouncedTopic.trim()) return setError("Hãy nhập chủ đề roadmap.");
     if (!apiKey)
       return setError("Hãy lưu API key trong Cài đặt API trước.");
     setLoading(true);
@@ -673,7 +673,7 @@ export default function StudyMindmap() {
       const raw = await requestAi(
         localStorage.getItem(PROVIDER_STORAGE) || "gemini",
         apiKey,
-        roadmapPrompt(topic),
+        roadmapPrompt(debouncedTopic),
         { json: true },
       );
       const result = parseAiJson(raw);

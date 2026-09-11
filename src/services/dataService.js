@@ -69,7 +69,7 @@ const getUserDocuments = async (collectionName) => {
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 };
 
-export const dataService = {
+const dataMethods = {
   async getDecks() {
     if (!currentUser()) return readLocal().decks.map(normalizeDeck);
     return (await getUserDocuments("study_decks"))
@@ -164,3 +164,19 @@ export const dataService = {
     await deleteDoc(doc(db, "vocabulary_cards", id));
   },
 };
+
+const withFriendlyDataError = async (operation, args) => {
+  try {
+    return await operation(...args);
+  } catch (error) {
+    console.error("Lingua data service error", error);
+    throw new Error("Không thể đồng bộ dữ liệu. Vui lòng kiểm tra kết nối và thử lại.");
+  }
+};
+
+export const dataService = Object.fromEntries(
+  Object.entries(dataMethods).map(([name, operation]) => [
+    name,
+    (...args) => withFriendlyDataError(operation, args),
+  ]),
+);

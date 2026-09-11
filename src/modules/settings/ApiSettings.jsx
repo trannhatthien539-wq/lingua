@@ -1,16 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, CheckCircle2, KeyRound, Link2, Save } from 'lucide-react'
+import { getApiKeyStorageKey, PROVIDER_STORAGE } from '../../services/apiKeyStorage'
 
-const API_KEY_STORAGE = 'lingua-ai-api-key'
-const PROVIDER_STORAGE = 'lingua-ai-provider'
-
-export default function ApiSettings() {
+export default function ApiSettings({ user, apiKey, setApiKey }) {
   const [provider, setProvider] = useState(() => localStorage.getItem(PROVIDER_STORAGE) || 'gemini')
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '')
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    setApiKey(user ? localStorage.getItem(getApiKeyStorageKey(user)) || '' : '')
+    setSaved(false)
+  }, [user, setApiKey])
+
   const saveSettings = () => {
-    localStorage.setItem(API_KEY_STORAGE, apiKey.trim())
+    const storageKey = getApiKeyStorageKey(user)
+    const nextApiKey = apiKey.trim()
+    localStorage.setItem(storageKey, nextApiKey)
+    setApiKey(nextApiKey)
     localStorage.setItem(PROVIDER_STORAGE, provider)
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1800)
