@@ -103,6 +103,10 @@ function ErrorMessage({ message, onClose }) {
   );
 }
 
+function SuccessMessage({ message, onClose }) {
+  return <div className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200"><span>{message}</span><button onClick={onClose} aria-label="Đóng thông báo"><X size={15} /></button></div>;
+}
+
 function StatusBadge({ status }) {
   const styles =
     status === "mastered"
@@ -114,6 +118,26 @@ function StatusBadge({ status }) {
     <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${styles}`}>
       {statuses[status]}
     </span>
+  );
+}
+
+function ManualCardModal({ draft, levels, busy, onChange, onSuggest, onSave, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
+      <section className="panel max-h-[90vh] w-full max-w-xl overflow-y-auto p-6">
+        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">New vocabulary card</p><h2 className="mt-1 font-display text-xl font-bold">Thêm thẻ mới</h2></div><button onClick={onClose} aria-label="Đóng"><X size={18} /></button></div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="sm:col-span-2"><FieldLabel>Từ vựng *</FieldLabel><input autoFocus value={draft.word} onChange={(event) => onChange("word", event.target.value)} placeholder="accommodation" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
+          <label><FieldLabel>Phiên âm IPA</FieldLabel><input value={draft.ipa} onChange={(event) => onChange("ipa", event.target.value)} placeholder="/əˌkɒməˈdeɪʃən/" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
+          <div className="flex items-end"><button onClick={onSuggest} disabled={busy || !draft.word.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-3 py-3 text-xs font-bold text-ink disabled:opacity-50"><Sparkles size={15} />AI gợi ý IPA & Nghĩa</button></div>
+          <label className="sm:col-span-2"><FieldLabel>Định nghĩa tiếng Việt *</FieldLabel><textarea value={draft.meaning} onChange={(event) => onChange("meaning", event.target.value)} rows={2} placeholder="Nơi ở, chỗ ở" className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
+          <label><FieldLabel>Ví dụ tiếng Anh</FieldLabel><textarea value={draft.example} onChange={(event) => onChange("example", event.target.value)} rows={3} placeholder="We booked accommodation near the station." className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
+          <label><FieldLabel>Dịch nghĩa ví dụ</FieldLabel><textarea value={draft.exampleTranslation} onChange={(event) => onChange("exampleTranslation", event.target.value)} rows={3} placeholder="Chúng tôi đặt chỗ ở gần nhà ga." className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
+          <label><FieldLabel>Cấp độ</FieldLabel><select value={draft.level} onChange={(event) => onChange("level", event.target.value)} className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label>
+        </div>
+        <div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Hủy</button><button onClick={onSave} disabled={busy} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">{busy ? "Đang lưu..." : "Lưu thẻ"}</button></div>
+      </section>
+    </div>
   );
 }
 
@@ -514,11 +538,15 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
   const [manualWord, setManualWord] = useState("");
+  const [lookupResult, setLookupResult] = useState(null);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [manualDraft, setManualDraft] = useState({ word: "", ipa: "", meaning: "", example: "", exampleTranslation: "", level: "B1" });
   const [topic, setTopic] = useState("Du lịch - giao tiếp");
   const [level, setLevel] = useState("B1");
   const [amount, setAmount] = useState("5");
   const [loading, setLoading] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [studyDeckId, setStudyDeckId] = useState(null);
   const [studyMode, setStudyMode] = useState(null);
   const [studyCards, setStudyCards] = useState(null);
@@ -638,7 +666,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     });
     if (!uniqueItems.length) {
       setError("Không có từ mới để thêm: tất cả từ AI trả về đều đã tồn tại trong bộ.");
-      return;
+      return [];
     }
     const enrichedItems = await Promise.all(uniqueItems.map(async (item) => ({
       ...item,
@@ -663,6 +691,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       .filter((card) => card.word);
     const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
     updateLibrary({ cards: [...savedCards, ...library.cards] });
+    return savedCards;
   };
 
   const importDeck = async (title, items) => {
@@ -684,6 +713,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     setLoading("lookup");
     setError("");
     try {
+      if (deckCards.some((card) => normalizeWord(card.word) === normalizeWord(debouncedManualWord))) {
+        setError("Từ này đã có trong bộ hiện tại.");
+        return;
+      }
       const result = parseAiJson(
         await requestAi(
           localStorage.getItem(PROVIDER_STORAGE) || "gemini",
@@ -692,13 +725,46 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           { json: true },
         ),
       );
-      await addCards([{ ...result, word: debouncedManualWord }]);
-      setManualWord("");
+      setLookupResult({ ...result, word: titleCaseWord(debouncedManualWord), level });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setLoading("");
     }
+  };
+
+  const saveLookupResult = async () => {
+    if (!lookupResult) return;
+    setLoading("lookup-save");
+    try {
+      const saved = await addCards([lookupResult]);
+      if (saved.length) { setLookupResult(null); setManualWord(""); setError(""); setNotice(`Đã thêm vào bộ ${selectedDeck?.title}.`); }
+    } catch (requestError) { setError(requestError.message || "Không thể lưu thẻ."); }
+    finally { setLoading(""); }
+  };
+
+  const openManualModal = () => {
+    setManualDraft({ word: manualWord, ipa: "", meaning: "", example: "", exampleTranslation: "", level });
+    setManualModalOpen(true);
+  };
+  const updateManualDraft = (field, value) => setManualDraft((current) => ({ ...current, [field]: value }));
+  const suggestManualDetails = async () => {
+    if (!apiKey || !manualDraft.word.trim()) return setError("Hãy nhập từ và lưu API key trước khi dùng AI.");
+    setLoading("manual-suggest");
+    try {
+      const result = parseAiJson(await requestAi(localStorage.getItem(PROVIDER_STORAGE) || "gemini", apiKey, quickLookupPrompt(manualDraft.word), { json: true }));
+      setManualDraft((current) => ({ ...current, ipa: result.ipa || current.ipa, meaning: result.meaning || current.meaning, example: result.example || current.example }));
+    } catch (requestError) { setError(requestError.message); }
+    finally { setLoading(""); }
+  };
+  const saveManualCard = async () => {
+    if (!manualDraft.word.trim() || !manualDraft.meaning.trim()) return setError("Từ vựng và định nghĩa là bắt buộc.");
+    setLoading("manual-save");
+    try {
+      const saved = await addCards([{ ...manualDraft, example: manualDraft.exampleTranslation ? `${manualDraft.example}\n${manualDraft.exampleTranslation}` : manualDraft.example }]);
+      if (saved.length) { setManualModalOpen(false); setManualDraft({ word: "", ipa: "", meaning: "", example: "", exampleTranslation: "", level }); setNotice(`Đã thêm vào bộ ${selectedDeck?.title}.`); }
+    } catch (requestError) { setError(requestError.message || "Không thể lưu thẻ."); }
+    finally { setLoading(""); }
   };
 
   const generateVocabulary = async () => {
@@ -950,7 +1016,15 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                   )}
                   Tra nhanh
                 </button>
+                <button
+                  onClick={saveLookupResult}
+                  disabled={!lookupResult || loading === "lookup-save"}
+                  className="flex items-center gap-2 rounded-xl bg-lime px-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus size={15} />Thêm vào bộ này
+                </button>
               </div>
+              {lookupResult && <div className="mt-4 rounded-xl border border-lime/60 bg-lime/20 p-4 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-display font-bold">{lookupResult.word} <span className="ml-1 text-xs font-normal text-sage">{lookupResult.ipa}</span></p><p className="mt-1 font-semibold">{lookupResult.meaning}</p><p className="mt-1 text-xs text-ink/55 dark:text-white/55">{lookupResult.example}</p></div><button onClick={saveLookupResult} disabled={loading === "lookup-save"} className="rounded-lg bg-ink px-3 py-2 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">Lưu kết quả</button></div></div>}
             </div>
             <div className="border-t border-ink/[0.08] pt-4 lg:border-l lg:border-t-0 lg:pl-4 dark:border-white/[0.08]">
               <p className="text-sm font-bold">AI Sinh từ vựng thông minh</p>
@@ -996,10 +1070,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           {error && (
             <ErrorMessage message={error} onClose={() => setError("")} />
           )}
+          {notice && <SuccessMessage message={notice} onClose={() => setNotice("")} />}
           <section className="panel overflow-hidden">
             <div className="border-b border-ink/[0.08] px-5 py-4 dark:border-white/[0.08]">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-display font-bold">Từ trong bộ</p>
+                <div className="flex items-center gap-3"><p className="font-display font-bold">Từ trong bộ</p><button onClick={openManualModal} className="flex items-center gap-1 rounded-lg bg-lime px-2.5 py-2 text-[11px] font-bold text-ink"><Plus size={14} />Thêm thẻ mới</button></div>
                 <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]">
                   {[
                     ["all", `Tất cả (${deckCards.length})`],
@@ -1103,6 +1178,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </main>
       </div>
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
+      {manualModalOpen && <ManualCardModal draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} onClose={() => setManualModalOpen(false)} />}
     </div>
   );
 }
