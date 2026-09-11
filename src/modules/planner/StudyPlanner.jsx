@@ -158,6 +158,7 @@ function playChime(audioElement, alarm = "chime", customSource = "", volume = 35
 
 function FocusAudio({ sound, volume, active, customSource }) {
   const contextRef = useRef(null);
+  const gainRef = useRef(null);
   const nodesRef = useRef([]);
   useEffect(() => {
     if (!active || sound === "mute") return undefined;
@@ -173,6 +174,7 @@ function FocusAudio({ sound, volume, active, customSource }) {
     const gain = context.createGain();
     gain.gain.value = (volume / 100) * 0.12;
     gain.connect(context.destination);
+    gainRef.current = gain;
     const nodes = [];
     if (sound === "rain") {
       const buffer = context.createBuffer(
@@ -203,12 +205,12 @@ function FocusAudio({ sound, volume, active, customSource }) {
       nodes.forEach((node) => node.stop?.());
       context.close();
       contextRef.current = null;
+      gainRef.current = null;
       nodesRef.current = [];
     };
   }, [active, sound, customSource]);
   useEffect(() => {
-    const gain = contextRef.current?.destination;
-    if (gain) gain.gain.value = (volume / 100) * 0.12;
+    if (gainRef.current) gainRef.current.gain.value = (volume / 100) * 0.12;
   }, [volume]);
   return null;
 }
