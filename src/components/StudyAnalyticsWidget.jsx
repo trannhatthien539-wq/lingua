@@ -8,7 +8,7 @@ export default function StudyAnalyticsWidget({ cards = [], streak }) {
   const learning = cards.filter((card) => card.status === 'learning').length;
   const fresh = cards.filter((card) => card.status === 'new' || !card.status).length;
   const total = cards.length || 1;
-  const studiedToday = cards.filter((card) => card.reviewDate?.slice(0, 10) === today || card.nextReviewDate === today).length;
+  const studiedToday = cards.filter((card) => card.lastStudiedDate === today).length;
   const heatmap = useMemo(() => Array.from({ length: 28 }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() - (27 - index));

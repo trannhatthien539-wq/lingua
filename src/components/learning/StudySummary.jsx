@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { Check, RotateCcw, X } from "lucide-react";
+import { celebrateStudyCompletion } from "../../utils/studyFeedback";
 
 export default function StudySummary({ title, score, total, duration, mistakes = [], onReplay, onChangeMode, onClose }) {
+  useEffect(() => { celebrateStudyCompletion(); }, []);
   return (
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#f5f7f3] p-5 text-ink dark:bg-[#121715] dark:text-white sm:p-10">
       <div className="mx-auto flex min-h-full max-w-xl items-center justify-center">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, Volume2, X, RotateCcw } from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speech";
-import { addDaysKey } from "../../utils/srs";
+import { addDaysKey, dateKey } from "../../utils/srs";
 
 const REVIEW_DAYS = { again: 1, soon: 3, mastered: 5 };
 
@@ -44,6 +44,7 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
       nextReviewDate,
       repetition: rating === "again" ? 0 : Number(currentCard.repetition || 0) + 1,
       reviewDate: `${nextReviewDate}T00:00:00.000Z`,
+      lastStudiedDate: dateKey(),
     });
     setHistory((current) => [...current, { cardId: currentCard.id, previousSrs, rating, repeated: rating === "again" }]);
     setResults(nextResults);

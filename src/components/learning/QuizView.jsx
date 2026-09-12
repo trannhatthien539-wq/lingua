@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, Volume2, X } from "lucide-react";
 import StudySummary from "./StudySummary";
 import { getPlayableAudio, sanitizeCard } from "../../utils/sanitizeCard";
-import { addDaysKey } from "../../utils/srs";
+import { addDaysKey, dateKey } from "../../utils/srs";
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
 const uniqueMeanings = (items) => items.filter((item, index, all) => all.findIndex((candidate) => candidate.trim().toLowerCase() === item.trim().toLowerCase()) === index);
@@ -27,7 +27,7 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
     setSelected(option);
     setResults((current) => [...current, { word: card.word, correct }]);
     const interval = correct ? 5 : 1;
-    onUpdateCard(card.id, { status: correct ? "mastered" : "learning", interval, nextReviewDate: addDaysKey(interval), repetition: correct ? Number(card.repetition || 0) + 1 : 0 }).catch(() => {});
+    onUpdateCard(card.id, { status: correct ? "mastered" : "learning", interval, nextReviewDate: addDaysKey(interval), lastStudiedDate: dateKey(), repetition: correct ? Number(card.repetition || 0) + 1 : 0 }).catch(() => {});
     window.setTimeout(async () => {
       if (index + 1 >= safeCards.length) await onStudyActivity?.();
       setIndex((current) => current + 1);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lingua-static-v1';
+const CACHE_NAME = 'lingua-static-v2';
 const APP_SHELL = ['./', './manifest.json', './icons/icon-192.svg', './icons/icon-512.svg'];
 
 self.addEventListener('install', (event) => {
@@ -13,11 +13,22 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document';
+  if (isNavigation) {
+    event.respondWith(fetch(event.request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      }
+      return response;
+    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('./'))));
+    return;
+  }
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
     if (response.ok && new URL(event.request.url).origin === self.location.origin) {
       const copy = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
     }
     return response;
-  }).catch(() => caches.match('./'))));
+  })));
 });

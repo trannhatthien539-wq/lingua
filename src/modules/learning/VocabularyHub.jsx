@@ -33,6 +33,7 @@ import SafeImage from "../../components/ui/SafeImage";
 import { dateKey } from "../../utils/srs";
 import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
 import { createStarterDeck } from "../../data/starterDeck";
+import { playStudySound } from "../../utils/studyFeedback";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -145,21 +146,6 @@ function ManualCardModal({ draft, levels, busy, onChange, onSuggest, onSave, onC
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
 
-function playQuizSound(correct) {
-  if (!window.AudioContext) return;
-  const context = new window.AudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = correct ? "sine" : "sawtooth";
-  oscillator.frequency.setValueAtTime(correct ? 660 : 150, context.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(correct ? 990 : 90, context.currentTime + 0.18);
-  gain.gain.setValueAtTime(0.08, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.22);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.22);
-}
-
 function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, streak }) {
   const [mode, setMode] = useState("flashcard");
   const [index, setIndex] = useState(0);
@@ -208,13 +194,14 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
     const nextResults = [...results, isCorrect];
     onUpdateCard(card.id, {
       status: isCorrect ? "mastered" : "learning",
+      lastStudiedDate: dateKey(),
       reviewDate: new Date(
         Date.now() + (isCorrect ? 3 : 1) * 86400000,
       ).toISOString(),
     });
     setAnswer(isCorrect);
     if (mode === "quiz") {
-      playQuizSound(isCorrect);
+      playStudySound(isCorrect ? "correct" : "wrong");
       if (isCorrect) confetti({ particleCount: 90, spread: 70, origin: { y: 0.65 } });
     }
     if (index === cards.length - 1) finish(nextResults);
