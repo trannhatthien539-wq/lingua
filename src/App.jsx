@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
@@ -11,16 +11,16 @@ import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
 import { useTheme } from './hooks/useTheme'
 import { formatDate } from './lib/formatters'
-import StudyPlanner from './modules/planner/StudyPlanner'
-import StudyMindmap from './modules/mindmap/StudyMindmap'
-import ApiSettings from './modules/settings/ApiSettings'
-import { GrammarChecker } from './modules/learning/GrammarAndVocabulary'
-import VocabularyHub from './modules/learning/VocabularyHub'
 import MobileBottomNav from './components/MobileBottomNav'
 import MobileHeader from './components/MobileHeader'
 import AccountPanel from './components/AccountPanel'
 import SearchPalette from './components/SearchPalette'
 
+const VocabularyHub = lazy(() => import('./modules/learning/VocabularyHub'))
+const GrammarChecker = lazy(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.GrammarChecker })))
+const StudyPlanner = lazy(() => import('./modules/planner/StudyPlanner'))
+const StudyMindmap = lazy(() => import('./modules/mindmap/StudyMindmap'))
+const ApiSettings = lazy(() => import('./modules/settings/ApiSettings'))
 const modules = { vocabulary: VocabularyHub, grammar: GrammarChecker, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
 const tabPaths = { vocabulary: '/vocabulary', grammar: '/grammar', planner: '/planner', mindmap: '/mindmap', settings: '/settings' }
 const pathTabs = Object.fromEntries(Object.entries(tabPaths).map(([tab, path]) => [path, tab]))
@@ -107,5 +107,5 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}</div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}</div>
 }
