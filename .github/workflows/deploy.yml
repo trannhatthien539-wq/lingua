@@ -37,6 +37,9 @@ jobs:
           GITHUB_PAGES: true
         run: npm run build
 
+      - name: Enable SPA routes
+        run: cp dist/index.html dist/404.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
