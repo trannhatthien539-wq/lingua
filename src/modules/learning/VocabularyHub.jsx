@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   LoaderCircle,
+  MoreVertical,
   Pencil,
   Plus,
   Search,
@@ -95,19 +96,15 @@ function FieldLabel({ children }) {
   );
 }
 
-function ErrorMessage({ message, onClose }) {
+function ToastMessage({ message, tone = "error", onClose }) {
   return (
-    <div role="alert" className="flex items-start justify-between gap-3 rounded-xl bg-red-50 p-3 text-xs leading-5 text-red-700 dark:bg-red-950/30 dark:text-red-200">
+    <div role={tone === "error" ? "alert" : "status"} aria-live="polite" className={`fixed bottom-20 right-4 z-[120] flex max-w-sm items-start justify-between gap-3 rounded-xl border p-3 text-xs leading-5 shadow-xl sm:bottom-6 ${tone === "error" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/80 dark:text-red-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/80 dark:text-emerald-200"}`}>
       <span>{message}</span>
       <button onClick={onClose} aria-label="Đóng lỗi">
         <X size={15} />
       </button>
     </div>
   );
-}
-
-function SuccessMessage({ message, onClose }) {
-  return <div role="status" aria-live="polite" className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200"><span>{message}</span><button onClick={onClose} aria-label="Đóng thông báo"><X size={15} /></button></div>;
 }
 
 function StatusBadge({ status }) {
@@ -124,24 +121,34 @@ function StatusBadge({ status }) {
   );
 }
 
-function ManualCardModal({ draft, levels, busy, onChange, onSuggest, onSave, onClose }) {
+function AddWordsSheet({ tab, onTabChange, draft, levels, busy, onChange, onSuggest, onSave, topic, onTopicChange, level, onLevelChange, amount, onAmountChange, onGenerate, lookupResult, onLookupWord, onSaveLookup, manualWord, onManualWordChange, lookupLoading, onClose }) {
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
-      <section className="panel max-h-[90vh] w-full max-w-xl overflow-y-auto p-6">
-        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">New vocabulary card</p><h2 className="mt-1 font-display text-xl font-bold">Thêm thẻ mới</h2></div><button onClick={onClose} aria-label="Đóng"><X size={18} /></button></div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <section className="panel max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-b-none p-5 sm:rounded-2xl sm:p-6">
+        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">Vocabulary</p><h2 className="mt-1 font-display text-xl font-bold">Thêm từ mới</h2></div><button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-ink/10 dark:border-white/10" aria-label="Đóng"><X size={18} /></button></div>
+        <div className="mt-5 flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]"><button onClick={() => onTabChange("manual")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "manual" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>Thủ công</button><button onClick={() => onTabChange("ai")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "ai" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}><Sparkles size={14} className="mr-1 inline" />Sinh bằng AI</button></div>
+        {tab === "manual" ? <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><FieldLabel>Từ vựng *</FieldLabel><input autoFocus value={draft.word} onChange={(event) => onChange("word", event.target.value)} placeholder="accommodation" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Phiên âm IPA</FieldLabel><input value={draft.ipa} onChange={(event) => onChange("ipa", event.target.value)} placeholder="/əˌkɒməˈdeɪʃən/" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
-          <div className="flex items-end"><button onClick={onSuggest} disabled={busy || !draft.word.trim()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-3 py-3 text-xs font-bold text-ink disabled:opacity-50"><Sparkles size={15} />AI gợi ý IPA & Nghĩa</button></div>
+          <div className="flex items-end"><button type="button" onClick={onSuggest} disabled={busy || !draft.word.trim()} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-lime px-3 py-3 text-xs font-bold text-ink disabled:opacity-50"><Sparkles size={15} />AI gợi ý</button></div>
           <label className="sm:col-span-2"><FieldLabel>Định nghĩa tiếng Việt *</FieldLabel><textarea value={draft.meaning} onChange={(event) => onChange("meaning", event.target.value)} rows={2} placeholder="Nơi ở, chỗ ở" className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Ví dụ tiếng Anh</FieldLabel><textarea value={draft.example} onChange={(event) => onChange("example", event.target.value)} rows={3} placeholder="We booked accommodation near the station." className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Dịch nghĩa ví dụ</FieldLabel><textarea value={draft.exampleTranslation} onChange={(event) => onChange("exampleTranslation", event.target.value)} rows={3} placeholder="Chúng tôi đặt chỗ ở gần nhà ga." className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Cấp độ</FieldLabel><select value={draft.level} onChange={(event) => onChange("level", event.target.value)} className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label>
-        </div>
-        <div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Hủy</button><button onClick={onSave} disabled={busy} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">{busy ? "Đang lưu..." : "Lưu thẻ"}</button></div>
+          <div className="flex justify-end gap-2 sm:col-span-2"><button type="button" onClick={onClose} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Hủy</button><button disabled={busy} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">{busy ? "Đang lưu..." : "Lưu thẻ"}</button></div>
+        </form> : <div className="mt-5 space-y-4"><form onSubmit={(event) => { event.preventDefault(); onLookupWord(); }} className="flex gap-2"><input autoFocus value={manualWord} onChange={(event) => onManualWordChange(event.target.value)} placeholder="Nhập từ cần tra..." className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><button disabled={lookupLoading} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink text-white dark:bg-lime dark:text-ink" aria-label="Tra từ">{lookupLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Search size={16} />}</button></form>{lookupResult && <div className="rounded-xl border border-lime/60 bg-lime/20 p-4 text-sm"><p className="font-display font-bold">{lookupResult.word} <span className="ml-1 text-xs font-normal text-sage">{lookupResult.ipa}</span></p><p className="mt-1 font-semibold">{lookupResult.meaning}</p><p className="mt-1 text-xs text-ink/55 dark:text-white/55">{lookupResult.example}</p><button onClick={onSaveLookup} disabled={lookupLoading} className="mt-3 w-full rounded-lg bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">Thêm vào bộ này</button></div>}<div className="border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]"><p className="text-sm font-bold">Sinh theo chủ đề</p><input value={topic} onChange={(event) => onTopicChange(event.target.value)} placeholder="Ví dụ: du lịch, công việc..." className="mt-3 w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><div className="mt-2 grid grid-cols-3 gap-2"><select value={level} onChange={(event) => onLevelChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select><select value={amount} onChange={(event) => onAmountChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10"><option value="5">5 từ</option><option value="10">10 từ</option></select><button onClick={onGenerate} disabled={busy} className="flex items-center justify-center gap-1 rounded-xl bg-lime px-2 text-xs font-bold text-ink disabled:opacity-60"><Sparkles size={14} />Sinh</button></div></div></div>}
       </section>
     </div>
   );
+}
+
+function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemove }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return <article className="relative flex flex-col gap-3 border-b border-ink/[0.07] p-4 last:border-b-0 dark:border-white/[0.07] sm:p-5 md:flex-row md:items-center">
+    <div className="flex min-w-0 items-start gap-3"><SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="hidden h-9 w-9 shrink-0 rounded-md object-cover sm:block" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-display text-base font-bold sm:text-lg">{card.word}</p><button onClick={() => onSpeak(card.word, card.id)} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-ink/10 text-ink/55 hover:text-ink dark:border-white/10 dark:text-white/55 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`} aria-label={`Nghe phát âm ${card.word}`}><Volume2 size={17} /></button></div><div className="mt-1 flex items-center gap-2"><p className="min-w-0 truncate text-sm text-ink/60 dark:text-white/60">{card.meaning}</p><span className="shrink-0 rounded-full bg-ink/[0.06] px-2 py-1 text-[10px] font-bold text-ink/55 dark:bg-white/10 dark:text-white/55">{card.level}</span><StatusBadge status={card.status} /></div><button onClick={() => onSpeak(card.example, `${card.id}-example`)} className={`mt-2 hidden max-w-full items-start gap-1 text-left text-xs leading-5 text-ink/45 dark:text-white/45 md:flex ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={13} className="mt-1 shrink-0" />{card.example || "Chưa có ví dụ"}</button></div></div>
+    <button onClick={() => onStudy(card.id)} className="hidden h-10 items-center gap-2 rounded-xl bg-lime px-3 text-xs font-bold text-ink md:flex" title="Học từ này"><BookOpen size={15} />Học</button>
+    <div className="absolute right-3 top-3 md:static"><button onClick={() => setMenuOpen((value) => !value)} className="grid h-11 w-11 place-items-center rounded-xl text-ink/45 hover:bg-ink/[0.06] dark:text-white/45 dark:hover:bg-white/10" aria-label={`Tùy chọn ${card.word}`}><MoreVertical size={18} /></button>{menuOpen && <div className="absolute right-0 top-12 z-20 w-44 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { onStudy(card.id); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={14} />Học từ này</button><label className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><span className="flex-1">Cấp độ</span><select value={card.level} onChange={(event) => onUpdate(card.id, { level: event.target.value })} className="w-14 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label><label className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><span className="flex-1">Trạng thái</span><select value={card.status} onChange={(event) => onUpdate(card.id, { status: event.target.value })} className="w-20 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button onClick={() => onRemove(card.id)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 size={14} />Xóa từ</button></div>}</div>
+  </article>;
 }
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
@@ -529,6 +536,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [manualWord, setManualWord] = useState("");
   const [lookupResult, setLookupResult] = useState(null);
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [addTab, setAddTab] = useState("manual");
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [manualDraft, setManualDraft] = useState({ word: "", ipa: "", meaning: "", example: "", exampleTranslation: "", level: "B1" });
   const [topic, setTopic] = useState("Du lịch - giao tiếp");
   const [level, setLevel] = useState("B1");
@@ -546,6 +555,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [dataModal, setDataModal] = useState(null);
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
+
+  useEffect(() => {
+    if (!error && !notice) return undefined;
+    const timer = window.setTimeout(() => { setError(""); setNotice(""); }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [error, notice]);
 
   const selectedDeck =
     library.decks.find((deck) => deck.id === selectedDeckId) ||
@@ -738,7 +753,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     setLoading("lookup-save");
     try {
       const saved = await addCards([lookupResult]);
-      if (saved.length) { setLookupResult(null); setManualWord(""); setError(""); setNotice(`Đã thêm vào bộ ${selectedDeck?.title}.`); }
+      if (saved.length) { setLookupResult(null); setManualWord(""); setError(""); setManualModalOpen(false); setNotice(`Đã thêm vào bộ ${selectedDeck?.title}.`); }
     } catch (requestError) { setError(requestError.message || "Không thể lưu thẻ."); }
     finally { setLoading(""); }
   };
@@ -784,7 +799,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           { json: true },
         ),
       );
-      await addCards(result.cards || []);
+      const saved = await addCards(result.cards || []);
+      if (saved.length) setManualModalOpen(false);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -821,7 +837,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     ]);
     const duplicateSet = new Set(duplicateIds);
     updateLibrary({ cards: library.cards.filter((card) => card.deckId !== selectedDeck.id || !duplicateSet.has(card.id)).map((card) => keptCards.find((item) => item.id === card.id) || card) });
-    setError(`Đã dọn ${duplicateIds.length} từ trùng lặp trong bộ.`);
+    setNotice(`Đã dọn ${duplicateIds.length} từ trùng lặp trong bộ.`);
   };
   const addIeltsDeck = async () => {
     const seed = createStarterDeck();
@@ -982,137 +998,25 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 ))}
               </div>
             </div>
-            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-              <span className="text-sm text-ink/40 dark:text-white/40">
-                {deckCards.length} từ trong bộ
-              </span>
-              <button
-                onClick={() => openStudy(deckCards)}
-                disabled={!deckCards.length}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-3 py-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:py-2.5 dark:bg-lime dark:text-ink"
-              >
-                <Sparkles size={15} />
-                Bắt đầu học bộ này
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white shadow-lg shadow-ink/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:bg-lime dark:text-ink">
+                <Sparkles size={16} />Bắt đầu học ngay
               </button>
-              <button
-                onClick={() => openStudy(dueCards)}
-                disabled={!dueCards.length}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:py-2.5 dark:border-white/[0.1]"
-              >
-                <Check size={15} />
-                Ôn đến hạn ({dueCards.length})
-              </button>
-              <button
-                onClick={cleanupDuplicates}
-                className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] text-ink/50 hover:border-red-300 hover:text-red-500 dark:border-white/[0.1] dark:text-white/50"
-                aria-label="Dọn từ trùng"
-                title="Dọn từ trùng"
-              >
-                <Trash2 size={15} />
-              </button>
-              <button
-                onClick={addIeltsDeck}
-                disabled={loading === "add-deck"}
-                className="flex h-10 items-center gap-2 rounded-xl border border-ink/[0.1] px-3 text-xs font-bold text-ink/60 hover:border-sage hover:text-sage dark:border-white/[0.1] dark:text-white/60"
-                aria-label="Thêm bộ IELTS Speaking Part 1"
-                title="Thêm bộ IELTS Speaking Part 1"
-              >
-                <BookOpen size={15} />
-                <span className="hidden sm:inline">Thêm bộ IELTS</span>
-              </button>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="grid h-12 w-12 place-items-center rounded-xl border border-ink/10 text-ink/55 dark:border-white/10 dark:text-white/55" aria-label="Thêm hành động"><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-52 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><Check size={15} />Ôn đến hạn ({dueCards.length})</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={15} />Thêm bộ IELTS</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Trash2 size={15} />Dọn từ trùng</button></div>}</div>
             </div>
           </div>
-          <section className="panel grid gap-4 p-5 lg:grid-cols-[1fr_auto]">
-            <div>
-              <p className="text-sm font-bold">Thêm từ thủ công</p>
-              <p className="mt-1 text-xs text-ink/40 dark:text-white/40">
-                AI sẽ tra IPA, nghĩa và ví dụ trước khi lưu.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={manualWord}
-                  onChange={(event) => setManualWord(event.target.value)}
-                  onKeyDown={(event) => event.key === "Enter" && lookupWord()}
-                  placeholder="Nhập một từ tiếng Anh..."
-                  className="min-w-0 flex-1 rounded-xl border border-ink/[0.1] bg-transparent px-3 py-3 text-sm outline-none dark:border-white/[0.1]"
-                />
-                <button
-                  onClick={lookupWord}
-                  disabled={loading === "lookup"}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-ink px-3 text-sm font-bold text-white disabled:opacity-60 sm:w-auto dark:bg-lime dark:text-ink"
-                >
-                  {loading === "lookup" ? (
-                    <LoaderCircle size={15} className="animate-spin" />
-                  ) : (
-                    <Search size={15} />
-                  )}
-                  Tra nhanh
-                </button>
-                <button
-                  onClick={saveLookupResult}
-                  disabled={!lookupResult || loading === "lookup-save"}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-lime px-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-                >
-                  <Plus size={15} />Thêm vào bộ này
-                </button>
-              </div>
-              {lookupResult && <div className="mt-4 rounded-xl border border-lime/60 bg-lime/20 p-4 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-display font-bold">{lookupResult.word} <span className="ml-1 text-xs font-normal text-sage">{lookupResult.ipa}</span></p><p className="mt-1 font-semibold">{lookupResult.meaning}</p><p className="mt-1 text-xs text-ink/55 dark:text-white/55">{lookupResult.example}</p></div><button onClick={saveLookupResult} disabled={loading === "lookup-save"} className="rounded-lg bg-ink px-3 py-2 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">Lưu kết quả</button></div></div>}
-            </div>
-            <div className="border-t border-ink/[0.08] pt-4 lg:border-l lg:border-t-0 lg:pl-4 dark:border-white/[0.08]">
-              <p className="text-sm font-bold">AI Sinh từ vựng thông minh</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <input
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  className="col-span-3 rounded-lg border border-ink/[0.1] bg-transparent px-2.5 py-2 text-xs outline-none dark:border-white/[0.1]"
-                  placeholder="Chủ đề"
-                />
-                <select
-                  value={level}
-                  onChange={(event) => setLevel(event.target.value)}
-                  className="rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs outline-none dark:border-white/[0.1]"
-                >
-                  {levels.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
-                <select
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  className="rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs outline-none dark:border-white/[0.1]"
-                >
-                  <option value="5">5 từ</option>
-                  <option value="10">10 từ</option>
-                </select>
-                <button
-                  onClick={generateVocabulary}
-                  disabled={loading === "generate"}
-                  className="flex items-center justify-center gap-1 rounded-lg bg-lime px-2 text-xs font-bold text-ink disabled:opacity-60"
-                >
-                  {loading === "generate" ? (
-                    <LoaderCircle size={14} className="animate-spin" />
-                  ) : (
-                    <Sparkles size={14} />
-                  )}
-                  Sinh
-                </button>
-              </div>
-            </div>
-          </section>
           {error && (
-            <ErrorMessage message={error} onClose={() => setError("")} />
+            <ToastMessage message={error} onClose={() => setError("")} />
           )}
-          {notice && <SuccessMessage message={notice} onClose={() => setNotice("")} />}
+          {notice && <ToastMessage tone="success" message={notice} onClose={() => setNotice("")} />}
           <section className="panel overflow-hidden">
             <div className="border-b border-ink/[0.08] px-5 py-4 dark:border-white/[0.08]">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3"><p className="font-display font-bold">Từ trong bộ</p><button onClick={openManualModal} className="flex items-center gap-1 rounded-lg bg-lime px-2.5 py-2 text-[11px] font-bold text-ink"><Plus size={14} />Thêm thẻ mới</button></div>
+                <div className="flex items-center gap-3"><p className="font-display font-bold">Từ trong bộ</p><button onClick={() => { setAddTab("manual"); openManualModal(); }} className="hidden items-center gap-1 rounded-lg bg-lime px-2.5 py-2 text-[11px] font-bold text-ink sm:flex"><Plus size={14} />Thêm thẻ mới</button></div>
                 <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]">
                   {[
                     ["all", `Tất cả (${deckCards.length})`],
                     ["due", `Cần ôn hôm nay (${dueCards.length})`],
-                    ["interval-3", `Sau 3 ngày (${deckCards.filter((card) => Number(card.interval) === 3).length})`],
-                    ["interval-5", `Sau 5 ngày (${deckCards.filter((card) => Number(card.interval) === 5).length})`],
                     ["mastered", `Đã thuộc (${deckCards.filter((card) => card.status === "mastered").length})`],
                   ].map(([value, label]) => <button key={value} onClick={() => setActiveFilter(value)} className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-bold ${activeFilter === value ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>{label}</button>)}
                 </div>
@@ -1138,79 +1042,16 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-ink/[0.07] dark:divide-white/[0.07]">
-                {filteredCards.map((card) => (
-                  <article
-                    key={card.id}
-                    className="flex flex-wrap items-center gap-3 px-5 py-4"
-                  >
-                    <button
-                      onClick={() => speak(card.word, card.id)}
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink/[0.1] text-ink/45 hover:text-ink dark:border-white/[0.1] dark:text-white/45 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`}
-                      aria-label={`Nghe phát âm ${card.word}`}
-                    >
-                      <Volume2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => setSingleCardId(card.id)}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-lime text-ink hover:bg-sage"
-                      aria-label={`Học từ ${card.word}`}
-                      title="Học từ này"
-                    >
-                      <BookOpen size={16} />
-                    </button>
-                    <div className="min-w-[160px] flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="h-8 w-8 rounded-md object-cover" />
-                        <p className="font-display font-bold">{card.word}</p>
-                        <span className="text-xs text-sage">{card.ipa}</span>
-                        <StatusBadge status={card.status} />
-                      </div>
-                      <p className="mt-1 text-sm font-semibold">
-                        {card.meaning}
-                      </p>
-                      <button onClick={() => speak(card.example, `${card.id}-example`)} className={`mt-1 flex items-start gap-1 text-left text-xs leading-5 text-ink/45 dark:text-white/45 ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={13} className="mt-1 shrink-0" />{card.example}</button>
-                    </div>
-                    <select
-                      value={card.level}
-                      onChange={(event) =>
-                        updateCard(card.id, { level: event.target.value })
-                      }
-                      className="rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs outline-none dark:border-white/[0.1]"
-                    >
-                      {levels.map((item) => (
-                        <option key={item}>{item}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={card.status}
-                      onChange={(event) =>
-                        updateCard(card.id, { status: event.target.value })
-                      }
-                      className="rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs outline-none dark:border-white/[0.1]"
-                    >
-                      {Object.entries(statuses).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => removeCard(card.id)}
-                      className="text-ink/25 hover:text-red-500 dark:text-white/25"
-                      aria-label={`Xóa ${card.word}`}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </article>
-                ))}
+              <div>
+                {filteredCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} />)}
               </div>
             )}
           </section>
         </main>
       </div>
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
-      {manualModalOpen && <ManualCardModal draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} onClose={() => setManualModalOpen(false)} />}
+      <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-white shadow-xl shadow-ink/20 transition hover:-translate-y-0.5 sm:bottom-6 dark:bg-lime dark:text-ink" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>
+      {manualModalOpen && <AddWordsSheet tab={addTab} onTabChange={setAddTab} draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} topic={topic} onTopicChange={setTopic} level={level} onLevelChange={setLevel} amount={amount} onAmountChange={setAmount} onGenerate={generateVocabulary} lookupResult={lookupResult} onLookupWord={lookupWord} onSaveLookup={saveLookupResult} manualWord={manualWord} onManualWordChange={setManualWord} lookupLoading={loading === "lookup" || loading === "lookup-save"} onClose={() => setManualModalOpen(false)} />}
     </div>
   );
 }
