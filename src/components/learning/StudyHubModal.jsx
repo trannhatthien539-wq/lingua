@@ -1,7 +1,7 @@
 import { BookOpen, Brain, Headphones, Keyboard, Sparkles, X } from "lucide-react";
 
 const modes = [
-  { id: "flashcard", icon: BookOpen, title: "Flashcard SRS", text: "Lật thẻ và lên lịch ôn tập 1, 3 hoặc 7 ngày." },
+  { id: "flashcard", icon: BookOpen, title: "Flashcard SRS", text: "Lật thẻ và lên lịch ôn tập 1, 3 hoặc 5 ngày." },
   { id: "quiz", icon: Brain, title: "Trắc nghiệm", text: "Chọn nghĩa đúng để luyện phản xạ nhận diện từ." },
   { id: "speller", icon: Headphones, title: "Spelling & Dictation", text: "Nghe phát âm và gõ lại từ thật chính xác." },
   { id: "matching", icon: Keyboard, title: "Speed Matching", text: "Nối từ với nghĩa trong thời gian ngắn nhất." },

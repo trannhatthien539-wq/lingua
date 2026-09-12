@@ -31,7 +31,7 @@ import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
 import SafeImage from "../../components/ui/SafeImage";
-import { dateKey } from "../../utils/srs";
+import { addDaysKey, dateKey } from "../../utils/srs";
 import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
 import { createStarterDeck } from "../../data/starterDeck";
 import { playStudySound } from "../../utils/studyFeedback";
@@ -199,12 +199,14 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
 
   const submitResult = (isCorrect) => {
     const nextResults = [...results, isCorrect];
+    const interval = isCorrect ? 5 : 1;
+    const nextReviewDate = addDaysKey(interval);
     onUpdateCard(card.id, {
       status: isCorrect ? "mastered" : "learning",
+      interval,
+      nextReviewDate,
       lastStudiedDate: dateKey(),
-      reviewDate: new Date(
-        Date.now() + (isCorrect ? 3 : 1) * 86400000,
-      ).toISOString(),
+      reviewDate: `${nextReviewDate}T00:00:00.000Z`,
     });
     setAnswer(isCorrect);
     if (mode === "quiz") {
@@ -576,7 +578,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   }), [deckCards, today]);
   const filteredCards = useMemo(() => {
     if (activeFilter === "due") return dueCards;
+    if (activeFilter === "unlearned") return deckCards.filter((card) => card.status !== "mastered");
     if (activeFilter === "mastered") return deckCards.filter((card) => card.status === "mastered");
+    if (activeFilter === "interval-1") return deckCards.filter((card) => Number(card.interval) === 1);
     if (activeFilter === "interval-3") return deckCards.filter((card) => Number(card.interval) === 3);
     if (activeFilter === "interval-5") return deckCards.filter((card) => Number(card.interval) === 5);
     return deckCards;
@@ -1016,8 +1020,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]">
                   {[
                     ["all", `Tất cả (${deckCards.length})`],
-                    ["due", `Cần ôn hôm nay (${dueCards.length})`],
+                    ["unlearned", `Chưa thuộc (${deckCards.filter((card) => card.status !== "mastered").length})`],
                     ["mastered", `Đã thuộc (${deckCards.filter((card) => card.status === "mastered").length})`],
+                    ["due", `Cần ôn hôm nay (${dueCards.length})`],
+                    ["interval-1", "Ôn sau 1 ngày"],
+                    ["interval-3", "Ôn sau 3 ngày"],
+                    ["interval-5", "Ôn sau 5 ngày"],
                   ].map(([value, label]) => <button key={value} onClick={() => setActiveFilter(value)} className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-bold ${activeFilter === value ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>{label}</button>)}
                 </div>
                 <button
