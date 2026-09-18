@@ -600,7 +600,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         if (!decks.length) {
           const seed = createStarterDeck();
           const created = await dataService.createDeck(seed.title);
-          const seededCards = await Promise.all(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
+          const seededResults = await Promise.allSettled(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
+          const seededCards = seededResults.filter((result) => result.status === "fulfilled").map((result) => result.value);
+          if (!seededCards.length) {
+            await dataService.deleteDeck(created.id).catch(() => {});
+            throw new Error("Không thể đồng bộ bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
+          }
           decks = [{ ...created, title: seed.title, description: seed.description, tags: seed.tags, createdAt: created.createdAt || created.created_at }];
           if (active) setLibrary({ decks, cards: seededCards });
           return;

@@ -21,7 +21,7 @@ const readLocal = () => {
     const legacyWords = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) || "[]");
     if (!legacyWords.length) return { decks: [], cards: [] };
     const deck = { id: `deck-${Date.now()}`, title: "IELTS Speaking Part 1", tags: ["IELTS", "Speaking"], createdAt: new Date().toISOString() };
-    return {
+    const migrated = {
       decks: [deck],
       cards: legacyWords.map((item, index) => ({
         id: `card-${Date.now()}-${index}`,
@@ -35,6 +35,9 @@ const readLocal = () => {
         reviewDate: null,
       })),
     };
+    // Lưu lại ngay để id bộ thẻ/từ vựng ổn định giữa các lần đọc.
+    writeLocal(migrated);
+    return migrated;
   } catch {
     return { decks: [], cards: [] };
   }
@@ -42,6 +45,21 @@ const readLocal = () => {
 
 const writeLocal = (library) => localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
 const currentUser = () => auth.currentUser;
+const requireUser = () => {
+  const user = currentUser();
+  if (!user) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+  return user;
+};
+
+// Firestore từ chối field có giá trị `undefined`, nên luôn lọc bỏ trước khi ghi.
+const omitUndefined = (data) =>
+  Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+
+export const readGuestLibrary = () => readLocal();
+export const hasGuestVocabulary = () => {
+  const library = readLocal();
+  return library.decks.length > 0 || library.cards.length > 0;
+};
 
 export const clearGuestVocabulary = () => {
   localStorage.removeItem(STORAGE_KEY);
@@ -70,15 +88,15 @@ const normalizeCard = (card) => ({
   nextReviewDate: card.nextReviewDate || card.next_review_date || (card.reviewDate || card.review_date || "").slice(0, 10) || null,
   repetition: Number(card.repetition) || 0,
   lastStudiedDate: card.lastStudiedDate || card.last_studied_date || null,
-  imageUrl: isSafeImageSource(card.imageUrl || card.image_url || "") ? (card.imageUrl || card.image_url) : undefined,
+  imageUrl: isSafeImageSource(card.imageUrl || card.image_url || "") ? (card.imageUrl || card.image_url) : "",
   audioUrl: card.audioUrl || card.audio_url || "",
   needAiImage: Boolean(card.needAiImage),
 });
 
-const withUserId = (data) => ({ ...data, userId: currentUser().uid });
+const withUserId = (data) => ({ ...data, userId: requireUser().uid });
 
 const getUserDocuments = async (collectionName) => {
-  const user = currentUser();
+  const user = requireUser();
   const snapshot = await getDocs(query(collection(db, collectionName), where("userId", "==", user.uid)));
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 };
@@ -103,11 +121,11 @@ const dataMethods = {
       writeLocal({ ...library, decks: [...library.decks, deck] });
       return deck;
     }
-    const created = await addDoc(collection(db, "study_decks"), withUserId({
+    const created = await addDoc(collection(db, "study_decks"), withUserId(omitUndefined({
       title: deck.title,
       tags: deck.tags,
       createdAt: deck.createdAt,
-    }));
+    })));
     return { ...deck, id: created.id };
   },
 
@@ -130,13 +148,13 @@ const dataMethods = {
       return;
     }
     await deleteDoc(doc(db, "study_decks", id));
-    const cards = await getDocs(query(collection(db, "vocabulary_cards"), where("userId", "==", currentUser().uid), where("deckId", "==", id)));
+    const cards = await getDocs(query(collection(db, "vocabulary_cards"), where("userId", "==", requireUser().uid), where("deckId", "==", id)));
     await Promise.all(cards.docs.map((card) => deleteDoc(card.ref)));
   },
 
   async getCards(deckId) {
     if (!currentUser()) return readLocal().cards.filter((card) => card.deckId === deckId).map(normalizeCard);
-    const user = currentUser();
+    const user = requireUser();
     const snapshot = await getDocs(query(
       collection(db, "vocabulary_cards"),
       where("userId", "==", user.uid),
@@ -152,7 +170,7 @@ const dataMethods = {
       writeLocal({ ...library, cards: [...library.cards, normalized] });
       return normalized;
     }
-    const created = await addDoc(collection(db, "vocabulary_cards"), withUserId({
+    const created = await addDoc(collection(db, "vocabulary_cards"), withUserId(omitUndefined({
       deckId: normalized.deckId,
       word: normalized.word,
       ipa: normalized.ipa,
@@ -168,12 +186,12 @@ const dataMethods = {
       imageUrl: normalized.imageUrl,
       audioUrl: normalized.audioUrl,
       needAiImage: normalized.needAiImage,
-    }));
+    })));
     return { ...normalized, id: created.id };
   },
 
   async updateCard(id, changes) {
-    const normalizedChanges = { ...changes };
+    const normalizedChanges = omitUndefined({ ...changes });
     if (normalizedChanges.reviewDate && !normalizedChanges.nextReviewDate) normalizedChanges.nextReviewDate = String(normalizedChanges.reviewDate).slice(0, 10);
     if (normalizedChanges.nextReviewDate && !normalizedChanges.reviewDate) normalizedChanges.reviewDate = `${normalizedChanges.nextReviewDate}T00:00:00.000Z`;
     if (!currentUser()) {
@@ -181,6 +199,7 @@ const dataMethods = {
       writeLocal({ ...library, cards: library.cards.map((card) => card.id === id ? { ...card, ...normalizedChanges } : card) });
       return;
     }
+    if (!Object.keys(normalizedChanges).length) return;
     await updateDoc(doc(db, "vocabulary_cards", id), normalizedChanges);
   },
 

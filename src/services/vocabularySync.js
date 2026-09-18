@@ -1,19 +1,54 @@
-import { dataService } from './dataService';
+import { clearGuestVocabulary, dataService } from './dataService';
 
-export async function loadVocabulary(userId) {
+const FALLBACK_DECK_TITLE = 'Bộ từ đã đồng bộ';
+
+const deckKey = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
+
+export async function loadVocabulary() {
   const decks = await dataService.getDecks();
   const cards = (await Promise.all(decks.map((deck) => dataService.getCards(deck.id)))).flat();
   return { decks, cards };
 }
 
-export async function syncVocabulary(userId, library) {
-  const deckIds = new Map();
-  for (const deck of library.decks) {
-    const savedDeck = await dataService.createDeck(deck.title);
-    deckIds.set(deck.id, savedDeck.id);
+/**
+ * Gộp thư viện đang lưu trên thiết bị (chế độ khách) vào tài khoản vừa đăng nhập.
+ * Chạy lại nhiều lần vẫn an toàn: bộ trùng tên và từ trùng trong cùng bộ sẽ bị bỏ qua.
+ */
+export async function syncVocabulary(library) {
+  const guestLibrary = { decks: library?.decks || [], cards: library?.cards || [] };
+  if (!guestLibrary.decks.length && !guestLibrary.cards.length) return loadVocabulary();
+
+  const remote = await loadVocabulary();
+  const deckIdByTitle = new Map(remote.decks.map((deck) => [deckKey(deck.title), deck.id]));
+  const wordsByDeck = new Map(remote.decks.map((deck) => [deck.id, new Set()]));
+  for (const card of remote.cards) {
+    if (!wordsByDeck.has(card.deckId)) wordsByDeck.set(card.deckId, new Set());
+    wordsByDeck.get(card.deckId).add(deckKey(card.word));
   }
-  for (const card of library.cards) {
-    await dataService.addCard({ ...card, deckId: deckIds.get(card.deckId) });
+
+  const resolveDeckId = async (title) => {
+    const key = deckKey(title) || deckKey(FALLBACK_DECK_TITLE);
+    if (deckIdByTitle.has(key)) return deckIdByTitle.get(key);
+    const created = await dataService.createDeck(String(title || '').trim() || FALLBACK_DECK_TITLE);
+    deckIdByTitle.set(key, created.id);
+    wordsByDeck.set(created.id, new Set());
+    return created.id;
+  };
+
+  const guestDeckIds = new Map();
+  for (const deck of guestLibrary.decks) {
+    guestDeckIds.set(deck.id, await resolveDeckId(deck.title));
   }
-  return loadVocabulary(userId);
+
+  for (const card of guestLibrary.cards) {
+    const targetDeckId = guestDeckIds.get(card.deckId) || (await resolveDeckId(FALLBACK_DECK_TITLE));
+    guestDeckIds.set(card.deckId, targetDeckId);
+    const word = deckKey(card.word);
+    if (!word || wordsByDeck.get(targetDeckId).has(word)) continue;
+    wordsByDeck.get(targetDeckId).add(word);
+    await dataService.addCard({ ...card, deckId: targetDeckId });
+  }
+
+  clearGuestVocabulary();
+  return loadVocabulary();
 }
