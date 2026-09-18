@@ -8,7 +8,7 @@ import {
   signOut,
   onAuthStateChanged,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbfWmStltxB9l8YC5ySE7jtffqU1J3hBY",
@@ -22,7 +22,20 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app);
+
+// Bật cache ngoại tuyến của Firestore để vẫn đọc/ghi được khi mất mạng.
+const createFirestore = () => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (error) {
+    console.warn("Không bật được cache ngoại tuyến của Firestore, dùng bộ nhớ tạm.", error);
+    return getFirestore(app);
+  }
+};
+
+export const db = createFirestore();
 
 export {
   signInWithPopup,

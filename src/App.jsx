@@ -7,6 +7,9 @@ import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
 import { syncVocabulary } from './services/vocabularySync'
+import { syncGuestUserDocs, userDocKeys } from './services/userDocService'
+import { resetHistoryCache } from './services/historyService'
+import useStudyReminder from './hooks/useStudyReminder'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -38,6 +41,7 @@ export default function App() {
   const activeTab = pathTabs[location.pathname] || 'vocabulary'
   const isLoginRoute = location.pathname === '/login'
   const { theme, toggleTheme } = useTheme()
+  const { settings: reminderSettings, updateSettings: updateReminder } = useStudyReminder(streak)
   const activeItem = navigationItems.find((item) => item.id === activeTab)
   const ActiveModule = modules[activeTab]
   useEffect(() => {
@@ -71,8 +75,18 @@ export default function App() {
         window.setTimeout(() => setNotice(''), 2600)
       }
     }).catch(() => {})
-    const syncGuestVocabulary = async () => {
-      if (!hasGuestVocabulary()) return
+    const syncGuestData = async () => {
+      const syncedDocs = await syncGuestUserDocs([
+        userDocKeys.planner,
+        userDocKeys.mindmap,
+        userDocKeys.grammar,
+        userDocKeys.reminder,
+        userDocKeys.history,
+      ]).catch(() => [])
+      if (!hasGuestVocabulary()) {
+        if (syncedDocs.length) setDataVersion((version) => version + 1)
+        return
+      }
       try {
         await syncVocabulary(readGuestLibrary())
         setDataVersion((version) => version + 1)
@@ -84,11 +98,12 @@ export default function App() {
       window.setTimeout(() => setNotice(''), 3200)
     }
     return onAuthStateChanged(auth, (nextUser) => {
+      resetHistoryCache()
       setUser(nextUser)
       setApiKey(readApiKeyForUser(nextUser))
       if (nextUser) {
         updateUserStreak(nextUser.uid).then(setStreak).catch(() => setStreak({ currentStreak: 0, lastActiveDate: null, totalSessions: 0 }))
-        void syncGuestVocabulary()
+        void syncGuestData()
       } else {
         setStreak(readGuestStreak())
       }
@@ -122,5 +137,5 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}</div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}</div>
 }

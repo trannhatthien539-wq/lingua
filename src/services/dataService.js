@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { isSafeImageSource } from "./imageService";
+import { trackPendingWrite } from "./syncStatus";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -222,9 +223,13 @@ const withFriendlyDataError = async (operation, args) => {
   }
 };
 
+const READ_METHODS = new Set(["getDecks", "getCards"]);
+
 export const dataService = Object.fromEntries(
   Object.entries(dataMethods).map(([name, operation]) => [
     name,
-    (...args) => withFriendlyDataError(operation, args),
+    (...args) => (READ_METHODS.has(name)
+      ? withFriendlyDataError(operation, args)
+      : trackPendingWrite(() => withFriendlyDataError(operation, args))),
   ]),
 );

@@ -39,6 +39,8 @@ import dagre from "dagre";
 import "@xyflow/react/dist/style.css";
 import { parseAiJson, requestAi } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
+import { createDebouncedSync, loadUserDoc, userDocKeys } from "../../services/userDocService";
+import { refreshRequestedEvent } from "../../services/syncStatus";
 
 const STORAGE_KEY = "lingua-study-mindmap";
 const PROVIDER_STORAGE = "lingua-ai-provider";
@@ -115,6 +117,25 @@ const initialEdges = [
 ];
 const makeId = (prefix) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+// Loại bỏ các callback trước khi lưu (localStorage và Firestore đều không lưu được hàm).
+const mapSnapshot = (name, nodes, edges) => ({
+  name,
+  nodes: nodes.map(({ data, ...node }) => ({
+    ...node,
+    data: {
+      ...data,
+      onCycleStatus: undefined,
+      onEdit: undefined,
+      onQuickAdd: undefined,
+      onCommitEdit: undefined,
+      onAddChild: undefined,
+      onOpenDetails: undefined,
+      onDelete: undefined,
+    },
+  })),
+  edges,
+});
 const readMap = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -559,6 +580,34 @@ export default function StudyMindmap({ apiKey }) {
   const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 0.9 });
   const canvasRef = useRef(null);
   const fitViewRef = useRef(null);
+  const mindmapSync = useMemo(() => createDebouncedSync(userDocKeys.mindmap), []);
+  const [cloudReady, setCloudReady] = useState(false);
+  const cloudVersionRef = useRef(0);
+  const lastCloudRef = useRef(null);
+  const hydrateFromCloud = useCallback(async () => {
+    try {
+      const doc = await loadUserDoc(userDocKeys.mindmap);
+      if (doc?.payload?.nodes?.length && Number(doc.updatedAt) > cloudVersionRef.current) {
+        cloudVersionRef.current = Number(doc.updatedAt);
+        lastCloudRef.current = JSON.stringify(doc.payload);
+        setMapName(doc.payload.name || "English Fluency Roadmap");
+        setNodes(doc.payload.nodes);
+        setEdges(doc.payload.edges || []);
+      }
+    } catch {
+      // Không tải được thì giữ nguyên bản trên thiết bị.
+    } finally {
+      setCloudReady(true);
+    }
+  }, [setEdges, setNodes]);
+  useEffect(() => {
+    hydrateFromCloud();
+  }, [hydrateFromCloud]);
+  useEffect(() => {
+    const handleRefresh = () => hydrateFromCloud();
+    window.addEventListener(refreshRequestedEvent, handleRefresh);
+    return () => window.removeEventListener(refreshRequestedEvent, handleRefresh);
+  }, [hydrateFromCloud]);
   const selectedNode = nodes.find((node) => node.id === selectedId);
   const progress = Math.round(
     (nodes.filter((node) => node.data.status === "mastered").length /
@@ -689,23 +738,20 @@ export default function StudyMindmap({ apiKey }) {
     [commitEdit, editingId, nodes, openNodeDetails, quickAdd, removeNode, selectedId, updateStatus],
   );
   useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        name: mapName,
-        nodes: nodes.map(({ data, ...node }) => ({
-          ...node,
-          data: {
-            ...data,
-            onCycleStatus: undefined,
-            onEdit: undefined,
-            onQuickAdd: undefined,
-          },
-        })),
-        edges,
-      }),
-    );
-  }, [edges, mapName, nodes]);
+    const payload = mapSnapshot(mapName, nodes, edges);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Bỏ qua khi localStorage đầy.
+    }
+    if (!cloudReady) return;
+    const serialized = JSON.stringify(payload);
+    if (serialized === lastCloudRef.current) return;
+    lastCloudRef.current = serialized;
+    cloudVersionRef.current = Date.now();
+    mindmapSync.schedule(payload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloudReady, edges, mapName, mindmapSync, nodes]);
   const onConnect = useCallback(
     (connection) =>
       setEdges((current) =>
@@ -760,11 +806,20 @@ export default function StudyMindmap({ apiKey }) {
     window.requestAnimationFrame(() => fitViewRef.current?.({ padding: 0.2, duration: 400 }));
   };
   const saveMap = () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ name: mapName, nodes, edges }),
-    );
-    setStatus("Đã lưu sơ đồ.");
+    const payload = mapSnapshot(mapName, nodes, edges);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Bỏ qua khi localStorage đầy.
+    }
+    lastCloudRef.current = JSON.stringify(payload);
+    cloudVersionRef.current = Date.now();
+    mindmapSync.schedule(payload);
+    setStatus("Đang lưu sơ đồ lên tài khoản...");
+    mindmapSync
+      .flush()
+      .then(() => setStatus("Đã lưu sơ đồ lên tài khoản."))
+      .catch((error) => setStatus(error?.message || "Không thể lưu sơ đồ lên tài khoản."));
   };
   const loadMap = () => {
     const next = readMap();

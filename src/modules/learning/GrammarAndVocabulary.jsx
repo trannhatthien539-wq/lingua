@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { parseAiJson, requestAi } from '../../services/aiService'
 import { useDebounce } from '../../hooks/useDebounce'
+import useCloudDoc from '../../hooks/useCloudDoc'
+import { userDocKeys } from '../../services/userDocService'
 
 const PROVIDER_STORAGE = 'lingua-ai-provider'
 const VOCABULARY_STORAGE = 'lingua-vocabulary'
@@ -73,9 +75,15 @@ export function VocabularyHub({ apiKey }) {
 
 export function GrammarChecker({ apiKey }) {
   const provider = localStorage.getItem(PROVIDER_STORAGE) || 'gemini'
-  const [text, setText] = useState(defaultText)
+  // Bản nháp và kết quả phân tích được lưu theo tài khoản để không mất khi đổi thiết bị.
+  const { value: draft, setValue: setDraft } = useCloudDoc(userDocKeys.grammar, {
+    initial: { text: defaultText, result: null },
+  })
+  const text = typeof draft?.text === 'string' ? draft.text : defaultText
+  const result = draft?.result || null
+  const setText = (value) => setDraft((current) => ({ ...current, text: value }))
+  const setResult = (value) => setDraft((current) => ({ ...current, result: value }))
   const debouncedText = useDebounce(text)
-  const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const wordCount = useMemo(() => text.trim() ? text.trim().split(/\s+/).length : 0, [text])

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
 import ReactPlayer from "react-player";
+import useCloudDoc from "../../hooks/useCloudDoc";
+import { userDocKeys } from "../../services/userDocService";
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -477,8 +479,36 @@ function ZenFocus({
   );
 }
 
+const normalizePlanner = (payload) => ({
+  days: payload?.days && typeof payload.days === "object" ? payload.days : {},
+  timer: { ...defaultTimer, ...(payload?.timer || {}) },
+});
+
+// Timer đang chạy là trạng thái của riêng từng thiết bị, chỉ đồng bộ lịch sử ngày học
+// và tổng số phiên để tránh ghi đám mây mỗi giây.
+const selectPlannerForCloud = (value) => ({
+  days: value.days || {},
+  timerSessions: Number(value.timer?.sessions) || 0,
+});
+
+const mergePlanner = (payload, current) => {
+  const local = current || { days: {}, timer: defaultTimer };
+  if (!payload) return local;
+  return {
+    days: payload.days && typeof payload.days === "object" ? payload.days : local.days,
+    timer: {
+      ...normalizePlanner(local).timer,
+      sessions: Math.max(Number(local.timer?.sessions) || 0, Number(payload.timerSessions) || 0),
+    },
+  };
+};
+
 export default function StudyPlanner({ onStudyActivity, user }) {
-  const [planner, setPlanner] = useState(() => readPlanner(user));
+  const { value: planner, setValue: setPlanner } = useCloudDoc(userDocKeys.planner, {
+    initial: readPlanner(user),
+    select: selectPlannerForCloud,
+    normalize: mergePlanner,
+  });
   const [taskInput, setTaskInput] = useState("");
   const audioRef = useRef(null);
   const [audio, setAudio] = useState(readAudio);

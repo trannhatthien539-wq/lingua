@@ -63,3 +63,20 @@ export async function getUserStreak(userId = auth.currentUser?.uid) {
     throw new Error("Không thể tải chuỗi học tập. Vui lòng thử lại sau.");
   }
 }
+
+/** Khôi phục streak từ file sao lưu, chỉ ghi đè khi dữ liệu trong file cao hơn. */
+export async function restoreUserStreak(imported = {}) {
+  const current = await getUserStreak();
+  const next = {
+    currentStreak: Math.max(Number(current.currentStreak) || 0, Number(imported.currentStreak) || 0),
+    totalSessions: Math.max(Number(current.totalSessions) || 0, Number(imported.totalSessions) || 0),
+    lastActiveDate: current.lastActiveDate || imported.lastActiveDate || null,
+  };
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    localStorage.setItem(GUEST_STREAK_KEY, JSON.stringify(next));
+    return next;
+  }
+  await setDoc(doc(db, "users", userId), next, { merge: true });
+  return next;
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -9,8 +9,10 @@ import {
   Pencil,
   Plus,
   Search,
+  Share2,
   Sparkles,
   Trash2,
+  Undo2,
   Volume2,
   X,
   XCircle,
@@ -22,6 +24,9 @@ import { generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../ser
 import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
+import { recordStudyEvent } from "../../services/historyService";
+import { clearSharedDeckFromUrl, copyShareLink, readSharedDeckFromUrl, shareDeck } from "../../services/shareDeck";
+import { refreshRequestedEvent } from "../../services/syncStatus";
 import FlashcardModal from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
 import ImportExportModal from "../../components/learning/ImportExportModal";
@@ -193,6 +198,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
 
   const finish = async (nextResults) => {
     await onStudyActivity?.();
+    void recordStudyEvent({ sessions: 1, reviewed: 0 });
     setResults(nextResults);
     setCompleted(true);
   };
@@ -555,8 +561,32 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [speakingWord, setSpeakingWord] = useState("");
   const [dataModal, setDataModal] = useState(null);
+  const [undo, setUndo] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [sharedDeck, setSharedDeck] = useState(() => readSharedDeckFromUrl());
+  const undoTimerRef = useRef(null);
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
+
+  const offerUndo = useCallback((message, action) => {
+    window.clearTimeout(undoTimerRef.current);
+    setUndo({ message, action });
+    undoTimerRef.current = window.setTimeout(() => setUndo(null), 10000);
+  }, []);
+  const runUndo = async () => {
+    window.clearTimeout(undoTimerRef.current);
+    const action = undo?.action;
+    setUndo(null);
+    if (!action) return;
+    try {
+      await action();
+      setError("");
+      setNotice("Đã hoàn tác thao tác xoá.");
+    } catch (undoError) {
+      setError(undoError.message || "Không thể hoàn tác.");
+    }
+  };
+  useEffect(() => () => window.clearTimeout(undoTimerRef.current), []);
 
   useEffect(() => {
     if (!error && !notice) return undefined;
@@ -627,7 +657,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     };
     loadLibrary();
     return () => { active = false; };
-  }, [user?.uid]);
+  }, [user?.uid, reloadToken]);
+  useEffect(() => {
+    const handleRefresh = () => setReloadToken((value) => value + 1);
+    window.addEventListener(refreshRequestedEvent, handleRefresh);
+    return () => window.removeEventListener(refreshRequestedEvent, handleRefresh);
+  }, []);
   useEffect(() => {
     if (!selectedDeck && library.decks[0])
       setSelectedDeckId(library.decks[0].id);
@@ -670,6 +705,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       return setError("Cần giữ lại ít nhất một bộ từ vựng.");
     if (!window.confirm(`Xóa bộ “${deck.title}” và toàn bộ từ trong bộ?`))
       return;
+    const removedCards = library.cards.filter((card) => card.deckId === deck.id);
     await dataService.deleteDeck(deck.id);
     const nextDecks = library.decks.filter((item) => item.id !== deck.id);
     updateLibrary({
@@ -677,6 +713,44 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       cards: library.cards.filter((card) => card.deckId !== deck.id),
     });
     setSelectedDeckId(nextDecks[0].id);
+    offerUndo(`Đã xoá bộ “${deck.title}” (${removedCards.length} từ).`, async () => {
+      const restoredDeck = await dataService.createDeck(deck.title);
+      const restoredCards = await Promise.all(removedCards.map((card) => dataService.addCard({ ...card, deckId: restoredDeck.id })));
+      setLibrary((current) => ({
+        decks: [...current.decks, { ...restoredDeck, tags: deck.tags || [], description: deck.description, createdAt: deck.createdAt || restoredDeck.createdAt }],
+        cards: [...restoredCards, ...current.cards],
+      }));
+      setSelectedDeckId(restoredDeck.id);
+    });
+  };
+
+  const shareCurrentDeck = async () => {
+    if (!selectedDeck) return;
+    try {
+      const { url, count } = shareDeck(selectedDeck, deckCards);
+      if (await copyShareLink(url)) setNotice(`Đã copy liên kết chia sẻ ${count} từ của bộ “${selectedDeck.title}”.`);
+      else window.prompt("Copy liên kết chia sẻ dưới đây:", url);
+      setError("");
+    } catch (shareError) {
+      setError(shareError.message || "Không thể tạo liên kết chia sẻ.");
+    }
+  };
+
+  const importSharedDeck = async () => {
+    if (!sharedDeck) return;
+    try {
+      await importDeck(sharedDeck.title, sharedDeck.cards);
+      clearSharedDeckFromUrl();
+      setSharedDeck(null);
+      setNotice(`Đã thêm bộ “${sharedDeck.title}” từ liên kết chia sẻ.`);
+    } catch (importError) {
+      setError(importError.message || "Không thể nhập bộ thẻ được chia sẻ.");
+    }
+  };
+
+  const dismissSharedDeck = () => {
+    clearSharedDeckFromUrl();
+    setSharedDeck(null);
   };
 
   const addCards = async (items) => {
@@ -720,7 +794,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   const importDeck = async (title, items) => {
     const deck = await dataService.createDeck(title);
-    const importedCards = items.map((item) => ({ ...item, deckId: deck.id }));
+    // Thẻ có thể đến từ file/liên kết chia sẻ nên cần bổ sung id duy nhất.
+    const importedCards = items.map((item) => ({ ...item, id: item.id || makeId("card"), deckId: deck.id }));
     const savedCards = await Promise.all(importedCards.map((card) => dataService.addCard(card)));
     const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
     updateLibrary({ decks: [...library.decks, normalizedDeck], cards: [...savedCards, ...library.cards] });
@@ -820,6 +895,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const updateCard = useCallback(async (cardId, changes) => {
     await dataService.updateCard(cardId, changes);
     updateLibrary({ cards: library.cards.map((card) => card.id === cardId ? { ...card, ...changes } : card) });
+    // Chỉ ghi lịch sử khi đây là một lượt ôn thật (có lastStudiedDate).
+    if (changes?.lastStudiedDate) void recordStudyEvent({ reviewed: 1, correct: changes.status === "mastered" ? 1 : 0 });
   }, [library.cards]);
   const cleanupDuplicates = async () => {
     const seen = new Map();
@@ -870,9 +947,16 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     }
   };
   const removeCard = useCallback(async (cardId) => {
+    const removedCard = library.cards.find((card) => card.id === cardId);
     await dataService.deleteCard(cardId);
     updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
-  }, [library.cards]);
+    if (removedCard) {
+      offerUndo(`Đã xoá từ “${removedCard.word}”.`, async () => {
+        const restored = await dataService.addCard(removedCard);
+        setLibrary((current) => ({ ...current, cards: [restored, ...current.cards] }));
+      });
+    }
+  }, [library.cards, offerUndo]);
   const speak = (word, id = word) => {
     setSpeakingWord(id);
     speakText(word, { onEnd: () => setSpeakingWord("") });
@@ -1011,7 +1095,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white shadow-lg shadow-ink/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:bg-lime dark:text-ink">
                 <Sparkles size={16} />Bắt đầu học ngay
               </button>
-              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="grid h-12 w-12 place-items-center rounded-xl border border-ink/10 text-ink/55 dark:border-white/10 dark:text-white/55" aria-label="Thêm hành động"><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-52 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><Check size={15} />Ôn đến hạn ({dueCards.length})</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={15} />Thêm bộ IELTS</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Trash2 size={15} />Dọn từ trùng</button></div>}</div>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="grid h-12 w-12 place-items-center rounded-xl border border-ink/10 text-ink/55 dark:border-white/10 dark:text-white/55" aria-label="Thêm hành động"><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-52 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><Check size={15} />Ôn đến hạn ({dueCards.length})</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={15} />Thêm bộ IELTS</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Trash2 size={15} />Dọn từ trùng</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Share2 size={15} />Chia sẻ bộ này</button></div>}</div>
             </div>
           </div>
           {error && (
@@ -1063,6 +1147,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </main>
       </div>
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
+      {undo && <div className="fixed bottom-36 right-4 z-[125] flex max-w-sm items-center gap-3 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white shadow-xl sm:bottom-24 dark:bg-lime dark:text-ink" role="status"><Undo2 size={15} /><span className="min-w-0 flex-1">{undo.message}</span><button onClick={runUndo} className="shrink-0 underline">Hoàn tác</button><button onClick={() => setUndo(null)} aria-label="Đóng thông báo hoàn tác"><X size={14} /></button></div>}
+      {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}
       <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-white shadow-xl shadow-ink/20 transition hover:-translate-y-0.5 sm:bottom-6 dark:bg-lime dark:text-ink" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>
       {manualModalOpen && <AddWordsSheet tab={addTab} onTabChange={setAddTab} draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} topic={topic} onTopicChange={setTopic} level={level} onLevelChange={setLevel} amount={amount} onAmountChange={setAmount} onGenerate={generateVocabulary} lookupResult={lookupResult} onLookupWord={lookupWord} onSaveLookup={saveLookupResult} manualWord={manualWord} onManualWordChange={setManualWord} lookupLoading={loading === "lookup" || loading === "lookup-save"} onClose={() => setManualModalOpen(false)} />}
     </div>
