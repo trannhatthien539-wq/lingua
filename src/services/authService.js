@@ -55,15 +55,18 @@ const signInWithNativeGoogle = async () => {
  * - Web: popup của Firebase.
  * - APK: mở Chrome để đăng nhập; phiên Firebase được tạo khi deep link quay về app,
  *   nên hàm trả về `{ pending: true }` thay vì user.
+ *   Mặc định dùng chế độ tự động (handler của Firebase) — không cần client ID.
  */
 export const signInWithGoogle = async () => {
   if (!isCapacitor()) return signInWithPopup(auth, googleProvider);
-  if (!getGoogleWebClientId()) {
-    const error = new Error('Chưa có Google Web Client ID. Vào Cài đặt → Tài khoản để dán client ID.');
-    error.code = 'lingua/missing-client-id';
-    throw error;
+  if (useNativeGoogle()) {
+    if (!getGoogleWebClientId()) {
+      const error = new Error('Chế độ Google Sign-In native cần một Web client ID.');
+      error.code = 'lingua/missing-client-id';
+      throw error;
+    }
+    return signInWithNativeGoogle();
   }
-  if (useNativeGoogle()) return signInWithNativeGoogle();
   return startGoogleBrowserSignIn();
 };
 

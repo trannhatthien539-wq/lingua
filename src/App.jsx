@@ -138,7 +138,7 @@ export default function App() {
       toast.success('Đăng nhập Google thành công.')
     } catch (authError) {
       if (authError.code === 'lingua/missing-client-id') {
-        toast.error('Bản cài này chưa có Google Web Client ID. Mở Cài đặt → Tài khoản để dán client ID, hoặc dùng email/mật khẩu.', { duration: 10000 })
+        toast.error('Chế độ “client ID riêng” cần một Web client ID. Mở Cài đặt → Tài khoản để dán, hoặc chuyển về chế độ Tự động.', { duration: 10000 })
         return
       }
       const messages = {

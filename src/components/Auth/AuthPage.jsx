@@ -37,7 +37,7 @@ export default function AuthPage({ onGuest }) {
         "auth/weak-password": "Mật khẩu cần có ít nhất 6 ký tự.",
         "auth/invalid-email": "Email chưa đúng định dạng.",
         "auth/popup-closed-by-user": "Cửa sổ Google đã được đóng.",
-        "lingua/missing-client-id": "Bản cài này chưa có Google Web Client ID. Vào Cài đặt → Tài khoản để dán client ID.",
+        "lingua/missing-client-id": "Chế độ “client ID riêng” cần một Web client ID. Vào Cài đặt → Tài khoản để dán, hoặc chuyển về chế độ Tự động.",
       };
       setError(messages[authError.code] || authError.message || "Không thể đăng nhập. Vui lòng thử lại.");
     } finally {

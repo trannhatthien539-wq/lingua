@@ -47,13 +47,9 @@ jobs:
       # Google Sign-In: APK phải được ký bằng một chứng chỉ cố định, nếu không
       # SHA-1 đổi mỗi lần build và Google luôn từ chối đăng nhập.
       # ---------------------------------------------------------------------
-      - name: Warn when the Google client id is missing
-        env:
-          GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+      - name: Note about Google sign-in (no setup needed)
         run: |
-          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
-            echo "::warning title=Thiếu Web client ID::APK vẫn cài được, nhưng muốn đăng nhập Google thì cần dán Web client ID vào Cài đặt → Tài khoản trong app (hoặc thêm secret VITE_GOOGLE_WEB_CLIENT_ID rồi build lại)."
-          fi
+          echo "::notice title=Đăng nhập Google::APK dùng chế độ tự động (handler của Firebase) nên không cần client ID, SHA-1 hay cấu hình Google Cloud."
 
       - name: Create or reuse the fixed debug keystore
         id: keystore
@@ -232,18 +228,9 @@ jobs:
           {
             echo "## Đăng nhập Google trên APK"
             echo ""
-            echo "APK này đăng nhập Google bằng cách mở **Chrome** rồi tự quay về app (deep link \`com.lingua.studyhub://auth\`), nên **không cần SHA-1**, không cần Android OAuth client, không cần keystore cố định."
+            echo "APK này đăng nhập Google bằng cách mở **Chrome** rồi tự quay về app (deep link \`com.lingua.studyhub://auth\`), dùng trang handler có sẵn của project Firebase nên **không cần client ID, không cần SHA-1, không cần cấu hình gì**."
             echo ""
-            echo "Chỉ cần cấu hình 1 lần:"
-            echo ""
-            echo "1. Firebase Console → Authentication → Sign-in method → Google → bật provider và copy **Web client ID**."
-            echo "2. Google Cloud Console → APIs & Services → Credentials → mở OAuth client đó → **Authorized redirect URIs** → thêm:"
-            echo ""
-            echo '```'
-            echo 'https://trannhatthien539-wq.github.io/lingua/oauth-callback.html'
-            echo '```'
-            echo ""
-            echo "3. Mở app → Cài đặt → Tài khoản → dán Web client ID vào mục *Cấu hình đăng nhập Google* (áp dụng ngay, không cần build lại APK)."
+            echo "Muốn đổi sang client ID riêng: mở app → Cài đặt → Tài khoản → *Cách đăng nhập Google trên APK*."
             echo ""
             echo "SHA-1 của bản build này (chỉ còn dùng khi bật Google Sign-In native): \`${SHA1:-chưa lấy được}\`"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,27 +1,30 @@
 /**
  * Đăng nhập Google cho bản APK bằng cách mở Chrome (trình duyệt hệ thống).
  *
- * Luồng chạy:
- *   1. App mở `accounts.google.com/o/oauth2/v2/auth` trong Chrome.
- *   2. Người dùng chọn tài khoản Google (Chrome thường đã đăng nhập sẵn).
- *   3. Google chuyển về `GOOGLE_REDIRECT_URI` (trang oauth-callback.html trên GitHub Pages).
- *   4. Trang đó chuyển tiếp sang `com.lingua.studyhub://auth#id_token=...`.
- *   5. Chrome mở lại app, `@capacitor/app` bắn sự kiện `appUrlOpen`, app đổi id_token
- *      thành phiên Firebase bằng `signInWithCredential`.
+ * Có 2 chế độ, mặc định là chế độ **không cần cấu hình gì**:
  *
- * Ưu điểm so với Google Sign-In native: chỉ cần 1 Web client ID + 1 redirect URI,
- * không cần SHA-1, không cần đăng ký Android client, và không cần keystore cố định.
+ * 1. `auto` (khuyên dùng) — dùng trang handler có sẵn của chính project Firebase:
+ *    `https://<authDomain>/__/auth/handler?authType=signInViaRedirect&providerId=google.com&redirectUrl=…`
+ *    Handler này tự biết client ID của project (chính là "Web client ID" Firebase tạo sẵn) và
+ *    `redirect_uri` của nó đã được Google đăng ký sẵn → không phải vào Google Cloud Console,
+ *    không cần SHA-1, không cần dán client ID.
+ *
+ * 2. `direct` — mở thẳng `accounts.google.com/o/oauth2/v2/auth` bằng client ID riêng
+ *    (chỉ dùng khi bạn đã thêm redirect URI vào Google Cloud Console).
+ *
+ * Cả hai chế độ kết thúc giống nhau: Google → trang `oauth-callback.html` trên GitHub Pages
+ * → deep link `com.lingua.studyhub://auth#id_token=…` → app đổi thành phiên Firebase.
  */
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 import { auth } from './firebase'
-import { APP_URL_SCHEME, GOOGLE_REDIRECT_URI, getGoogleWebClientId } from './googleAuthConfig'
+import { APP_URL_SCHEME, GOOGLE_REDIRECT_URI, getGoogleLoginMode, getGoogleWebClientId } from './googleAuthConfig'
 import { isCapacitor } from './platform'
 
 const PENDING_KEY = 'lingua-google-oauth-pending'
 const listeners = new Set()
 
 export const MissingClientIdError = () => {
-  const error = new Error('Chưa có Google Web Client ID. Vào Cài đặt → Tài khoản để dán client ID.')
+  const error = new Error('Chế độ “client ID riêng” cần một Web client ID. Vào Cài đặt → Tài khoản để dán, hoặc chuyển về chế độ Tự động.')
   error.code = 'lingua/missing-client-id'
   return error
 }
@@ -69,6 +72,20 @@ export const buildGoogleAuthUrl = ({ clientId, nonce, state }) => {
     prompt: 'select_account',
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+}
+
+/** Chế độ 1: trang handler của Firebase (không cần cấu hình gì). */
+export const buildFirebaseHandlerUrl = ({ apiKey, authDomain, redirectUrl, eventId }) => {
+  const params = new URLSearchParams({
+    apiKey,
+    authType: 'signInViaRedirect',
+    providerId: 'google.com',
+    redirectUrl,
+    eventId,
+    lang: 'vi',
+    v: '10.14.1',
+  })
+  return `https://${authDomain}/__/auth/handler?${params.toString()}`
 }
 
 const openExternal = async (url) => {
@@ -125,12 +142,17 @@ export const completeGoogleBrowserSignIn = async (urlString) => {
   }
   if (!idToken) return null
 
+  // Chế độ client ID riêng: kiểm tra `state` để tránh deep link giả.
+  // Chế độ tự động: handler của Firebase sinh state riêng nên chỉ ghi log.
+  const returnedState = params.get('state') || params.get('eventId')
   const pending = readPending()
-  const state = params.get('state')
-  if (pending?.state && state && pending.state !== state) {
+  if (pending?.state && pending.mode !== 'auto' && returnedState && pending.state !== returnedState) {
     clearPending()
     notify('error', 'Phiên đăng nhập không hợp lệ. Vui lòng thử lại.')
     return null
+  }
+  if (pending?.mode === 'auto' && pending.state && returnedState && pending.state !== returnedState) {
+    console.warn('Lingua Google sign-in: state trả về không khớp (chế độ tự động).')
   }
 
   try {
@@ -143,8 +165,9 @@ export const completeGoogleBrowserSignIn = async (urlString) => {
   } catch (error) {
     clearPending()
     await closeExternalBrowser()
+    console.error('Lingua Google credential error', error)
     notify('error', error?.code === 'auth/invalid-credential'
-      ? 'Google từ chối đăng nhập. Kiểm tra client ID có đúng project Firebase và redirect URI đã được thêm chưa.'
+      ? 'Google từ chối đăng nhập. Kiểm tra lại cấu hình đăng nhập Google trong Cài đặt.'
       : 'Không thể xác thực với Google. Vui lòng thử lại.')
     return null
   }
@@ -183,13 +206,25 @@ export const subscribeGoogleReturn = async (onResult) => {
 
 /** Mở Chrome để đăng nhập Google. Trả về `{ pending: true }` vì kết quả tới sau qua deep link. */
 export const startGoogleBrowserSignIn = async () => {
-  const clientId = getGoogleWebClientId()
-  if (!clientId) throw MissingClientIdError()
-  const nonce = randomId()
+  const mode = getGoogleLoginMode()
   const state = randomId()
-  rememberPending({ nonce, state, at: Date.now() })
-  await openExternal(buildGoogleAuthUrl({ clientId, nonce, state }))
-  return { pending: true }
+  let url
+
+  if (mode === 'direct') {
+    const clientId = getGoogleWebClientId()
+    if (!clientId) throw MissingClientIdError()
+    rememberPending({ mode: 'direct', state, at: Date.now() })
+    url = buildGoogleAuthUrl({ clientId, nonce: randomId(), state })
+  } else {
+    const apiKey = auth.app?.options?.apiKey
+    const authDomain = auth.app?.options?.authDomain
+    if (!apiKey || !authDomain) throw new Error('Không đọc được cấu hình Firebase để đăng nhập Google.')
+    rememberPending({ mode: 'auto', state, at: Date.now() })
+    url = buildFirebaseHandlerUrl({ apiKey, authDomain, redirectUrl: GOOGLE_REDIRECT_URI, eventId: state })
+  }
+
+  await openExternal(url)
+  return { pending: true, mode }
 }
 
 /** Có thể đăng nhập Google qua Chrome không (chỉ dùng cho bản APK). */

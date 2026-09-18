@@ -12,9 +12,10 @@
  * Thứ tự ưu tiên: giá trị nhập trong app (Cài đặt → Tài khoản) → biến môi trường khi build
  * → hằng số `GOOGLE_WEB_CLIENT_ID` trong `src/config/googleAuth.js`.
  */
-import { GOOGLE_WEB_CLIENT_ID } from '../config/googleAuth'
+import { GOOGLE_LOGIN_MODE, GOOGLE_WEB_CLIENT_ID } from '../config/googleAuth'
 
 const CLIENT_ID_KEY = 'lingua-google-client-id'
+const LOGIN_MODE_KEY = 'lingua-google-login-mode'
 
 /** Trang trung gian trên GitHub Pages: nhận id_token rồi chuyển tiếp về app. */
 export const GOOGLE_REDIRECT_URI = 'https://trannhatthien539-wq.github.io/lingua/oauth-callback.html'
@@ -50,3 +51,29 @@ export const getGoogleWebClientId = () =>
   readStoredClientId() || normalizeClientId(import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID) || normalizeClientId(GOOGLE_WEB_CLIENT_ID)
 
 export const hasGoogleClientId = () => Boolean(getGoogleWebClientId())
+
+export const readStoredLoginMode = () => {
+  try {
+    const value = localStorage.getItem(LOGIN_MODE_KEY)
+    return value === 'direct' || value === 'auto' ? value : ''
+  } catch {
+    return ''
+  }
+}
+
+export const storeLoginMode = (mode) => {
+  try {
+    if (mode === 'direct' || mode === 'auto') localStorage.setItem(LOGIN_MODE_KEY, mode)
+    else localStorage.removeItem(LOGIN_MODE_KEY)
+  } catch {
+    /* bỏ qua khi trình duyệt chặn localStorage */
+  }
+  return mode === 'direct' ? 'direct' : 'auto'
+}
+
+/**
+ * Cách đăng nhập Google trên bản APK:
+ * - `auto`   : dùng handler của Firebase — không cần cấu hình gì (mặc định).
+ * - `direct` : mở thẳng trang OAuth của Google bằng client ID riêng.
+ */
+export const getGoogleLoginMode = () => readStoredLoginMode() || (GOOGLE_LOGIN_MODE === 'direct' ? 'direct' : 'auto')
