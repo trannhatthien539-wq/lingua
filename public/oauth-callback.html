@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Đang quay lại Lingua…</title>
+    <style>
+      :root { color-scheme: light dark; --ink: #18201d; --line: rgba(24, 32, 29, 0.12); --bg: #f6f7f5; }
+      @media (prefers-color-scheme: dark) {
+        :root { --ink: #f3f5f3; --line: rgba(255, 255, 255, 0.12); --bg: #141917; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
+        background: var(--bg); color: var(--ink);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      .card {
+        width: 100%; max-width: 420px; background: rgba(134, 169, 143, 0.1);
+        border: 1px solid var(--line); border-radius: 20px; padding: 24px; text-align: center;
+      }
+      .mark { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.6; margin: 0 0 8px; }
+      h1 { font-size: 20px; margin: 0 0 10px; }
+      p { font-size: 14px; line-height: 1.6; opacity: 0.75; margin: 0 0 16px; }
+      a.btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+        min-height: 48px; border-radius: 14px; background: #d9f06d; color: #18201d;
+        font-weight: 700; text-decoration: none; font-size: 15px;
+      }
+      details { margin-top: 18px; text-align: left; font-size: 12px; opacity: 0.8; }
+      summary { cursor: pointer; }
+      code { word-break: break-all; font-size: 11px; }
+      .spinner {
+        width: 34px; height: 34px; margin: 0 auto 16px; border-radius: 50%;
+        border: 3px solid var(--line); border-top-color: #86a98f; animation: spin 900ms linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="spinner" id="spinner"></div>
+      <p class="mark">lingua.</p>
+      <h1 id="title">Đang quay lại ứng dụng…</h1>
+      <p id="message">Ứng dụng Lingua sẽ tự mở lại. Nếu không, bấm nút bên dưới.</p>
+      <a class="btn" id="open" href="#">Mở ứng dụng Lingua</a>
+      <details>
+        <summary>Không mở được ứng dụng?</summary>
+        <p>
+          Hãy chắc chắn bạn đã cài bản APK mới nhất, rồi bấm lại nút trên. Nếu vẫn lỗi, bạn có thể
+          đóng thẻ này và đăng nhập lại bằng email/mật khẩu trong ứng dụng.
+        </p>
+      </details>
+    </div>
+    <script>
+      (function () {
+        // Scheme đã khai báo trong AndroidManifest của app.
+        var SCHEME = 'com.lingua.studyhub';
+        var titleEl = document.getElementById('title');
+        var messageEl = document.getElementById('message');
+        var openEl = document.getElementById('open');
+        var spinnerEl = document.getElementById('spinner');
+
+        var raw = window.location.hash ? window.location.hash.slice(1) : window.location.search.slice(1);
+        var params = new URLSearchParams(raw || '');
+        var idToken = params.get('id_token');
+        var error = params.get('error');
+        var target = SCHEME + '://auth#' + params.toString();
+        openEl.setAttribute('href', target);
+
+        if (error) {
+          spinnerEl.remove();
+          titleEl.textContent = 'Chưa đăng nhập được';
+          messageEl.textContent = error === 'access_denied'
+            ? 'Bạn đã huỷ hoặc không cấp quyền cho ứng dụng. Bấm nút bên dưới để quay lại app và thử lại.'
+            : 'Google báo lỗi: ' + error + '. Bấm nút bên dưới để quay lại ứng dụng.';
+          return;
+        }
+
+        if (!idToken) {
+          spinnerEl.remove();
+          titleEl.textContent = 'Thiếu dữ liệu đăng nhập';
+          messageEl.textContent = 'Trang này chỉ dùng để chuyển tiếp kết quả đăng nhập Google về ứng dụng Lingua.';
+          openEl.setAttribute('href', SCHEME + '://auth');
+          return;
+        }
+
+        // Chuyển tiếp ngay về app; giữ nút dự phòng cho trường hợp trình duyệt chặn.
+        window.location.replace(target);
+        window.setTimeout(function () {
+          titleEl.textContent = 'Bấm để quay lại ứng dụng';
+          messageEl.textContent = 'Đăng nhập Google đã xong. Bấm nút bên dưới để hoàn tất trong ứng dụng Lingua.';
+        }, 1200);
+      })();
+    </script>
+  </body>
+</html>

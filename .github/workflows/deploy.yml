@@ -35,6 +35,8 @@ jobs:
       - name: Build
         env:
           GITHUB_PAGES: true
+          # Web client ID (không phải bí mật) để bản PWA/APK dùng chung cấu hình Google.
+          VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
         run: npm run build
 
       - name: Enable SPA routes

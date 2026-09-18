@@ -20,12 +20,16 @@ export default function AuthPage({ onGuest }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const runAuth = async (action) => {
     setError("");
+    setNotice("");
     setLoading(true);
     try {
-      await action();
+      const result = await action();
+      // Bản APK mở Chrome để đăng nhập: phiên sẽ được tạo khi app được mở lại.
+      if (result?.pending) setNotice("Đã mở Chrome. Chọn tài khoản Google rồi quay lại app — đăng nhập sẽ tự hoàn tất.");
     } catch (authError) {
       const messages = {
         "auth/invalid-credential": "Email hoặc mật khẩu chưa chính xác.",
@@ -33,6 +37,7 @@ export default function AuthPage({ onGuest }) {
         "auth/weak-password": "Mật khẩu cần có ít nhất 6 ký tự.",
         "auth/invalid-email": "Email chưa đúng định dạng.",
         "auth/popup-closed-by-user": "Cửa sổ Google đã được đóng.",
+        "lingua/missing-client-id": "Bản cài này chưa có Google Web Client ID. Vào Cài đặt → Tài khoản để dán client ID.",
       };
       setError(messages[authError.code] || authError.message || "Không thể đăng nhập. Vui lòng thử lại.");
     } finally {
@@ -82,6 +87,7 @@ export default function AuthPage({ onGuest }) {
             </form>
             <div className="mt-5 flex items-center justify-between text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
             {error && <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2.5 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
+            {notice && <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:text-amber-200" role="status">{notice}</p>}
             <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-ink/60 dark:text-white/55"><Check size={13} /> Dữ liệu được đồng bộ riêng theo tài khoản</p>
           </div>
         </section>

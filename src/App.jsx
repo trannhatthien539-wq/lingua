@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
-import { getGoogleRedirectResult, hasNativeGoogleConfig, initializeNativeGoogleAuth, isCapacitor, signInWithGoogle } from './services/authService'
+import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled, signInWithGoogle } from './services/authService'
+import { subscribeGoogleReturn } from './services/googleBrowserAuth'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
@@ -70,16 +71,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', openSearch)
   }, [])
   useEffect(() => {
-    initializeNativeGoogleAuth().catch((error) => {
-      if (error.message?.includes('Google Client ID')) {
-        toast.error('Bản cài này chưa có Google Client ID nên không đăng nhập được bằng Google. Hãy dùng email/mật khẩu.', { duration: 8000 })
-        return
-      }
-      toast.error('Không thể khởi tạo đăng nhập Google trên thiết bị.')
-    })
+    if (isNativeGoogleAuthEnabled()) {
+      initializeNativeGoogleAuth().catch(() => toast.error('Không thể khởi tạo đăng nhập Google trên thiết bị.'))
+    }
     getGoogleRedirectResult().then((result) => {
       if (result?.user) toast.success('Đăng nhập Google thành công.')
     }).catch(() => {})
+    // Bản APK: kết quả đăng nhập Google quay về qua deep link com.lingua.studyhub://auth.
+    let stopGoogleReturn = () => {}
+    subscribeGoogleReturn((type, payload) => {
+      if (type === 'success') toast.success(`Đăng nhập Google thành công${payload?.displayName ? ` — ${payload.displayName}` : ''}.`)
+      else toast.error(payload || 'Không thể đăng nhập Google. Vui lòng thử lại.', { duration: 8000 })
+    }).then((stop) => { stopGoogleReturn = stop || (() => {}) })
     const syncGuestData = async () => {
       const syncedDocs = await syncGuestUserDocs([
         userDocKeys.planner,
@@ -103,7 +106,7 @@ export default function App() {
         toast.error('Chưa thể đồng bộ dữ liệu khách. Dữ liệu vẫn được giữ trên thiết bị này.')
       }
     }
-    return onAuthStateChanged(auth, (nextUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (nextUser) => {
       resetHistoryCache()
       setUser(nextUser)
       setApiKey(readApiKeyForUser(nextUser))
@@ -114,6 +117,10 @@ export default function App() {
         setStreak(readGuestStreak())
       }
     })
+    return () => {
+      stopGoogleReturn()
+      unsubscribeAuth()
+    }
   }, [])
   useEffect(() => {
     if (user && isLoginRoute) navigate(tabPaths.vocabulary, { replace: true })
@@ -122,15 +129,24 @@ export default function App() {
   const recordStudyActivity = () =>
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
   const handleGoogleLogin = async () => {
-    if (isCapacitor() && !hasNativeGoogleConfig()) {
-      toast.error('Bản APK này chưa có Google Client ID. Hãy dùng email/mật khẩu hoặc cài bản APK có cấu hình Google.', { duration: 8000 })
-      return
-    }
     try {
-      await signInWithGoogle()
+      const result = await signInWithGoogle()
+      if (result?.pending) {
+        toast.info('Đã mở Chrome. Hãy chọn tài khoản Google rồi quay lại app — đăng nhập sẽ tự hoàn tất.', { duration: 9000 })
+        return
+      }
       toast.success('Đăng nhập Google thành công.')
     } catch (authError) {
-      toast.error(authError.code === 'auth/popup-closed-by-user' ? 'Bạn đã đóng cửa sổ đăng nhập.' : 'Không thể đăng nhập Google. Vui lòng thử lại.')
+      if (authError.code === 'lingua/missing-client-id') {
+        toast.error('Bản cài này chưa có Google Web Client ID. Mở Cài đặt → Tài khoản để dán client ID, hoặc dùng email/mật khẩu.', { duration: 10000 })
+        return
+      }
+      const messages = {
+        'auth/popup-closed-by-user': 'Bạn đã đóng cửa sổ đăng nhập.',
+        'auth/invalid-credential': 'Client ID không thuộc cùng project Firebase.',
+        'auth/network-request-failed': 'Mạng không ổn định, vui lòng thử lại.',
+      }
+      toast.error(messages[authError.code] || 'Không thể đăng nhập Google. Vui lòng thử lại.')
     }
   }
   const handleSignOut = async () => {
