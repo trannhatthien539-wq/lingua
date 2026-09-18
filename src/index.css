@@ -4,7 +4,12 @@
 
 @layer base {
   :root {
-    font-family: 'DM Sans', sans-serif;
+    /* Màu nhấn do người dùng chọn (Cài đặt → Màu sắc & phông chữ) ghi đè 2 biến này. */
+    --accent: 217 240 109;
+    --accent-2: 134 169 143;
+    --font-sans: 'DM Sans';
+    --font-display: 'Space Grotesk';
+    font-family: var(--font-sans), 'DM Sans', ui-sans-serif, system-ui, sans-serif;
     color: #18201d;
     background: #f6f7f5;
     font-synthesis: none;
@@ -20,8 +25,8 @@
   body { margin: 0; min-width: 320px; min-height: 100vh; }
   button, input, textarea, select { font: inherit; }
   h1, h2, h3 { text-wrap: balance; }
-  :focus-visible { outline: 2px solid #86a98f; outline-offset: 2px; border-radius: 8px; }
-  ::selection { background: #d9f06d; color: #18201d; }
+  :focus-visible { outline: 2px solid rgb(var(--accent-2)); outline-offset: 2px; border-radius: 8px; }
+  ::selection { background: rgb(var(--accent)); color: #18201d; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

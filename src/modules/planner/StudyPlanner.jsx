@@ -898,13 +898,13 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                   Nghỉ 5 phút
                 </button>
               </div>
-              <div className="mx-auto mt-4 flex max-w-xs items-center gap-2">
+              <div className="mx-auto mt-4 flex max-w-xs flex-col gap-2 sm:flex-row sm:items-center">
                 <select
                   value={audio.sound}
                   onChange={(event) =>
                     setAudio({ ...audio, sound: event.target.value })
                   }
-                  className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-2.5 py-2.5 text-sm dark:border-white/15"
+                  className="w-full min-w-0 rounded-xl border border-ink/10 bg-transparent px-2.5 py-2.5 text-sm dark:border-white/15 sm:flex-1"
                 >
                   {audioOptions.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -917,18 +917,20 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                     </option>
                   )}
                 </select>
-                <Volume2 size={14} className="text-ink/40" />
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={audio.volume}
-                  onChange={(event) =>
-                    setAudio({ ...audio, volume: Number(event.target.value) })
-                  }
-                  className="h-11 w-20 accent-sage"
-                  aria-label="Âm lượng"
-                />
+                <div className="flex items-center gap-2">
+                  <Volume2 size={14} className="shrink-0 text-ink/40" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={audio.volume}
+                    onChange={(event) =>
+                      setAudio({ ...audio, volume: Number(event.target.value) })
+                    }
+                    className="h-11 w-full accent-sage sm:w-20"
+                    aria-label="Âm lượng"
+                  />
+                </div>
               </div>
               <div className="mt-5 flex justify-center gap-2">
                 <button

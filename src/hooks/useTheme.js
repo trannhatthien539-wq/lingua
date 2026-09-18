@@ -1,22 +1,39 @@
 import { useEffect, useState } from 'react'
+import { applyThemeMode, prefersDarkScheme, readThemeMode } from '../services/appearanceService'
 
-const getInitialTheme = () => {
-  const savedTheme = localStorage.getItem('lingua-theme')
-  if (savedTheme) return savedTheme
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
+const resolveIsDark = (mode) => mode === 'dark' || (mode === 'system' && prefersDarkScheme())
 
+/**
+ * Chế độ sáng/tối. Giá trị lưu là 'light' | 'dark' | 'system'.
+ * `theme` trả về giá trị đã quy đổi ('light' | 'dark') để các component cũ dùng như trước.
+ */
 export function useTheme() {
-  const [theme, setTheme] = useState(getInitialTheme)
+  const [themeMode, setThemeMode] = useState(readThemeMode)
+  const [isDark, setIsDark] = useState(() => resolveIsDark(readThemeMode()))
 
   useEffect(() => {
-    const isDark = theme === 'dark'
-    document.documentElement.classList.toggle('dark', isDark)
-    // Đồng bộ thanh trạng thái của trình duyệt/PWA và màu nền vùng overscroll.
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#141917' : '#f6f7f5')
-    localStorage.setItem('lingua-theme', theme)
-  }, [theme])
+    setIsDark(applyThemeMode(themeMode))
+    try {
+      localStorage.setItem('lingua-theme', themeMode)
+    } catch {
+      // Bỏ qua khi localStorage bị chặn.
+    }
+  }, [themeMode])
 
-  return { theme, toggleTheme: () => setTheme((current) => current === 'dark' ? 'light' : 'dark') }
+  // Ở chế độ "Theo hệ thống", cập nhật ngay khi cài đặt của máy thay đổi.
+  useEffect(() => {
+    if (themeMode !== 'system') return undefined
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setIsDark(applyThemeMode('system'))
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [themeMode])
+
+  return {
+    theme: isDark ? 'dark' : 'light',
+    themeMode,
+    setThemeMode,
+    isDark,
+    toggleTheme: () => setThemeMode(isDark ? 'light' : 'dark'),
+  }
 }

@@ -8,8 +8,10 @@ export default {
         // Thương hiệu
         ink: '#18201d',
         mist: '#f6f7f5',
-        sage: '#86a98f',
-        lime: '#d9f06d',
+        // Hai màu dưới đây lấy từ CSS variable nên có thể đổi trong Cài đặt → Giao diện.
+        // `sage` = màu phụ (chữ/viền/thanh tiến độ), `lime` = màu nhấn (nút chính, tab đang chọn).
+        sage: 'rgb(var(--accent-2, 134 169 143) / <alpha-value>)',
+        lime: 'rgb(var(--accent, 217 240 109) / <alpha-value>)',
         // Bề mặt: sáng
         slab: '#ffffff',
         slab2: '#f1f3ef',
@@ -31,8 +33,8 @@ export default {
         dangerfgdark: '#f2a9a3',
       },
       fontFamily: {
-        sans: ['DM Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Space Grotesk', 'DM Sans', 'sans-serif'],
+        sans: ['var(--font-sans)', 'DM Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Space Grotesk', 'DM Sans', 'sans-serif'],
       },
       // Một thang bán kính duy nhất: 10 / 14 / 20 / 24 + pill
       borderRadius: {
