@@ -7,6 +7,7 @@ import {
   query,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { isSafeImageSource } from "./imageService";
@@ -100,6 +101,28 @@ const normalizeCard = (card) => ({
 
 const withUserId = (data) => ({ ...data, userId: requireUser().uid });
 
+// Payload gửi lên Firestore của một thẻ từ vựng.
+const cardPayload = (card) => ({
+  deckId: card.deckId,
+  word: card.word,
+  ipa: card.ipa,
+  meaning: card.meaning,
+  example: card.example,
+  level: card.level,
+  status: card.status,
+  reviewDate: card.reviewDate,
+  interval: card.interval,
+  nextReviewDate: card.nextReviewDate,
+  repetition: card.repetition,
+  lastStudiedDate: card.lastStudiedDate,
+  imageUrl: card.imageUrl,
+  audioUrl: card.audioUrl,
+  needAiImage: card.needAiImage,
+});
+
+// Firestore giới hạn 500 thao tác mỗi batch.
+const BATCH_SIZE = 400;
+
 const getUserDocuments = async (collectionName) => {
   const user = requireUser();
   const snapshot = await getDocs(query(collection(db, collectionName), where("userId", "==", user.uid)));
@@ -175,24 +198,35 @@ const dataMethods = {
       writeLocal({ ...library, cards: [...library.cards, normalized] });
       return normalized;
     }
-    const created = await addDoc(collection(db, "vocabulary_cards"), withUserId(omitUndefined({
-      deckId: normalized.deckId,
-      word: normalized.word,
-      ipa: normalized.ipa,
-      meaning: normalized.meaning,
-      example: normalized.example,
-      level: normalized.level,
-      status: normalized.status,
-      reviewDate: normalized.reviewDate,
-      interval: normalized.interval,
-      nextReviewDate: normalized.nextReviewDate,
-      repetition: normalized.repetition,
-      lastStudiedDate: normalized.lastStudiedDate,
-      imageUrl: normalized.imageUrl,
-      audioUrl: normalized.audioUrl,
-      needAiImage: normalized.needAiImage,
-    })));
+    const created = await addDoc(collection(db, "vocabulary_cards"), withUserId(omitUndefined(cardPayload(normalized))));
     return { ...normalized, id: created.id };
+  },
+
+  /**
+   * Thêm nhiều thẻ cùng lúc (dùng khi tạo bộ thẻ khởi tạo 1000 từ).
+   * - Khách: ghi localStorage đúng một lần thay vì 1000 lần.
+   * - Đã đăng nhập: gom theo batch để tránh 1000 request riêng lẻ.
+   */
+  async addCards(cards) {
+    const normalized = cards.map((card) => normalizeCard(card));
+    if (!normalized.length) return [];
+    if (!currentUser()) {
+      const library = readLocal();
+      writeLocal({ ...library, cards: [...library.cards, ...normalized] });
+      return normalized;
+    }
+    const saved = [];
+    for (let index = 0; index < normalized.length; index += BATCH_SIZE) {
+      const chunk = normalized.slice(index, index + BATCH_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach((card) => {
+        const ref = doc(collection(db, "vocabulary_cards"));
+        batch.set(ref, withUserId(omitUndefined(cardPayload(card))));
+        saved.push({ ...card, id: ref.id });
+      });
+      await batch.commit();
+    }
+    return saved;
   },
 
   async updateCard(id, changes) {

@@ -18,13 +18,28 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        var host = location.hostname;
+        var isDeviceApp = Boolean(window.Capacitor);
+        var isLocalDev = !isDeviceApp && (
+          host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '[::1]' || host.slice(-6) === '.local'
+        );
+        if (isLocalDev) {
+          // Khi chạy dev, service worker từng cache module JS cũ nên trang có thể gặp lỗi
+          // "Invalid hook call / nhiều bản React". Gỡ đăng ký và xoá cache ngay khi tải trang.
+          navigator.serviceWorker.getRegistrations()
+            .then(function (registrations) { registrations.forEach(function (item) { item.unregister(); }); })
+            .catch(function () {});
+          if (window.caches) caches.keys().then(function (keys) { keys.forEach(function (key) { caches.delete(key); }); }).catch(function () {});
+          return;
+        }
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(function (registration) {
             registration.update().catch(function () {});
           }).catch(function () {});
         });
-      }
+      })();
     </script>
   </body>
 </html>

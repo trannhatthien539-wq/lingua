@@ -41,6 +41,15 @@ import SafeImage from "../../components/ui/SafeImage";
 import { addDaysKey, dateKey } from "../../utils/srs";
 import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
 import { createStarterDeck } from "../../data/starterDeck";
+
+// Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
+// (bộ mặc định có 1000 từ nên không thể render hết cùng lúc).
+const SESSION_LIMIT = 50;
+const RENDER_LIMIT = 60;
+
+// Bộ mặc định cũ và bộ mặc định mới, dùng để nâng cấp một lần cho thư viện đã có sẵn.
+const LEGACY_STARTER_TITLE = "IELTS Speaking Part 1";
+const COMMON_DECK_TITLE_MATCH = "từ tiếng Anh thông dụng";
 import { playStudySound } from "../../utils/studyFeedback";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
@@ -158,20 +167,22 @@ const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
 
 // Chỉ tạo bộ thẻ khởi tạo một lần, kể cả khi effect chạy lại (React StrictMode)
 // hoặc hai tab cùng mở — tránh tạo trùng bộ và trùng id thẻ.
+// Bộ mặc định là 1000 từ thông dụng, được tải riêng để không làm nặng gói chính.
 let starterSeedPromise = null;
 const seedStarterDeck = () => {
   if (!starterSeedPromise) {
     starterSeedPromise = (async () => {
-      const seed = createStarterDeck();
-      const created = await dataService.createDeck(seed.title);
-      const results = await Promise.allSettled(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
-      const cards = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      const { createCommonWordsDeck } = await import("../../data/commonWords");
+      const { deck: draftDeck, cards: draftCards } = createCommonWordsDeck();
+      const created = await dataService.createDeck(draftDeck.title);
+      // Ghi một lần theo batch: nhanh hơn nhiều so với 1000 request riêng lẻ.
+      const cards = await dataService.addCards(draftCards.map((card) => ({ ...card, deckId: created.id })));
       if (!cards.length) {
         await dataService.deleteDeck(created.id).catch(() => {});
         starterSeedPromise = null;
-        throw new Error("Không thể đồng bộ bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
+        throw new Error("Không thể tạo bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
       }
-      return { decks: [{ ...created, title: seed.title, description: seed.description, tags: seed.tags, createdAt: created.createdAt || created.created_at }], cards };
+      return { decks: [{ ...created, title: draftDeck.title, description: draftDeck.description, tags: draftDeck.tags, createdAt: created.createdAt || created.created_at }], cards };
     })();
   }
   return starterSeedPromise;
@@ -655,6 +666,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     return base.filter((card) => `${card.word} ${card.meaning} ${card.example}`.toLowerCase().includes(searchTerm));
   }, [activeFilter, deckCards, dueCards, searchTerm]);
 
+  const [visibleCount, setVisibleCount] = useState(RENDER_LIMIT);
+  const visibleCards = useMemo(() => filteredCards.slice(0, visibleCount), [filteredCards, visibleCount]);
+  useEffect(() => {
+    setVisibleCount(RENDER_LIMIT);
+  }, [selectedDeck?.id, activeFilter, searchTerm]);
+  const sessionCount = (cards) => Math.min(cards.length, SESSION_LIMIT);
+
   useEffect(() => {
     let active = true;
     setLibrary({ decks: [], cards: [] });
@@ -674,13 +692,35 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
         const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, cardsByDeck.flat());
         decks = safeDecks;
+        // Bộ mặc định cũ (10 từ IELTS) chưa học gì thì thay bằng bộ 1000 từ thông dụng.
+        const legacyDeck = decks.find((deck) => {
+          if (deck.title !== LEGACY_STARTER_TITLE) return false;
+          const owned = initialCards.filter((card) => card.deckId === deck.id);
+          return owned.length > 0 && owned.length <= 12 && owned.every((card) => card.status === "new" && !card.repetition && !card.lastStudiedDate);
+        });
+        const hasCommonDeck = decks.some((deck) => deck.title.includes(COMMON_DECK_TITLE_MATCH));
+        if (legacyDeck && !hasCommonDeck) {
+          const seeded = await seedStarterDeck();
+          await dataService.deleteDeck(legacyDeck.id).catch(() => {});
+          const remainingDecks = decks.filter((deck) => deck.id !== legacyDeck.id);
+          const remainingCards = initialCards.filter((card) => card.deckId !== legacyDeck.id);
+          if (active) {
+            setLibrary({ decks: [...remainingDecks, ...seeded.decks], cards: [...remainingCards, ...seeded.cards] });
+            setNotice(`Đã thay bộ thẻ mặc định bằng ${seeded.cards.length} từ tiếng Anh thông dụng.`);
+          }
+          return;
+        }
         if (active) setLibrary({ decks, cards: initialCards });
-        void Promise.all(initialCards.filter((card) => !card.imageUrl).map(async (card) => {
-          const imageUrl = await findVocabularyImageSafely(card.word, card.meaning);
-          if (!imageUrl) return;
-          try { await dataService.updateCard(card.id, { imageUrl }); } catch { return; }
-          if (active) setLibrary((current) => ({ ...current, cards: current.cards.map((item) => item.id === card.id ? { ...item, imageUrl } : item) }));
-        }));
+        // Bộ mặc định có 1000 từ: chỉ tự tra ảnh cho thư viện nhỏ, và tối đa 8 thẻ mỗi lần tải
+        // để không gọi API hàng nghìn lần.
+        if (initialCards.length <= 200) {
+          void Promise.all(initialCards.filter((card) => !card.imageUrl).slice(0, 8).map(async (card) => {
+            const imageUrl = await findVocabularyImageSafely(card.word, card.meaning);
+            if (!imageUrl) return;
+            try { await dataService.updateCard(card.id, { imageUrl }); } catch { return; }
+            if (active) setLibrary((current) => ({ ...current, cards: current.cards.map((item) => item.id === card.id ? { ...item, imageUrl } : item) }));
+          }));
+        }
       } catch (loadError) {
         if (active) setError(loadError.message || "Không thể tải thư viện từ vựng.");
       } finally {
@@ -996,7 +1036,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const openStudy = (cards) => {
-    setStudyCards(cards);
+    // Mỗi phiên chỉ lấy tối đa 50 thẻ để phiên học không kéo dài vô tận với bộ 1000 từ.
+    setStudyCards(cards.slice(0, SESSION_LIMIT));
     setStudyDeckId(selectedDeck.id);
     setStudyMode(null);
   };
@@ -1031,7 +1072,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   return (
     <div className="space-y-6">
-      <StudyAnalyticsWidget cards={deckCards} streak={streak} dueCount={dueCards.length} deckTitle={selectedDeck?.title || ''} onStartToday={() => openStudy(dueCards.length ? dueCards : deckCards)} />
+      <StudyAnalyticsWidget cards={deckCards} streak={streak} dueCount={sessionCount(dueCards)} deckTitle={selectedDeck?.title || ''} onStartToday={() => openStudy(dueCards.length ? dueCards : deckCards)} />
       <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
         <aside className="panel h-fit overflow-hidden p-4">
           <div className="flex items-center justify-between">
@@ -1099,7 +1140,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="btn-primary min-h-12 flex-1 px-5 disabled:cursor-not-allowed sm:flex-none">
                 <Sparkles size={17} />Bắt đầu học ngay
               </button>
-              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {dueCards.length} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
             </div>
           </div>
           <section className="panel overflow-hidden">
@@ -1119,7 +1160,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <div className="ml-auto flex items-center gap-2">
                   <button onClick={() => openStudy(filteredCards)} disabled={!filteredCards.length} className="btn-secondary px-4">
                     <Sparkles size={16} />
-                    Học {filteredCards.length} từ
+                    Học {sessionCount(filteredCards)} từ
                   </button>
                   <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="btn-ghost hidden sm:inline-flex">
                     <Plus size={16} />
@@ -1176,7 +1217,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             ) : (
               <div>
-                {filteredCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} />)}
+                {visibleCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} />)}
+                {filteredCards.length > visibleCards.length && (
+                  <div className="border-t border-ink/[0.08] p-4 text-center dark:border-white/[0.08]">
+                    <button onClick={() => setVisibleCount((value) => value + RENDER_LIMIT)} className="btn-secondary px-4">
+                      Xem thêm {Math.min(RENDER_LIMIT, filteredCards.length - visibleCards.length)} từ
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>
