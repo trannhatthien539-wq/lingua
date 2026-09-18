@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react'
 import useCloudDoc from './useCloudDoc'
 import { userDocKeys } from '../services/userDocService'
-import { PASS_RATIO, grammarLessons } from '../data/grammarCurriculum'
+import { PASS_RATIO } from '../data/grammarCurriculum'
+import { grammarAllItems } from '../data/grammarIndex'
 
 const emptyProgress = { completed: {}, lastLesson: null }
 
@@ -24,7 +25,7 @@ export default function useGrammarProgress() {
   const progress = value || emptyProgress
 
   const completedCount = useMemo(
-    () => grammarLessons.filter((lesson) => progress.completed?.[lesson.id]?.passed).length,
+    () => grammarAllItems.filter((lesson) => progress.completed?.[lesson.id]?.passed).length,
     [progress],
   )
 

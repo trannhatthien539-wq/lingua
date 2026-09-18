@@ -27,11 +27,12 @@ import { toast } from './services/toast'
 const VocabularyHub = lazy(() => import('./modules/learning/VocabularyHub'))
 const WritingChecker = lazy(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.WritingChecker })))
 const GrammarHub = lazy(() => import('./modules/grammar/GrammarHub'))
+const SkillsHub = lazy(() => import('./modules/skills/SkillsHub'))
 const StudyPlanner = lazy(() => import('./modules/planner/StudyPlanner'))
 const StudyMindmap = lazy(() => import('./modules/mindmap/StudyMindmap'))
 const ApiSettings = lazy(() => import('./modules/settings/ApiSettings'))
-const modules = { vocabulary: VocabularyHub, grammar: GrammarHub, writing: WritingChecker, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
-const tabPaths = { vocabulary: '/vocabulary', grammar: '/grammar', writing: '/writing', planner: '/planner', mindmap: '/mindmap', settings: '/settings' }
+const modules = { vocabulary: VocabularyHub, grammar: GrammarHub, skills: SkillsHub, writing: WritingChecker, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
+const tabPaths = { vocabulary: '/vocabulary', grammar: '/grammar', skills: '/skills', writing: '/writing', planner: '/planner', mindmap: '/mindmap', settings: '/settings' }
 const pathTabs = Object.fromEntries(Object.entries(tabPaths).map(([tab, path]) => [path, tab]))
 
 export default function App() {
@@ -85,6 +86,7 @@ export default function App() {
         userDocKeys.mindmap,
         userDocKeys.grammar,
         userDocKeys.writing,
+        userDocKeys.skills,
         userDocKeys.reminder,
         userDocKeys.history,
       ]).catch(() => [])

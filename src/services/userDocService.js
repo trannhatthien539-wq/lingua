@@ -99,6 +99,7 @@ export const userDocKeys = {
   mindmap: "mindmap",
   grammar: "grammar",
   writing: "writing",
+  skills: "skills",
   reminder: "reminder",
   history: "history",
 };

@@ -4,25 +4,26 @@ import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
 import useGrammarProgress from '../../hooks/useGrammarProgress'
 import GrammarLesson from './GrammarLesson'
-import { grammarCheatSheet, grammarLessons } from '../../data/grammarCurriculum'
+import { grammarCheatSheet } from '../../data/grammarCurriculum'
+import { grammarAllItems, grammarSections } from '../../data/grammarIndex'
 
-/** Module Ngữ pháp: 12 thì, mỗi bài có cấu trúc – ví dụ – câu hỏi – bài kiểm tra cuối bài. */
+/** Module Ngữ pháp: 12 thì + cấu trúc nâng cao B1, mỗi bài có cấu trúc – ví dụ – câu hỏi – bài kiểm tra cuối bài. */
 export default function GrammarHub({ onStudyActivity }) {
   const { progress, completedCount, setLastLesson, recordResult } = useGrammarProgress()
   const [cheatOpen, toggleCheat] = useSectionState('grammar-cheatsheet', false)
   const lessonAreaRef = useRef(null)
 
   const initialLesson = useMemo(() => {
-    const saved = grammarLessons.find((lesson) => lesson.id === progress.lastLesson)
+    const saved = grammarAllItems.find((lesson) => lesson.id === progress.lastLesson)
     if (saved && !progress.completed?.[saved.id]?.passed) return saved
-    const nextIncomplete = grammarLessons.find((lesson) => !progress.completed?.[lesson.id]?.passed)
-    return nextIncomplete || saved || grammarLessons[0]
+    const nextIncomplete = grammarAllItems.find((lesson) => !progress.completed?.[lesson.id]?.passed)
+    return nextIncomplete || saved || grammarAllItems[0]
   }, [progress])
   const [activeId, setActiveId] = useState(initialLesson.id)
 
-  const activeIndex = Math.max(0, grammarLessons.findIndex((lesson) => lesson.id === activeId))
-  const lesson = grammarLessons[activeIndex] || grammarLessons[0]
-  const percent = Math.round((completedCount / grammarLessons.length) * 100)
+  const activeIndex = Math.max(0, grammarAllItems.findIndex((lesson) => lesson.id === activeId))
+  const lesson = grammarAllItems[activeIndex] || grammarAllItems[0]
+  const percent = Math.round((completedCount / grammarAllItems.length) * 100)
 
   const scrollToLesson = () => {
     window.setTimeout(() => lessonAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
@@ -35,7 +36,7 @@ export default function GrammarHub({ onStudyActivity }) {
   }
 
   const goTo = (offset) => {
-    const next = grammarLessons[activeIndex + offset]
+    const next = grammarAllItems[activeIndex + offset]
     if (!next) return
     selectLesson(next.id)
   }
@@ -53,11 +54,12 @@ export default function GrammarHub({ onStudyActivity }) {
           <div className="min-w-0">
             <p className="eyebrow">Ngữ pháp nền tảng</p>
             <h2 className="mt-1 flex items-center gap-2 font-display text-xl font-bold">
-              <GraduationCap size={20} className="text-sage" /> 12 thì tiếng Anh
+              <GraduationCap size={20} className="text-sage" /> 12 thì &amp; cấu trúc B1
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70 dark:text-white/70">
               Học lần lượt từng thì: bảng cấu trúc đủ các dạng (khẳng định, phủ định, nghi vấn), cách dùng, dấu hiệu nhận biết,
-              ví dụ có dịch, lỗi thường gặp, câu hỏi luyện tập và bài kiểm tra cuối bài.
+              ví dụ có dịch, lỗi thường gặp, câu hỏi luyện tập và bài kiểm tra cuối bài. Sau 12 thì là 8 chuyên đề cấu trúc
+              nâng cao (câu điều kiện, bị động, mệnh đề quan hệ, câu gián tiếp, modal verbs…).
             </p>
           </div>
           <button type="button" onClick={() => selectLesson(initialLesson.id)} className="btn-primary px-4">
@@ -70,7 +72,7 @@ export default function GrammarHub({ onStudyActivity }) {
             <div className="h-full rounded-full bg-lime transition-all" style={{ width: `${percent}%` }} />
           </div>
           <span className="metric shrink-0 text-sm">
-            {completedCount}/{grammarLessons.length} bài
+            {completedCount}/{grammarAllItems.length} bài
           </span>
         </div>
       </section>
@@ -119,30 +121,35 @@ export default function GrammarHub({ onStudyActivity }) {
         <nav className="panel p-3 lg:sticky lg:top-4" aria-label="Danh sách bài ngữ pháp">
           <p className="eyebrow hidden px-2 pb-2 lg:block">Danh sách bài</p>
           <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
-            {grammarLessons.map((item) => {
-              const active = item.id === lesson.id
-              const done = progress.completed?.[item.id]?.passed
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => selectLesson(item.id)}
-                  aria-current={active ? 'true' : undefined}
-                  className={`flex min-h-[44px] min-w-max items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition lg:w-full ${
-                    active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'
-                  }`}
-                >
-                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${active ? 'bg-ink/10' : 'bg-ink/[0.06] dark:bg-white/10'}`}>
-                    {item.order}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-bold">{item.title}</span>
-                    <span className={`block truncate text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.en}</span>
-                  </span>
-                  {done && <BadgeCheck size={16} className={`ml-auto shrink-0 ${active ? 'text-ink/70' : 'text-ok dark:text-okfgdark'}`} />}
-                </button>
-              )
-            })}
+            {grammarSections.map((section) => (
+              <div key={section.id} className="min-w-max lg:min-w-0">
+                <p className="eyebrow min-w-max whitespace-nowrap px-2 pb-1 pt-2">{section.title}</p>
+                <div className="flex gap-2 lg:block lg:space-y-1">
+                  {section.items.map((item) => {
+                    const active = item.id === lesson.id
+                    const done = progress.completed?.[item.id]?.passed
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => selectLesson(item.id)}
+                        aria-current={active ? 'true' : undefined}
+                        className={`flex min-h-[44px] min-w-max items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition lg:w-full ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
+                      >
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${active ? 'bg-ink/10' : 'bg-ink/[0.06] dark:bg-white/10'}`}>
+                          {item.order > 100 ? '+' : item.order}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold">{item.title}</span>
+                          <span className={`block truncate text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.en}</span>
+                        </span>
+                        {done && <BadgeCheck size={16} className={`ml-auto shrink-0 ${active ? 'text-ink/70' : 'text-ok dark:text-okfgdark'}`} />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </nav>
 
@@ -155,7 +162,7 @@ export default function GrammarHub({ onStudyActivity }) {
             onPrev={() => goTo(-1)}
             onNext={() => goTo(1)}
             hasPrev={activeIndex > 0}
-            hasNext={activeIndex < grammarLessons.length - 1}
+            hasNext={activeIndex < grammarAllItems.length - 1}
           />
         </div>
       </div>

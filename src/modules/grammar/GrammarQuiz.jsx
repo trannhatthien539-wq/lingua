@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
@@ -31,7 +31,7 @@ const shuffle = (items) => {
  * - `immediate`: hiện đáp án + giải thích ngay sau mỗi câu (chế độ luyện tập).
  * - Không bật: trả lời hết rồi mới chấm điểm và xem lại (bài kiểm tra cuối bài).
  */
-export default function GrammarQuiz({ questions, immediate = false, title, subtitle, onFinish, finishLabel = 'Tiếp tục' }) {
+export default function GrammarQuiz({ questions, immediate = false, title, subtitle, onFinish, finishLabel = 'Tiếp tục', timeLimit = 0, onTimeUp }) {
   const items = useMemo(
     () => (immediate ? questions.slice(0, Math.min(4, questions.length)) : shuffle(questions)),
     [questions, immediate],
@@ -41,6 +41,26 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
   const [checked, setChecked] = useState(false)
   const [results, setResults] = useState([])
   const [finished, setFinished] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(timeLimit)
+  const [timedOut, setTimedOut] = useState(false)
+
+  // Đồng hồ cho bài thi thử: hết giờ thì tự nộp bài.
+  useEffect(() => {
+    if (!timeLimit || finished) return undefined
+    const timer = window.setInterval(() => {
+      setSecondsLeft((value) => {
+        if (value <= 1) {
+          window.clearInterval(timer)
+          setTimedOut(true)
+          setFinished(true)
+          onTimeUp?.()
+          return 0
+        }
+        return value - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [timeLimit, finished, onTimeUp])
 
   const question = items[index]
   const correctCount = results.filter((item) => item.correct).length
@@ -91,7 +111,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       <div className="panel-flat p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="eyebrow">Kết quả</p>
+            <p className="eyebrow">{timedOut ? 'Hết giờ' : 'Kết quả'}</p>
             <p className="mt-1 font-display text-2xl font-bold">
               {correctCount}/{total} câu đúng
             </p>
@@ -151,6 +171,11 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
         <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">
           Câu {index + 1}/{items.length}
         </span>
+        {timeLimit > 0 && (
+          <span className={`chip ${secondsLeft <= 60 ? 'bg-dangerbg text-danger dark:bg-dangerdark dark:text-dangerfgdark' : 'bg-sage/15 text-ink dark:text-white'}`}>
+            Còn {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">

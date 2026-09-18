@@ -1,9 +1,10 @@
-import { BookOpen, CalendarDays, GitBranch, GraduationCap, PenLine, Settings2 } from 'lucide-react';
+import { BookOpen, CalendarDays, GitBranch, GraduationCap, Headphones, PenLine, Settings2 } from 'lucide-react';
 import { navigationItems } from '../data/navigation';
 
 const iconById = {
   vocabulary: BookOpen,
   grammar: GraduationCap,
+  skills: Headphones,
   writing: PenLine,
   planner: CalendarDays,
   mindmap: GitBranch,
