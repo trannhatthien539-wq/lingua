@@ -1,5 +1,5 @@
-const CACHE_NAME = 'lingua-static-v2';
-const APP_SHELL = ['./', './manifest.json', './icons/icon-192.svg', './icons/icon-512.svg'];
+const CACHE_NAME = 'lingua-static-v3';
+const APP_SHELL = ['./', './manifest.json', './icons/icon-192.svg', './icons/icon-512.svg', './icons/tree.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowRight, BookOpen, BrainCircuit, Check, Clock3, Mail, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, BrainCircuit, Check, Clock3, Mail } from "lucide-react";
+import AppMark from "../AppMark";
 import {
   auth,
   createUserWithEmailAndPassword,
@@ -53,7 +54,7 @@ export default function AuthPage({ onGuest }) {
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-lime/20 blur-3xl" />
           <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[#8bc5a1]/20 blur-3xl" />
           <div className="relative flex h-full flex-col">
-            <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-lime text-ink"><Sparkles size={19} /></div><span className="font-display text-lg font-bold">lingua.</span></div>
+            <div className="flex items-center gap-3"><AppMark className="h-11 w-11" /><span className="font-display text-lg font-bold">lingua.</span></div>
             <div className="my-auto max-w-lg py-16">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime/70">Không gian học tập</p>
               <h1 className="mt-5 font-display text-4xl font-bold leading-tight sm:text-5xl">Học đều đặn. Tiến bộ có chủ đích.</h1>
