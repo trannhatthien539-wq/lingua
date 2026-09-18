@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { ArrowRight, BookOpen, BrainCircuit, Check, Clock3, Mail } from "lucide-react";
 import AppMark from "../AppMark";
+import GoogleSignInHelp from "../GoogleSignInHelp";
+import { isCapacitor } from "../../services/platform";
 import {
   auth,
   createUserWithEmailAndPassword,
@@ -88,6 +90,7 @@ export default function AuthPage({ onGuest }) {
             <div className="mt-5 flex items-center justify-between text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
             {error && <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2.5 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
             {notice && <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:text-amber-200" role="status">{notice}</p>}
+            {isCapacitor() && <GoogleSignInHelp compact />}
             <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-ink/60 dark:text-white/55"><Check size={13} /> Dữ liệu được đồng bộ riêng theo tài khoản</p>
           </div>
         </section>

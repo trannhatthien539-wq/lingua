@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Copy, LogIn, LogOut, Save, UserRound } from 'lucide-react';
 import { toast } from '../services/toast';
 import { isCapacitor } from '../services/platform';
+import GoogleSignInHelp from './GoogleSignInHelp';
 import {
   GOOGLE_REDIRECT_URI,
   getGoogleLoginMode,
@@ -107,6 +108,7 @@ export default function AccountPanel({ user, onGoogleLogin, onSignOut }) {
       <p className="mt-4 text-sm leading-6 text-ink/70 dark:text-white/70">Đăng nhập để đồng bộ bộ thẻ, tiến độ, kế hoạch học và streak trên mọi thiết bị. Dữ liệu đang có trên thiết bị này vẫn được giữ nguyên và gộp vào tài khoản sau khi đăng nhập.</p>
       <button onClick={onGoogleLogin} className="btn-primary mt-4 w-full"><LogIn size={17} />Đăng nhập bằng Google</button>
       {isCapacitor() && <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/60">Trên bản APK, app sẽ mở Chrome để bạn chọn tài khoản Google, sau đó tự quay về và hoàn tất đăng nhập.</p>}
+      {isCapacitor() && <GoogleSignInHelp />}
       <GoogleSetup />
     </>}
   </section>;

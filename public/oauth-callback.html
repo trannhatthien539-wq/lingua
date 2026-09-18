@@ -28,6 +28,11 @@
         min-height: 48px; border-radius: 14px; background: #d9f06d; color: #18201d;
         font-weight: 700; text-decoration: none; font-size: 15px;
       }
+      button.copy {
+        display: block; width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid var(--line);
+        border-radius: 14px; background: transparent; color: inherit; font-weight: 700; font-size: 13px; cursor: pointer;
+      }
+      textarea { border: 1px solid var(--line); border-radius: 10px; background: transparent; color: inherit; padding: 8px; }
       details { margin-top: 18px; text-align: left; font-size: 12px; opacity: 0.8; }
       summary { cursor: pointer; }
       code { word-break: break-all; font-size: 11px; }
@@ -48,9 +53,11 @@
       <details>
         <summary>Không mở được ứng dụng?</summary>
         <p>
-          Hãy chắc chắn bạn đã cài bản APK mới nhất, rồi bấm lại nút trên. Nếu vẫn lỗi, bạn có thể
-          đóng thẻ này và đăng nhập lại bằng email/mật khẩu trong ứng dụng.
+          Bấm <strong>Sao chép mã đăng nhập</strong> bên dưới, quay lại app Lingua và dán mã vào
+          <em>Cài đặt → Tài khoản → Không đăng nhập được bằng Google?</em>
         </p>
+        <button class="copy" id="copy" type="button" hidden>Sao chép mã đăng nhập</button>
+        <p id="copyState" hidden></p>
       </details>
     </div>
     <script>
@@ -61,6 +68,8 @@
         var messageEl = document.getElementById('message');
         var openEl = document.getElementById('open');
         var spinnerEl = document.getElementById('spinner');
+        var copyEl = document.getElementById('copy');
+        var copyStateEl = document.getElementById('copyState');
 
         var raw = window.location.hash ? window.location.hash.slice(1) : window.location.search.slice(1);
         var params = new URLSearchParams(raw || '');
@@ -85,6 +94,25 @@
           openEl.setAttribute('href', SCHEME + '://auth');
           return;
         }
+
+        copyEl.hidden = false;
+        copyEl.addEventListener('click', function () {
+          var done = function () {
+            copyStateEl.hidden = false;
+            copyStateEl.textContent = 'Đã sao chép mã. Hãy quay lại app Lingua và dán mã vào Cài đặt → Tài khoản.';
+          };
+          var failed = function () {
+            copyEl.hidden = true;
+            openEl.insertAdjacentHTML('afterend', '<textarea readonly style="width:100%;margin-top:10px;font-size:11px" rows="4">' + idToken.replace(/</g, '&lt;') + '</textarea>');
+            copyStateEl.hidden = false;
+            copyStateEl.textContent = 'Hãy chọn toàn bộ mã trên rồi sao chép thủ công.';
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(idToken).then(done).catch(failed);
+          } else {
+            failed();
+          }
+        });
 
         // Chuyển tiếp ngay về app; giữ nút dự phòng cho trường hợp trình duyệt chặn.
         window.location.replace(target);

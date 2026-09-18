@@ -88,17 +88,75 @@ export const buildFirebaseHandlerUrl = ({ apiKey, authDomain, redirectUrl, event
   return `https://${authDomain}/__/auth/handler?${params.toString()}`
 }
 
-const openExternal = async (url) => {
+const DIAG_KEY = 'lingua-google-auth-log'
+
+/** Ghi lại nhật ký đăng nhập Google để hiển thị trong Cài đặt khi cần chẩn đoán. */
+const recordDiagnostics = (patch) => {
   try {
-    const { Browser } = await import('@capacitor/browser')
-    await Browser.open({ url, presentationStyle: 'fullscreen' })
-    return true
+    const previous = JSON.parse(localStorage.getItem(DIAG_KEY) || '{}')
+    localStorage.setItem(DIAG_KEY, JSON.stringify({ ...previous, ...patch, at: Date.now() }))
   } catch {
-    // Dự phòng khi plugin không có sẵn: Capacitor hiểu target `_system` là mở trình duyệt ngoài.
-    const opened = window.open(url, '_system')
-    if (!opened) window.location.href = url
-    return true
+    /* bỏ qua */
   }
+}
+
+export const readGoogleAuthDiagnostics = () => {
+  try {
+    return JSON.parse(localStorage.getItem(DIAG_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+export const clearGoogleAuthDiagnostics = () => {
+  try {
+    localStorage.removeItem(DIAG_KEY)
+  } catch {
+    /* bỏ qua */
+  }
+}
+
+/** Plugin Browser của Capacitor đã được nhúng vào APK chưa. */
+export const canUseBrowserPlugin = () =>
+  typeof window !== 'undefined' && Boolean(window.Capacitor?.isPluginAvailable?.('Browser'))
+
+/**
+ * Mở URL bằng trình duyệt hệ thống. Thử lần lượt 3 cách để chắc chắn Chrome mở:
+ *  1. plugin `@capacitor/browser` (Chrome Custom Tabs);
+ *  2. `window.open(..., '_system')`;
+ *  3. điều hướng WebView — Capacitor sẽ bắt và mở bằng ACTION_VIEW (trình duyệt ngoài).
+ */
+const openExternal = async (url) => {
+  if (canUseBrowserPlugin()) {
+    try {
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url })
+      return 'browser-plugin'
+    } catch (error) {
+      console.warn('Lingua: không mở được bằng plugin Browser, thử cách khác.', error)
+    }
+  }
+  try {
+    const opened = window.open(url, '_system')
+    if (opened) return 'window-open'
+  } catch (error) {
+    console.warn('Lingua: window.open(_system) không dùng được.', error)
+  }
+  try {
+    window.location.href = url
+    return 'location'
+  } catch (error) {
+    console.error('Lingua: không mở được trình duyệt.', error)
+    return 'failed'
+  }
+}
+
+/** Mở lại trang đăng nhập Google (nút dự phòng khi Chrome không tự mở). */
+export const openGoogleAuthUrlInBrowser = async (url) => {
+  if (!url) return 'failed'
+  const method = await openExternal(url)
+  recordDiagnostics({ reopenedWith: method })
+  return method
 }
 
 export const closeExternalBrowser = async () => {
@@ -156,21 +214,33 @@ export const completeGoogleBrowserSignIn = async (urlString) => {
   }
 
   try {
-    const credential = GoogleAuthProvider.credential(idToken, params.get('access_token') || undefined)
-    const result = await signInWithCredential(auth, credential)
+    const user = await signInWithIdToken(idToken, params.get('access_token') || undefined)
     clearPending()
     await closeExternalBrowser()
-    notify('success', result.user)
-    return result.user
+    recordDiagnostics({ returnStatus: 'ok', account: user?.email || '' })
+    notify('success', user)
+    return user
   } catch (error) {
     clearPending()
     await closeExternalBrowser()
     console.error('Lingua Google credential error', error)
+    recordDiagnostics({ returnStatus: 'error', errorCode: error?.code || '', errorMessage: String(error?.message || '').slice(0, 200) })
     notify('error', error?.code === 'auth/invalid-credential'
       ? 'Google từ chối đăng nhập. Kiểm tra lại cấu hình đăng nhập Google trong Cài đặt.'
       : 'Không thể xác thực với Google. Vui lòng thử lại.')
     return null
   }
+}
+
+/**
+ * Đổi một Google ID token thành phiên Firebase.
+ * Dùng chung cho deep link và cho đường dự phòng “dán mã đăng nhập”.
+ */
+export const signInWithIdToken = async (idToken, accessToken) => {
+  if (!idToken) throw new Error('Thiếu mã đăng nhập Google.')
+  const credential = GoogleAuthProvider.credential(idToken.trim(), accessToken || undefined)
+  const result = await signInWithCredential(auth, credential)
+  return result.user
 }
 
 /**
@@ -223,8 +293,17 @@ export const startGoogleBrowserSignIn = async () => {
     url = buildFirebaseHandlerUrl({ apiKey, authDomain, redirectUrl: GOOGLE_REDIRECT_URI, eventId: state })
   }
 
-  await openExternal(url)
-  return { pending: true, mode }
+  const openedWith = await openExternal(url)
+  recordDiagnostics({
+    mode,
+    openedWith,
+    hasBrowserPlugin: canUseBrowserPlugin(),
+    isNativeApp: isCapacitor(),
+    url,
+    eventId: state,
+    returnStatus: 'waiting',
+  })
+  return { pending: true, mode, url, openedWith }
 }
 
 /** Có thể đăng nhập Google qua Chrome không (chỉ dùng cho bản APK). */
