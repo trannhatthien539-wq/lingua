@@ -19,6 +19,8 @@ import MobileBottomNav from './components/MobileBottomNav'
 import MobileHeader from './components/MobileHeader'
 import AccountPanel from './components/AccountPanel'
 import SearchPalette from './components/SearchPalette'
+import Toaster from './components/ui/Toaster'
+import { toast } from './services/toast'
 
 const VocabularyHub = lazy(() => import('./modules/learning/VocabularyHub'))
 const GrammarChecker = lazy(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.GrammarChecker })))
@@ -33,7 +35,6 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [streak, setStreak] = useState(() => readGuestStreak())
   const [apiKey, setApiKey] = useState('')
-  const [notice, setNotice] = useState('')
   const [dataVersion, setDataVersion] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
   const location = useLocation()
@@ -67,13 +68,10 @@ export default function App() {
   useEffect(() => {
     initializeNativeGoogleAuth().catch((error) => {
       if (error.message?.includes('VITE_GOOGLE_WEB_CLIENT_ID')) return
-      setNotice('Không thể khởi tạo đăng nhập Google trên thiết bị.')
+      toast.error('Không thể khởi tạo đăng nhập Google trên thiết bị.')
     })
     getGoogleRedirectResult().then((result) => {
-      if (result?.user) {
-        setNotice('Đăng nhập Google thành công.')
-        window.setTimeout(() => setNotice(''), 2600)
-      }
+      if (result?.user) toast.success('Đăng nhập Google thành công.')
     }).catch(() => {})
     const syncGuestData = async () => {
       const syncedDocs = await syncGuestUserDocs([
@@ -90,12 +88,11 @@ export default function App() {
       try {
         await syncVocabulary(readGuestLibrary())
         setDataVersion((version) => version + 1)
-        setNotice('Đã đồng bộ dữ liệu khách lên tài khoản của bạn.')
+        toast.success('Đã đồng bộ dữ liệu khách lên tài khoản của bạn.')
       } catch (syncError) {
         console.error('Lingua guest vocabulary sync error', syncError)
-        setNotice('Chưa thể đồng bộ dữ liệu khách. Dữ liệu vẫn được giữ trên thiết bị này.')
+        toast.error('Chưa thể đồng bộ dữ liệu khách. Dữ liệu vẫn được giữ trên thiết bị này.')
       }
-      window.setTimeout(() => setNotice(''), 3200)
     }
     return onAuthStateChanged(auth, (nextUser) => {
       resetHistoryCache()
@@ -118,11 +115,9 @@ export default function App() {
   const handleGoogleLogin = async () => {
     try {
       await signInWithGoogle()
-      setNotice('Đăng nhập Google thành công.')
-      window.setTimeout(() => setNotice(''), 2600)
+      toast.success('Đăng nhập Google thành công.')
     } catch (authError) {
-      setNotice(authError.code === 'auth/popup-closed-by-user' ? 'Bạn đã đóng cửa sổ đăng nhập.' : 'Không thể đăng nhập Google. Vui lòng thử lại.')
-      window.setTimeout(() => setNotice(''), 3200)
+      toast.error(authError.code === 'auth/popup-closed-by-user' ? 'Bạn đã đóng cửa sổ đăng nhập.' : 'Không thể đăng nhập Google. Vui lòng thử lại.')
     }
   }
   const handleSignOut = async () => {
@@ -137,5 +132,5 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-[#18181b] dark:text-white"><MobileHeader user={user} streak={streak} notice={notice} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[272px]"><div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-8 lg:px-12 lg:py-10"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Tuesday · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}</div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' && <AccountPanel user={user} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} />}<ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /></Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onSelect={(tab) => { selectTab(tab); setSearchOpen(false) }} />}<Toaster /></div>
 }

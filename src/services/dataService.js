@@ -21,11 +21,11 @@ const readLocal = () => {
     if (library.decks || library.cards) return { decks: library.decks || [], cards: library.cards || [] };
     const legacyWords = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) || "[]");
     if (!legacyWords.length) return { decks: [], cards: [] };
-    const deck = { id: `deck-${Date.now()}`, title: "IELTS Speaking Part 1", tags: ["IELTS", "Speaking"], createdAt: new Date().toISOString() };
+    const deck = { id: makeId("deck"), title: "IELTS Speaking Part 1", tags: ["IELTS", "Speaking"], createdAt: new Date().toISOString() };
     const migrated = {
       decks: [deck],
-      cards: legacyWords.map((item, index) => ({
-        id: `card-${Date.now()}-${index}`,
+      cards: legacyWords.map((item) => ({
+        id: makeId("card"),
         deckId: deck.id,
         word: item.word || "",
         ipa: item.pronunciation || "",
@@ -46,6 +46,10 @@ const readLocal = () => {
 
 const writeLocal = (library) => localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
 const currentUser = () => auth.currentUser;
+
+// Id phải duy nhất kể cả khi hai thao tác diễn ra trong cùng một mili-giây
+// (ví dụ React StrictMode chạy effect hai lần khi tạo bộ thẻ khởi tạo).
+const makeId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const requireUser = () => {
   const user = currentUser();
   if (!user) throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
@@ -112,7 +116,7 @@ const dataMethods = {
 
   async createDeck(title) {
     const deck = normalizeDeck({
-      id: `deck-${Date.now()}`,
+      id: makeId("deck"),
       title,
       tags: [],
       createdAt: new Date().toISOString(),

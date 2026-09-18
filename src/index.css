@@ -1,20 +1,48 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root { font-family: 'DM Sans', sans-serif; color: #18201d; background: #f6f7f5; font-synthesis: none; }
+  :root {
+    font-family: 'DM Sans', sans-serif;
+    color: #18201d;
+    background: #f6f7f5;
+    font-synthesis: none;
+    color-scheme: light;
+  }
+  /* Nền của <html> cũng phải tối, nếu không vùng overscroll trên mobile sẽ nháy trắng */
+  html.dark {
+    background: #141917;
+    color-scheme: dark;
+  }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
   body { margin: 0; min-width: 320px; min-height: 100vh; }
-  button, input, textarea { font: inherit; }
+  button, input, textarea, select { font: inherit; }
+  h1, h2, h3 { text-wrap: balance; }
+  :focus-visible { outline: 2px solid #86a98f; outline-offset: 2px; border-radius: 8px; }
   ::selection { background: #d9f06d; color: #18201d; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-toast-in { animation: toast-in 160ms ease-out; }
 
 @keyframes quiz-correct {
   0%, 100% { transform: scale(1); }
@@ -32,6 +60,56 @@
 .quiz-shake { animation: quiz-shake 360ms ease-in-out; }
 
 @layer components {
-  .panel { @apply rounded-2xl border border-ink/[0.08] bg-white shadow-soft dark:border-white/[0.08] dark:bg-[#202724] dark:shadow-none; }
-  .eyebrow { @apply text-[11px] font-bold uppercase tracking-[0.18em] text-ink/40 dark:text-white/40; }
+  /* Khối nội dung nổi */
+  .panel { @apply rounded-2xl border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 dark:shadow-none; }
+  /* Khối phụ, phẳng: thống kê, thanh công cụ, khối lồng trong panel */
+  .panel-flat { @apply rounded-xl border border-ink/[0.06] bg-slab2 dark:border-white/[0.06] dark:bg-dark3; }
+  /* Nhãn nhỏ: tối thiểu 12px, tracking gọn để dễ đọc */
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55; }
+
+  .btn-primary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-lime px-5 text-sm font-bold text-ink transition hover:brightness-[1.04] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-secondary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-ink/10 px-4 text-sm font-bold text-ink transition hover:bg-ink/[0.05] disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/15 dark:text-white dark:hover:bg-white/10; }
+  .btn-ghost { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-ink/60 transition hover:bg-ink/[0.05] hover:text-ink disabled:opacity-40 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white; }
+  /* Nút biểu tượng: vùng chạm 44px */
+  .icon-btn { @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/60 transition hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white; }
+  .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold; }
+  /* Mục trong menu/dropdown: vùng chạm 44px, chữ 14px */
+  .menu-item { @apply flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm font-semibold text-ink/80 transition hover:bg-ink/[0.06] disabled:cursor-not-allowed disabled:opacity-40 dark:text-white/80 dark:hover:bg-white/10; }
+
+  .field { @apply w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none transition placeholder:text-ink/50 focus:border-sage dark:border-white/10 dark:placeholder:text-white/50; }
+  .metric { @apply font-display font-bold tabular-nums; }
 }
+
+/* React Flow: nút điều khiển zoom mặc định chỉ 26px, nới lên 40px cho dễ bấm */
+.react-flow__controls .react-flow__controls-button {
+  width: 40px;
+  height: 40px;
+}
+.react-flow__controls .react-flow__controls-button svg {
+  max-width: 16px;
+  max-height: 16px;
+}
+
+/*
+ * Sàn tương phản cho chữ mờ (chế độ sáng): các utility text-ink/25…/55 mặc định
+ * chỉ đạt ~2.4–2.9:1 (không đạt WCAG AA) nên được nâng lên ~4.8:1 trên nền sáng.
+ * Chế độ tối không cần vì chữ trắng trên nền tối đã đạt chuẩn.
+ */
+.text-ink\/25,
+.text-ink\/30,
+.text-ink\/35,
+.text-ink\/40,
+.text-ink\/45,
+.text-ink\/50,
+.text-ink\/55 {
+  color: rgba(24, 32, 29, 0.62);
+}
+
+.placeholder\:text-ink\/30::placeholder,
+.placeholder\:text-ink\/35::placeholder,
+.placeholder\:text-ink\/40::placeholder,
+.placeholder\:text-ink\/45::placeholder,
+.placeholder\:text-ink\/50::placeholder {
+  color: rgba(24, 32, 29, 0.55);
+}
+

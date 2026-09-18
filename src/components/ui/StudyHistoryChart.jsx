@@ -33,21 +33,21 @@ export default function StudyHistoryChart({ days = 14 }) {
   return (
     <div className="mt-5 border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-ink/45 dark:text-white/45">{days} ngày gần đây</p>
-        <p className="text-[11px] font-semibold text-ink/50 dark:text-white/50">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55">{days} ngày gần đây</p>
+        <p className="text-xs font-semibold text-ink/60 dark:text-white/55">
           {summary.reviewed} lượt ôn · {summary.activeDays} ngày có học · đúng {summary.accuracy}%
         </p>
       </div>
       {summary.reviewed === 0 ? (
-        <p className="mt-3 text-xs text-ink/40 dark:text-white/40">Chưa có dữ liệu. Hoàn thành một lượt luyện tập để bắt đầu thống kê.</p>
+        <p className="mt-3 text-xs text-ink/60 dark:text-white/55">Chưa có dữ liệu. Hoàn thành một lượt luyện tập để bắt đầu thống kê.</p>
       ) : (
         <div className="mt-3 flex h-24 items-end gap-1">
           {chartDays.map((day) => (
             <div key={day.date} className="group relative flex h-full flex-1 flex-col items-center justify-end" title={`${day.date}: ôn ${day.reviewed} từ, đúng ${day.correct}`}>
-              <div className="w-full overflow-hidden rounded-t bg-emerald-500/25" style={{ height: `${Math.max(day.reviewed ? 8 : 2, Math.round((day.reviewed / peak) * 100))}%` }}>
-                <div className="h-full w-full bg-emerald-500" style={{ height: `${day.reviewed ? Math.round((day.correct / Math.max(day.reviewed, 1)) * 100) : 0}%` }} />
+              <div className="w-full overflow-hidden rounded-t bg-ok/25" style={{ height: `${Math.max(day.reviewed ? 8 : 2, Math.round((day.reviewed / peak) * 100))}%` }}>
+                <div className="h-full w-full bg-ok" style={{ height: `${day.reviewed ? Math.round((day.correct / Math.max(day.reviewed, 1)) * 100) : 0}%` }} />
               </div>
-              <span className="mt-1 hidden text-[9px] text-ink/40 group-hover:block dark:text-white/40">{day.label}</span>
+              <span className="mt-1 hidden text-xs text-ink/60 group-hover:block dark:text-white/55">{day.label}</span>
             </div>
           ))}
         </div>

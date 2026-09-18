@@ -1,0 +1,60 @@
+rules_version = '2';
+
+// Lingua — Firestore Security Rules
+// Nguyên tắc: mỗi người dùng chỉ đọc/ghi được dữ liệu của chính mình.
+// Dữ liệu khách (chưa đăng nhập) chỉ nằm trên thiết bị, không lên Firestore.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(ownerId) {
+      return signedIn() && request.auth.uid == ownerId;
+    }
+
+    // Người tạo/sửa phải gắn đúng uid của mình vào field userId.
+    function keepsOwnership() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Tài liệu user_state có id dạng "<uid>__<key>".
+    function ownsStateDoc(docId) {
+      return signedIn() && docId.split('__')[0] == request.auth.uid;
+    }
+
+    // streak / thống kê cá nhân: users/{uid}
+    match /users/{userId} {
+      allow read: if owns(userId);
+      allow create, update: if owns(userId);
+      allow delete: if false;
+    }
+
+    // Bộ thẻ từ vựng
+    match /study_decks/{deckId} {
+      allow read, delete: if owns(resource.data.userId);
+      allow create: if keepsOwnership();
+      allow update: if owns(resource.data.userId) && keepsOwnership();
+    }
+
+    // Thẻ từ vựng
+    match /vocabulary_cards/{cardId} {
+      allow read, delete: if owns(resource.data.userId);
+      allow create: if keepsOwnership();
+      allow update: if owns(resource.data.userId) && keepsOwnership();
+    }
+
+    // Trạng thái đồng bộ của từng module: kế hoạch học, mindmap, nháp ngữ pháp,
+    // nhắc học, lịch sử học tập (id tài liệu = "<uid>__<key>").
+    match /user_state/{docId} {
+      allow read, delete: if ownsStateDoc(docId) && owns(resource.data.userId);
+      allow create, update: if ownsStateDoc(docId) && keepsOwnership();
+    }
+
+    // Mặc định từ chối mọi truy cập không nằm trong danh sách trên.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

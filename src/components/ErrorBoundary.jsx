@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component {
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <main className="grid min-h-screen place-items-center bg-mist p-6 text-ink dark:bg-[#151a18] dark:text-white">
+      <main className="grid min-h-screen place-items-center bg-mist p-6 text-ink dark:bg-dark1 dark:text-white">
         <section className="panel max-w-md p-8 text-center">
           <p className="eyebrow">Lingua cần khởi động lại</p>
           <h1 className="mt-2 font-display text-2xl font-bold">Đã xảy ra lỗi không mong muốn</h1>

@@ -18,7 +18,7 @@ export default function WordAvatar({ word = "", alt = "", className = "" }) {
         {variant === 1 && <><path d="M8 16c7-4 13-4 20 0v20c-7-4-13-4-20 0V16Z" fill="white" opacity=".3" /><path d="M28 16c5-3 9-3 13-1v20c-4-2-8-2-13 1V16Z" fill="white" opacity=".5" /><path d="M10 20c6-3 11-3 17 0M10 25c6-3 11-3 17 0" fill="none" stroke="white" strokeWidth="1.5" opacity=".8" /></>}
         {variant === 2 && <><path d="m24 6 3.2 11.8L39 21l-11.8 3.2L24 36l-3.2-11.8L9 21l11.8-3.2L24 6Z" fill="white" opacity=".65" /><circle cx="38" cy="10" r="2" fill="white" opacity=".8" /><circle cx="9" cy="36" r="2.5" fill="white" opacity=".5" /></>}
       </svg>
-      <span className="relative mt-4 rounded-md bg-black/15 px-1.5 py-0.5 text-[10px] drop-shadow-sm">{initials(word)}</span>
+      <span className="relative mt-4 rounded-md bg-black/15 px-1.5 py-0.5 text-xs drop-shadow-sm">{initials(word)}</span>
     </span>
   );
 }

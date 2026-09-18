@@ -36,8 +36,22 @@ export const starterDeck = {
   })),
 };
 
-export const createStarterDeck = () => ({
-  ...starterDeck,
-  createdAt: new Date().toISOString(),
-  cards: starterDeck.cards.map((card) => ({ ...card, nextReview: new Date().toISOString(), nextReviewDate: new Date().toISOString().slice(0, 10), reviewDate: new Date().toISOString() })),
-});
+// Mỗi lần tạo bộ khởi tạo phải dùng id mới, nếu không nhiều bộ sẽ trùng id thẻ
+// (React StrictMode có thể chạy effect khởi tạo hai lần).
+export const createStarterDeck = () => {
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const deckId = `starter-deck-${stamp}`;
+  return {
+    ...starterDeck,
+    id: deckId,
+    createdAt: new Date().toISOString(),
+    cards: starterDeck.cards.map((card, index) => ({
+      ...card,
+      id: `starter-card-${stamp}-${String(index + 1).padStart(2, "0")}`,
+      deckId,
+      nextReview: new Date().toISOString(),
+      nextReviewDate: new Date().toISOString().slice(0, 10),
+      reviewDate: new Date().toISOString(),
+    })),
+  };
+};

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
+  CalendarClock,
   Check,
+  ChevronDown,
   ChevronRight,
   LoaderCircle,
   MoreVertical,
@@ -12,7 +14,6 @@ import {
   Share2,
   Sparkles,
   Trash2,
-  Undo2,
   Volume2,
   X,
   XCircle,
@@ -27,6 +28,7 @@ import { dataService } from "../../services/dataService";
 import { recordStudyEvent } from "../../services/historyService";
 import { clearSharedDeckFromUrl, copyShareLink, readSharedDeckFromUrl, shareDeck } from "../../services/shareDeck";
 import { refreshRequestedEvent } from "../../services/syncStatus";
+import { toast } from "../../services/toast";
 import FlashcardModal from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
 import ImportExportModal from "../../components/learning/ImportExportModal";
@@ -46,6 +48,13 @@ const OLD_STORAGE_KEY = "lingua-vocabulary";
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const statuses = { new: "Mới", learning: "Đang học", mastered: "Thuộc" };
+// Bộ lọc theo lịch ôn (SRS) — gộp trong một menu để thanh lọc gọn lại
+const srsFilterLabels = {
+  due: "Cần ôn hôm nay",
+  "interval-1": "Ôn sau 1 ngày",
+  "interval-3": "Ôn sau 3 ngày",
+  "interval-5": "Ôn sau 5 ngày",
+};
 
 const makeId = (prefix) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -101,26 +110,15 @@ function FieldLabel({ children }) {
   );
 }
 
-function ToastMessage({ message, tone = "error", onClose }) {
-  return (
-    <div role={tone === "error" ? "alert" : "status"} aria-live="polite" className={`fixed bottom-20 right-4 z-[120] flex max-w-sm items-start justify-between gap-3 rounded-xl border p-3 text-xs leading-5 shadow-xl sm:bottom-6 ${tone === "error" ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/80 dark:text-red-200" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/80 dark:text-emerald-200"}`}>
-      <span>{message}</span>
-      <button onClick={onClose} aria-label="Đóng lỗi">
-        <X size={15} />
-      </button>
-    </div>
-  );
-}
-
 function StatusBadge({ status }) {
   const styles =
     status === "mastered"
-      ? "bg-[#e6f3e8] text-[#568460] dark:bg-[#293f31] dark:text-[#a9d5af]"
+      ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark"
       : status === "learning"
         ? "bg-lime text-ink"
-        : "bg-ink/[0.06] text-ink/50 dark:bg-white/10 dark:text-white/50";
+        : "bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70";
   return (
-    <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${styles}`}>
+    <span className={`chip shrink-0 ${styles}`}>
       {statuses[status]}
     </span>
   );
@@ -130,8 +128,8 @@ function AddWordsSheet({ tab, onTabChange, draft, levels, busy, onChange, onSugg
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
       <section className="panel max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-b-none p-5 sm:rounded-2xl sm:p-6">
-        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">Vocabulary</p><h2 className="mt-1 font-display text-xl font-bold">Thêm từ mới</h2></div><button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-xl border border-ink/10 dark:border-white/10" aria-label="Đóng"><X size={18} /></button></div>
-        <div className="mt-5 flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]"><button onClick={() => onTabChange("manual")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "manual" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>Thủ công</button><button onClick={() => onTabChange("ai")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "ai" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}><Sparkles size={14} className="mr-1 inline" />Sinh bằng AI</button></div>
+        <div className="flex items-start justify-between gap-4"><div><p className="eyebrow">Thêm từ</p><h2 className="mt-1 font-display text-xl font-bold">Thêm từ mới</h2></div><button onClick={onClose} className="icon-btn border border-ink/10 dark:border-white/15" aria-label="Đóng"><X size={18} /></button></div>
+        <div className="mt-5 flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]"><button onClick={() => onTabChange("manual")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "manual" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}>Thủ công</button><button onClick={() => onTabChange("ai")} className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-bold ${tab === "ai" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}><Sparkles size={14} className="mr-1 inline" />Sinh bằng AI</button></div>
         {tab === "manual" ? <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><FieldLabel>Từ vựng *</FieldLabel><input autoFocus value={draft.word} onChange={(event) => onChange("word", event.target.value)} placeholder="accommodation" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Phiên âm IPA</FieldLabel><input value={draft.ipa} onChange={(event) => onChange("ipa", event.target.value)} placeholder="/əˌkɒməˈdeɪʃən/" className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
@@ -150,13 +148,53 @@ function AddWordsSheet({ tab, onTabChange, draft, levels, busy, onChange, onSugg
 function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemove }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return <article className="relative flex flex-col gap-3 border-b border-ink/[0.07] p-4 last:border-b-0 dark:border-white/[0.07] sm:p-5 md:flex-row md:items-center">
-    <div className="flex min-w-0 items-start gap-3"><SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="hidden h-9 w-9 shrink-0 rounded-md object-cover sm:block" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-display text-base font-bold sm:text-lg">{card.word}</p><button onClick={() => onSpeak(card.word, card.id)} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-ink/10 text-ink/55 hover:text-ink dark:border-white/10 dark:text-white/55 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`} aria-label={`Nghe phát âm ${card.word}`}><Volume2 size={17} /></button></div><div className="mt-1 flex items-center gap-2"><p className="min-w-0 truncate text-sm text-ink/60 dark:text-white/60">{card.meaning}</p><span className="shrink-0 rounded-full bg-ink/[0.06] px-2 py-1 text-[10px] font-bold text-ink/55 dark:bg-white/10 dark:text-white/55">{card.level}</span><StatusBadge status={card.status} /></div><button onClick={() => onSpeak(card.example, `${card.id}-example`)} className={`mt-2 hidden max-w-full items-start gap-1 text-left text-xs leading-5 text-ink/45 dark:text-white/45 md:flex ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={13} className="mt-1 shrink-0" />{card.example || "Chưa có ví dụ"}</button></div></div>
-    <button onClick={() => onStudy(card.id)} className="hidden h-10 items-center gap-2 rounded-xl bg-lime px-3 text-xs font-bold text-ink md:flex" title="Học từ này"><BookOpen size={15} />Học</button>
-    <div className="absolute right-3 top-3 md:static"><button onClick={() => setMenuOpen((value) => !value)} className="grid h-11 w-11 place-items-center rounded-xl text-ink/45 hover:bg-ink/[0.06] dark:text-white/45 dark:hover:bg-white/10" aria-label={`Tùy chọn ${card.word}`}><MoreVertical size={18} /></button>{menuOpen && <div className="absolute right-0 top-12 z-20 w-44 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { onStudy(card.id); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={14} />Học từ này</button><label className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><span className="flex-1">Cấp độ</span><select value={card.level} onChange={(event) => onUpdate(card.id, { level: event.target.value })} className="w-14 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label><label className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><span className="flex-1">Trạng thái</span><select value={card.status} onChange={(event) => onUpdate(card.id, { status: event.target.value })} className="w-20 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button onClick={() => onRemove(card.id)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 size={14} />Xóa từ</button></div>}</div>
+    <div className="flex min-w-0 items-start gap-3"><SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="hidden h-10 w-10 shrink-0 rounded-lg object-cover sm:block" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-display text-base font-bold sm:text-lg">{card.word}</p><button onClick={() => onSpeak(card.word, card.id)} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-ink/10 text-ink/55 hover:text-ink dark:border-white/10 dark:text-white/55 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`} aria-label={`Nghe phát âm ${card.word}`}><Volume2 size={17} /></button></div><div className="mt-1 flex items-center gap-2"><p className="min-w-0 truncate text-sm text-ink/70 dark:text-white/70">{card.meaning}</p><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{card.level}</span><StatusBadge status={card.status} /></div><button onClick={() => onSpeak(card.example, `${card.id}-example`)} className={`mt-2 hidden min-h-[44px] max-w-full items-center gap-1.5 text-left text-xs leading-5 text-ink/60 hover:text-ink md:flex dark:text-white/55 dark:hover:text-white ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={14} className="shrink-0" />{card.example || "Chưa có ví dụ"}</button></div></div>
+    <button onClick={() => onStudy(card.id)} className="btn-secondary hidden min-h-11 px-3.5 md:inline-flex" title="Học riêng từ này"><BookOpen size={16} />Học</button>
+    <div className="absolute right-3 top-3 md:static"><button onClick={() => setMenuOpen((value) => !value)} className="icon-btn" aria-label={`Tùy chọn cho ${card.word}`} aria-expanded={menuOpen}><MoreVertical size={18} /></button>{menuOpen && <div className="absolute right-0 top-14 z-20 w-56 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><button onClick={() => { onStudy(card.id); setMenuOpen(false); }} className="menu-item"><BookOpen size={16} />Học từ này</button><label className="menu-item cursor-pointer"><span className="flex-1">Cấp độ</span><select value={card.level} onChange={(event) => onUpdate(card.id, { level: event.target.value })} className="w-14 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label><label className="menu-item cursor-pointer"><span className="flex-1">Trạng thái</span><select value={card.status} onChange={(event) => onUpdate(card.id, { status: event.target.value })} className="w-20 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button onClick={() => { onRemove(card.id); setMenuOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá từ</button></div>}</div>
   </article>;
 }
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
+
+// Chỉ tạo bộ thẻ khởi tạo một lần, kể cả khi effect chạy lại (React StrictMode)
+// hoặc hai tab cùng mở — tránh tạo trùng bộ và trùng id thẻ.
+let starterSeedPromise = null;
+const seedStarterDeck = () => {
+  if (!starterSeedPromise) {
+    starterSeedPromise = (async () => {
+      const seed = createStarterDeck();
+      const created = await dataService.createDeck(seed.title);
+      const results = await Promise.allSettled(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
+      const cards = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      if (!cards.length) {
+        await dataService.deleteDeck(created.id).catch(() => {});
+        starterSeedPromise = null;
+        throw new Error("Không thể đồng bộ bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
+      }
+      return { decks: [{ ...created, title: seed.title, description: seed.description, tags: seed.tags, createdAt: created.createdAt || created.created_at }], cards };
+    })();
+  }
+  return starterSeedPromise;
+};
+
+// Bản cũ sinh id theo mili-giây nên có thể trùng (bộ trùng id, thẻ trùng id).
+// Lọc bỏ bản trùng và thẻ mồ côi để render không gặp key trùng.
+const repairLibrary = (decks, cards) => {
+  const seenDecks = new Set();
+  const uniqueDecks = decks.filter((deck) => {
+    if (!deck.id || seenDecks.has(deck.id)) return false;
+    seenDecks.add(deck.id);
+    return true;
+  });
+  const validDeckIds = new Set(uniqueDecks.map((deck) => deck.id));
+  const seenCards = new Set();
+  const uniqueCards = cards.filter((card) => {
+    if (!validDeckIds.has(card.deckId) || !card.id || seenCards.has(card.id)) return false;
+    seenCards.add(card.id);
+    return true;
+  });
+  return { decks: uniqueDecks, cards: uniqueCards };
+};
 
 function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, streak }) {
   const [mode, setMode] = useState("flashcard");
@@ -274,7 +312,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-lime text-ink">
             <Check size={27} />
           </div>
-          <p className="eyebrow mt-5">Session complete</p>
+          <p className="eyebrow mt-5">Hoàn thành phiên</p>
           <h2 className="mt-2 font-display text-2xl font-bold">
             Hoàn thành lượt học
           </h2>
@@ -282,27 +320,27 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
             {deck.title}
           </p>
           <div className="mt-8 grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-[#e6f3e8] p-4 dark:bg-[#293f31]">
-              <p className="font-display text-2xl font-bold text-[#568460] dark:text-[#a9d5af]">
+            <div className="rounded-xl bg-okbg p-4 dark:bg-okdark">
+              <p className="metric text-2xl text-ok dark:text-okfgdark">
                 {correct}
               </p>
-              <p className="mt-1 text-xs text-ink/45 dark:text-white/45">
+              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
                 Đúng
               </p>
             </div>
-            <div className="rounded-xl bg-[#fff1ed] p-4 dark:bg-[#402c29]">
-              <p className="font-display text-2xl font-bold text-red-600 dark:text-red-200">
+            <div className="rounded-xl bg-dangerbg p-4 dark:bg-dangerdark">
+              <p className="metric text-2xl text-danger dark:text-dangerfgdark">
                 {results.length - correct}
               </p>
-              <p className="mt-1 text-xs text-ink/45 dark:text-white/45">
+              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
                 Cần ôn lại
               </p>
             </div>
-            <div className="rounded-xl bg-mist p-4 dark:bg-[#29332f]">
-              <p className="font-display text-2xl font-bold">
+            <div className="rounded-xl bg-slab2 p-4 dark:bg-dark3">
+              <p className="metric text-2xl">
                 {Math.round((correct / results.length) * 100)}%
               </p>
-              <p className="mt-1 text-xs text-ink/45 dark:text-white/45">
+              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
                 Điểm số
               </p>
             </div>
@@ -363,7 +401,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
             setAnswer(null);
             setSelectedOption(null);
           }}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold ${mode === "flashcard" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "flashcard" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
         >
           Flashcard
         </button>
@@ -373,7 +411,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
             setAnswer(null);
             setSelectedOption(null);
           }}
-          className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold ${mode === "quiz" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}
+          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "quiz" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
         >
           Trắc nghiệm
         </button>
@@ -383,7 +421,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
             setAnswer(null);
             setSelectedOption(null);
           }}
-          className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold ${mode === "spelling" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}
+          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "spelling" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
         >
           Điền từ / Nghe gõ
         </button>
@@ -515,7 +553,7 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
           {answer !== null && (
             <div className="mt-5">
               <p
-                className={`text-sm font-bold ${answer ? "text-sage" : "text-red-500"}`}
+                className={`text-sm font-bold ${answer ? "text-sage" : "text-danger"}`}
               >
                 {answer
                   ? "Chính xác!"
@@ -551,8 +589,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [level, setLevel] = useState("B1");
   const [amount, setAmount] = useState("5");
   const [loading, setLoading] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  // Mọi thông báo đi qua hệ thống toast dùng chung; giữ tên hàm để không phải sửa các chỗ gọi.
+  const setError = useCallback((message) => { if (message) toast.error(message); }, []);
+  const setNotice = useCallback((message) => { if (message) toast.success(message); }, []);
   const [studyDeckId, setStudyDeckId] = useState(null);
   const [studyMode, setStudyMode] = useState(null);
   const [studyCards, setStudyCards] = useState(null);
@@ -561,38 +600,27 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [speakingWord, setSpeakingWord] = useState("");
   const [dataModal, setDataModal] = useState(null);
-  const [undo, setUndo] = useState(null);
-  const [reloadToken, setReloadToken] = useState(0);
   const [sharedDeck, setSharedDeck] = useState(() => readSharedDeckFromUrl());
-  const undoTimerRef = useRef(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [srsMenuOpen, setSrsMenuOpen] = useState(false);
+  const debouncedSearch = useDebounce(searchQuery);
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
 
   const offerUndo = useCallback((message, action) => {
-    window.clearTimeout(undoTimerRef.current);
-    setUndo({ message, action });
-    undoTimerRef.current = window.setTimeout(() => setUndo(null), 10000);
+    toast.undo(message, {
+      label: "Hoàn tác",
+      onClick: async () => {
+        try {
+          await action();
+          toast.success("Đã hoàn tác thao tác xoá.");
+        } catch (undoError) {
+          toast.error(undoError.message || "Không thể hoàn tác.");
+        }
+      },
+    });
   }, []);
-  const runUndo = async () => {
-    window.clearTimeout(undoTimerRef.current);
-    const action = undo?.action;
-    setUndo(null);
-    if (!action) return;
-    try {
-      await action();
-      setError("");
-      setNotice("Đã hoàn tác thao tác xoá.");
-    } catch (undoError) {
-      setError(undoError.message || "Không thể hoàn tác.");
-    }
-  };
-  useEffect(() => () => window.clearTimeout(undoTimerRef.current), []);
-
-  useEffect(() => {
-    if (!error && !notice) return undefined;
-    const timer = window.setTimeout(() => { setError(""); setNotice(""); }, 3000);
-    return () => window.clearTimeout(timer);
-  }, [error, notice]);
 
   const selectedDeck =
     library.decks.find((deck) => deck.id === selectedDeckId) ||
@@ -606,15 +634,26 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     const reviewDate = (card.nextReviewDate || card.reviewDate || "").slice(0, 10);
     return card.status === "new" || Boolean(reviewDate && reviewDate <= today);
   }), [deckCards, today]);
+  const statusCounts = useMemo(() => ({
+    all: deckCards.length,
+    unlearned: deckCards.filter((card) => card.status !== "mastered").length,
+    mastered: deckCards.filter((card) => card.status === "mastered").length,
+  }), [deckCards]);
+  const searchTerm = debouncedSearch.trim().toLowerCase();
   const filteredCards = useMemo(() => {
-    if (activeFilter === "due") return dueCards;
-    if (activeFilter === "unlearned") return deckCards.filter((card) => card.status !== "mastered");
-    if (activeFilter === "mastered") return deckCards.filter((card) => card.status === "mastered");
-    if (activeFilter === "interval-1") return deckCards.filter((card) => Number(card.interval) === 1);
-    if (activeFilter === "interval-3") return deckCards.filter((card) => Number(card.interval) === 3);
-    if (activeFilter === "interval-5") return deckCards.filter((card) => Number(card.interval) === 5);
-    return deckCards;
-  }, [activeFilter, deckCards, dueCards]);
+    const intervalMatch = String(activeFilter).match(/^interval-(\d+)$/);
+    const base = activeFilter === "due"
+      ? dueCards
+      : activeFilter === "unlearned"
+        ? deckCards.filter((card) => card.status !== "mastered")
+        : activeFilter === "mastered"
+          ? deckCards.filter((card) => card.status === "mastered")
+          : intervalMatch
+            ? deckCards.filter((card) => Number(card.interval) === Number(intervalMatch[1]))
+            : deckCards;
+    if (!searchTerm) return base;
+    return base.filter((card) => `${card.word} ${card.meaning} ${card.example}`.toLowerCase().includes(searchTerm));
+  }, [activeFilter, deckCards, dueCards, searchTerm]);
 
   useEffect(() => {
     let active = true;
@@ -628,20 +667,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       try {
         let decks = await dataService.getDecks();
         if (!decks.length) {
-          const seed = createStarterDeck();
-          const created = await dataService.createDeck(seed.title);
-          const seededResults = await Promise.allSettled(seed.cards.map((card) => dataService.addCard({ ...card, deckId: created.id })));
-          const seededCards = seededResults.filter((result) => result.status === "fulfilled").map((result) => result.value);
-          if (!seededCards.length) {
-            await dataService.deleteDeck(created.id).catch(() => {});
-            throw new Error("Không thể đồng bộ bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
-          }
-          decks = [{ ...created, title: seed.title, description: seed.description, tags: seed.tags, createdAt: created.createdAt || created.created_at }];
-          if (active) setLibrary({ decks, cards: seededCards });
+          const seeded = await seedStarterDeck();
+          if (active) setLibrary(seeded);
           return;
         }
         const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
-        const initialCards = cardsByDeck.flat();
+        const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, cardsByDeck.flat());
+        decks = safeDecks;
         if (active) setLibrary({ decks, cards: initialCards });
         void Promise.all(initialCards.filter((card) => !card.imageUrl).map(async (card) => {
           const imageUrl = await findVocabularyImageSafely(card.word, card.meaning);
@@ -788,7 +820,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       }))
       .filter((card) => card.word);
     const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
-    updateLibrary({ cards: [...savedCards, ...library.cards] });
+    setLibrary((current) => ({ ...current, cards: [...savedCards, ...current.cards] }));
     return savedCards;
   };
 
@@ -798,7 +830,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     const importedCards = items.map((item) => ({ ...item, id: item.id || makeId("card"), deckId: deck.id }));
     const savedCards = await Promise.all(importedCards.map((card) => dataService.addCard(card)));
     const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
-    updateLibrary({ decks: [...library.decks, normalizedDeck], cards: [...savedCards, ...library.cards] });
+    setLibrary((current) => ({ ...current, decks: [...current.decks, normalizedDeck], cards: [...savedCards, ...current.cards] }));
     setSelectedDeckId(normalizedDeck.id);
     setDataModal(null);
   };
@@ -892,12 +924,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     }
   };
 
+  // Cập nhật theo hàm: khi học, nhiều thẻ được chấm liên tiếp nên không được ghi đè lẫn nhau.
   const updateCard = useCallback(async (cardId, changes) => {
     await dataService.updateCard(cardId, changes);
-    updateLibrary({ cards: library.cards.map((card) => card.id === cardId ? { ...card, ...changes } : card) });
+    setLibrary((current) => ({ ...current, cards: current.cards.map((card) => (card.id === cardId ? { ...card, ...changes } : card)) }));
     // Chỉ ghi lịch sử khi đây là một lượt ôn thật (có lastStudiedDate).
     if (changes?.lastStudiedDate) void recordStudyEvent({ reviewed: 1, correct: changes.status === "mastered" ? 1 : 0 });
-  }, [library.cards]);
+  }, []);
   const cleanupDuplicates = async () => {
     const seen = new Map();
     const duplicateIds = [];
@@ -949,7 +982,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const removeCard = useCallback(async (cardId) => {
     const removedCard = library.cards.find((card) => card.id === cardId);
     await dataService.deleteCard(cardId);
-    updateLibrary({ cards: library.cards.filter((card) => card.id !== cardId) });
+    setLibrary((current) => ({ ...current, cards: current.cards.filter((card) => card.id !== cardId) }));
     if (removedCard) {
       offerUndo(`Đã xoá từ “${removedCard.word}”.`, async () => {
         const restored = await dataService.addCard(removedCard);
@@ -998,13 +1031,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   return (
     <div className="space-y-6">
-      <StudyAnalyticsWidget cards={deckCards} streak={streak} />
+      <StudyAnalyticsWidget cards={deckCards} streak={streak} dueCount={dueCards.length} deckTitle={selectedDeck?.title || ''} onStartToday={() => openStudy(dueCards.length ? dueCards : deckCards)} />
       <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
         <aside className="panel h-fit overflow-hidden p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="eyebrow">Library</p>
-              <div className="flex items-center gap-2"><h2 className="mt-1 font-display font-bold">Bộ chủ đề</h2><button onClick={() => setDataModal("export")} className="grid h-7 w-7 place-items-center rounded-lg text-ink/45 hover:bg-ink/5 hover:text-ink dark:text-white/45 dark:hover:bg-white/10" aria-label="Xuất dữ liệu" title="Xuất dữ liệu"><Download size={14} /></button><button onClick={() => setDataModal("import")} className="grid h-7 w-7 place-items-center rounded-lg text-ink/45 hover:bg-ink/5 hover:text-ink dark:text-white/45 dark:hover:bg-white/10" aria-label="Nhập dữ liệu" title="Nhập dữ liệu"><FileUp size={14} /></button></div>
+              <p className="eyebrow">Thư viện</p>
+              <div className="flex items-center gap-1"><h2 className="mt-1 font-display font-bold">Bộ chủ đề</h2><button onClick={() => setDataModal("export")} className="icon-btn h-10 w-10" aria-label="Xuất dữ liệu" title="Xuất dữ liệu"><Download size={16} /></button><button onClick={() => setDataModal("import")} className="icon-btn h-10 w-10" aria-label="Nhập dữ liệu" title="Nhập dữ liệu"><FileUp size={16} /></button></div>
             </div>
             <span className="text-xs text-ink/40 dark:text-white/40">
               {library.decks.length} bộ
@@ -1015,60 +1048,31 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               value={deckInput}
               onChange={(event) => setDeckInput(event.target.value)}
               placeholder="Tên bộ mới..."
-              className="min-w-0 flex-1 rounded-lg border border-ink/[0.1] bg-transparent px-2.5 py-2 text-xs outline-none dark:border-white/[0.1]"
+              className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-2.5 text-sm outline-none dark:border-white/10"
             />
             <button
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink text-white dark:bg-lime dark:text-ink"
+              className="btn-primary h-11 w-11 shrink-0 p-0"
               aria-label="Tạo bộ mới"
             >
-              <Plus size={15} />
+              <Plus size={17} />
             </button>
           </form>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-1">
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-1.5">
             {library.decks.map((deck) => (
               <button
                 key={deck.id}
                 onClick={() => setSelectedDeckId(deck.id)}
-                className={`group flex min-w-[190px] items-center gap-2 rounded-xl p-3 text-left transition xl:w-full ${selectedDeck?.id === deck.id ? "bg-ink text-white dark:bg-lime dark:text-ink" : "hover:bg-ink/[0.05] dark:hover:bg-white/[0.08]"}`}
+                aria-current={selectedDeck?.id === deck.id ? "true" : undefined}
+                className={`flex min-h-[44px] min-w-[190px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition xl:w-full ${selectedDeck?.id === deck.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
               >
-                <BookOpen size={16} className="shrink-0" />
+                <BookOpen size={17} className="shrink-0" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">
-                    {deck.title}
-                  </span>
-                  <span
-                    className={`text-[11px] ${selectedDeck?.id === deck.id ? "text-white/55 dark:text-ink/55" : "text-ink/40 dark:text-white/40"}`}
-                  >
-                    {
-                      library.cards.filter((card) => card.deckId === deck.id)
-                        .length
-                    }{" "}
-                    từ
+                  <span className="block truncate text-sm font-bold">{deck.title}</span>
+                  <span className="text-xs text-ink/60 dark:text-white/50">
+                    {library.cards.filter((card) => card.deckId === deck.id).length} từ
                   </span>
                 </span>
-                <span className="hidden gap-1 group-hover:flex">
-                  <span
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      renameDeck(deck);
-                    }}
-                    className="cursor-pointer p-1"
-                    title="Đổi tên"
-                  >
-                    <Pencil size={13} />
-                  </span>
-                  <span
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      deleteDeck(deck);
-                    }}
-                    className="cursor-pointer p-1"
-                    title="Xóa"
-                  >
-                    <Trash2 size={13} />
-                  </span>
-                </span>
-                <ChevronRight size={14} className="shrink-0 opacity-40" />
+                <ChevronRight size={15} className="shrink-0 opacity-50" />
               </button>
             ))}
           </div>
@@ -1076,7 +1080,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         <main className="min-w-0 space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="eyebrow">Deck detail</p>
+              <p className="eyebrow">Chi tiết bộ</p>
               <h2 className="mt-1 font-display text-2xl font-bold tracking-tight">
                 {selectedDeck?.title}
               </h2>
@@ -1084,7 +1088,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 {(selectedDeck?.tags || []).map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-ink/[0.06] px-2 py-1 text-[10px] font-bold text-ink/50 dark:bg-white/10 dark:text-white/50"
+                    className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70"
                   >
                     {tag}
                   </span>
@@ -1092,39 +1096,71 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             </div>
             <div className="flex w-full items-center gap-2 sm:w-auto">
-              <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white shadow-lg shadow-ink/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none dark:bg-lime dark:text-ink">
-                <Sparkles size={16} />Bắt đầu học ngay
+              <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="btn-primary min-h-12 flex-1 px-5 disabled:cursor-not-allowed sm:flex-none">
+                <Sparkles size={17} />Bắt đầu học ngay
               </button>
-              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="grid h-12 w-12 place-items-center rounded-xl border border-ink/10 text-ink/55 dark:border-white/10 dark:text-white/55" aria-label="Thêm hành động"><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-52 rounded-xl border border-ink/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#202724]"><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><Check size={15} />Ôn đến hạn ({dueCards.length})</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold disabled:opacity-40 hover:bg-ink/[0.06] dark:hover:bg-white/10"><BookOpen size={15} />Thêm bộ IELTS</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Trash2 size={15} />Dọn từ trùng</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-3 text-left text-xs font-bold hover:bg-ink/[0.06] dark:hover:bg-white/10"><Share2 size={15} />Chia sẻ bộ này</button></div>}</div>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {dueCards.length} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
             </div>
           </div>
-          {error && (
-            <ToastMessage message={error} onClose={() => setError("")} />
-          )}
-          {notice && <ToastMessage tone="success" message={notice} onClose={() => setNotice("")} />}
           <section className="panel overflow-hidden">
             <div className="border-b border-ink/[0.08] px-5 py-4 dark:border-white/[0.08]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3"><p className="font-display font-bold">Từ trong bộ</p><button onClick={() => { setAddTab("manual"); openManualModal(); }} className="hidden items-center gap-1 rounded-lg bg-lime px-2.5 py-2 text-[11px] font-bold text-ink sm:flex"><Plus size={14} />Thêm thẻ mới</button></div>
-                <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]">
-                  {[
-                    ["all", `Tất cả (${deckCards.length})`],
-                    ["unlearned", `Chưa thuộc (${deckCards.filter((card) => card.status !== "mastered").length})`],
-                    ["mastered", `Đã thuộc (${deckCards.filter((card) => card.status === "mastered").length})`],
-                    ["due", `Cần ôn hôm nay (${dueCards.length})`],
-                    ["interval-1", "Ôn sau 1 ngày"],
-                    ["interval-3", "Ôn sau 3 ngày"],
-                    ["interval-5", "Ôn sau 5 ngày"],
-                  ].map(([value, label]) => <button key={value} onClick={() => setActiveFilter(value)} className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-[11px] font-bold ${activeFilter === value ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>{label}</button>)}
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="font-display font-bold">Từ trong bộ</p>
+                <label className="relative min-w-0 flex-1 sm:max-w-xs">
+                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/60 dark:text-white/50" aria-hidden="true" />
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Tìm từ hoặc nghĩa..."
+                    aria-label="Tìm từ trong bộ này"
+                    className="field py-2.5 pl-9 text-sm"
+                  />
+                </label>
+                <div className="ml-auto flex items-center gap-2">
+                  <button onClick={() => openStudy(filteredCards)} disabled={!filteredCards.length} className="btn-secondary px-4">
+                    <Sparkles size={16} />
+                    Học {filteredCards.length} từ
+                  </button>
+                  <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="btn-ghost hidden sm:inline-flex">
+                    <Plus size={16} />
+                    Thêm thẻ
+                  </button>
                 </div>
-                <button
-                  onClick={() => openStudy(filteredCards)}
-                  disabled={!filteredCards.length}
-                  className="flex shrink-0 items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-lime dark:text-ink"
-                >
-                  <Sparkles size={15} />
-                  Học nhóm này ({filteredCards.length} từ)
-                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="flex gap-1 rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]" role="group" aria-label="Lọc theo trạng thái">
+                  {[["all", "Tất cả"], ["unlearned", "Chưa thuộc"], ["mastered", "Đã thuộc"]].map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveFilter(value)}
+                      aria-pressed={activeFilter === value}
+                      className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold transition ${activeFilter === value ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 hover:text-ink dark:text-white/60 dark:hover:text-white"}`}
+                    >
+                      {label} ({statusCounts[value]})
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setSrsMenuOpen((value) => !value)}
+                    aria-expanded={srsMenuOpen}
+                    className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-3.5 text-sm font-bold transition ${activeFilter === "due" || activeFilter.startsWith("interval-") ? "border-sage bg-sage/15 text-ink dark:text-white" : "border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70 dark:hover:bg-white/10"}`}
+                  >
+                    <CalendarClock size={16} />
+                    {srsFilterLabels[activeFilter] || "Lịch ôn"}
+                    <ChevronDown size={15} className={`transition ${srsMenuOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {srsMenuOpen && (
+                    <div className="absolute left-0 top-12 z-30 w-56 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2">
+                      {Object.entries(srsFilterLabels).map(([value, label]) => (
+                        <button key={value} onClick={() => { setActiveFilter(value); setSrsMenuOpen(false); }} className="menu-item">
+                          {label} {value === "due" ? `(${dueCards.length})` : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="ml-auto text-xs font-semibold text-ink/60 dark:text-white/55">Hiện {filteredCards.length} từ</span>
               </div>
             </div>
             {filteredCards.length === 0 ? (
@@ -1147,9 +1183,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </main>
       </div>
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
-      {undo && <div className="fixed bottom-36 right-4 z-[125] flex max-w-sm items-center gap-3 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white shadow-xl sm:bottom-24 dark:bg-lime dark:text-ink" role="status"><Undo2 size={15} /><span className="min-w-0 flex-1">{undo.message}</span><button onClick={runUndo} className="shrink-0 underline">Hoàn tác</button><button onClick={() => setUndo(null)} aria-label="Đóng thông báo hoàn tác"><X size={14} /></button></div>}
-      {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}
-      <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-white shadow-xl shadow-ink/20 transition hover:-translate-y-0.5 sm:bottom-6 dark:bg-lime dark:text-ink" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>
+      {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}
+      <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-lime px-5 text-sm font-bold text-ink shadow-soft transition hover:-translate-y-0.5 sm:hidden" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>
       {manualModalOpen && <AddWordsSheet tab={addTab} onTabChange={setAddTab} draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} topic={topic} onTopicChange={setTopic} level={level} onLevelChange={setLevel} amount={amount} onAmountChange={setAmount} onGenerate={generateVocabulary} lookupResult={lookupResult} onLookupWord={lookupWord} onSaveLookup={saveLookupResult} manualWord={manualWord} onManualWordChange={setManualWord} lookupLoading={loading === "lookup" || loading === "lookup-save"} onClose={() => setManualModalOpen(false)} />}
     </div>
   );

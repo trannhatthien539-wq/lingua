@@ -10,7 +10,11 @@ export function useTheme() {
   const [theme, setTheme] = useState(getInitialTheme)
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
+    const isDark = theme === 'dark'
+    document.documentElement.classList.toggle('dark', isDark)
+    // Đồng bộ thanh trạng thái của trình duyệt/PWA và màu nền vùng overscroll.
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#141917' : '#f6f7f5')
     localStorage.setItem('lingua-theme', theme)
   }, [theme])
 

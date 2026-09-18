@@ -113,15 +113,15 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
             type="button"
             onClick={syncNow}
             disabled={busy === "sync"}
-            className="flex items-center gap-1.5 rounded-lg border border-ink/10 px-3 py-2 text-[11px] font-bold disabled:opacity-50 dark:border-white/10"
+            className="btn-secondary h-11 px-3.5 text-xs"
           >
-            <RefreshCw size={13} className={busy === "sync" ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={busy === "sync" ? "animate-spin" : ""} />
             Đồng bộ lại
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-ink/[0.08] p-4 dark:border-white/[0.08]">
+      <div className="panel-flat p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-sm font-bold">
             <BellRing size={16} /> Nhắc học hằng ngày
@@ -131,9 +131,12 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
             onClick={() => toggleReminder(!settings.enabled)}
             role="switch"
             aria-checked={Boolean(settings.enabled)}
-            className={`relative h-6 w-11 rounded-full transition ${settings.enabled ? "bg-lime" : "bg-ink/15 dark:bg-white/20"}`}
+            aria-label="Bật nhắc học hằng ngày"
+            className="flex h-11 w-14 shrink-0 items-center"
           >
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all dark:bg-[#202724] ${settings.enabled ? "left-[22px]" : "left-0.5"}`} />
+            <span className={`relative h-7 w-12 rounded-full transition ${settings.enabled ? "bg-lime" : "bg-ink/15 dark:bg-white/25"}`}>
+              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-slab shadow transition-all dark:bg-dark3 ${settings.enabled ? "left-[22px]" : "left-0.5"}`} />
+            </span>
           </button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -143,27 +146,27 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
               type="time"
               value={settings.time || "20:00"}
               onChange={(event) => onUpdateReminder({ time: event.target.value }).catch(() => flash("Không thể lưu giờ nhắc."))}
-              className="rounded-lg border border-ink/10 bg-transparent px-2.5 py-2 text-xs outline-none dark:border-white/10"
+              className="h-11 rounded-xl border border-ink/10 bg-transparent px-2.5 text-sm outline-none dark:border-white/10"
             />
           </label>
           <button
             type="button"
             onClick={testNotification}
-            className="rounded-lg border border-ink/10 px-3 py-2 text-[11px] font-bold dark:border-white/10"
+            className="btn-secondary h-11 px-3.5 text-xs"
           >
             Thử thông báo
           </button>
         </div>
-        <p className="mt-3 text-[11px] leading-5 text-ink/45 dark:text-white/45">
+        <p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/55">
           {permissionLabels[permission] || permissionLabels.default} Thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy).
         </p>
       </div>
 
-      <div className="rounded-xl border border-ink/[0.08] p-4 dark:border-white/[0.08]">
+      <div className="panel-flat p-4">
         <p className="flex items-center gap-2 text-sm font-bold">
           <CloudDownload size={16} /> Sao lưu &amp; khôi phục
         </p>
-        <p className="mt-2 text-[11px] leading-5 text-ink/45 dark:text-white/45">
+        <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
           File sao lưu gồm bộ thẻ, tiến độ từ vựng, kế hoạch học, mindmap, bản nháp ngữ pháp, nhắc học và streak.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -171,9 +174,9 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
             type="button"
             onClick={exportAll}
             disabled={busy === "export"}
-            className="flex items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink"
+            className="btn-primary px-4 text-xs"
           >
-            <CloudDownload size={15} />
+            <CloudDownload size={16} />
             {busy === "export" ? "Đang xuất..." : "Xuất toàn bộ dữ liệu"}
           </button>
           <input ref={fileRef} type="file" accept=".json" onChange={restoreFile} className="hidden" />
@@ -181,9 +184,9 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy === "import"}
-            className="flex items-center gap-2 rounded-xl border border-ink/10 px-3 py-2.5 text-xs font-bold disabled:opacity-50 dark:border-white/10"
+            className="btn-secondary px-4 text-xs"
           >
-            <CloudUpload size={15} />
+            <CloudUpload size={16} />
             {busy === "import" ? "Đang khôi phục..." : "Nhập bản sao lưu"}
           </button>
         </div>

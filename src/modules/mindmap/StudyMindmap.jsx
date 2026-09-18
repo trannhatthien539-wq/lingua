@@ -52,10 +52,10 @@ const statuses = {
   mastered: "Đã thuộc",
 };
 const statusClasses = {
-  pending: "border-slate-300 bg-white dark:border-white/20 dark:bg-[#29332f]",
+  pending: "border-ink/15 bg-slab dark:border-white/20 dark:bg-dark3",
   progress:
-    "border-amber-400 bg-amber-50 shadow-amber-100 dark:bg-amber-950/30",
-  mastered: "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30",
+    "border-amber-400 bg-warnbg shadow-amber-100 dark:border-amber-400/50 dark:bg-amber-950/30",
+  mastered: "border-ok/50 bg-okbg dark:border-okfgdark/40 dark:bg-okdark",
 };
 const initialNodes = [
   {
@@ -227,7 +227,7 @@ function RoadmapNode({ id, data }) {
               event.stopPropagation();
               data.onAddChild(id);
             }}
-            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            className="icon-btn h-10 w-10"
             aria-label="Thêm nhánh con"
             title="Thêm nhánh con"
           >
@@ -238,7 +238,7 @@ function RoadmapNode({ id, data }) {
               event.stopPropagation();
               data.onEdit(id);
             }}
-            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            className="icon-btn h-10 w-10"
             aria-label="Đổi tên node"
             title="Đổi tên node"
           >
@@ -249,7 +249,7 @@ function RoadmapNode({ id, data }) {
               event.stopPropagation();
               data.onOpenDetails(id);
             }}
-            className="grid h-9 w-9 place-items-center rounded-xl text-ink/70 hover:bg-zinc-100 dark:text-white/70 dark:hover:bg-white/10"
+            className="icon-btn h-10 w-10"
             aria-label="Mở ghi chú node"
             title="Mở ghi chú node"
           >
@@ -260,9 +260,9 @@ function RoadmapNode({ id, data }) {
               event.stopPropagation();
               data.onDelete(id);
             }}
-            className="grid h-9 w-9 place-items-center rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
-            aria-label="Xóa node"
-            title="Xóa node"
+            className="icon-btn text-danger hover:bg-dangerbg dark:text-dangerfgdark dark:hover:bg-dangerdark"
+            aria-label="Xoá node"
+            title="Xoá node"
           >
             <Trash2 size={16} />
           </button>
@@ -304,14 +304,14 @@ function RoadmapNode({ id, data }) {
               className="w-32 rounded border border-ink/20 bg-transparent px-1 text-sm font-bold outline-none"
             />
           ) : (
-            <p className="line-clamp-1 font-bold text-sm text-slate-800">{data.label}</p>
+            <p className="line-clamp-1 font-bold text-sm text-ink dark:text-white">{data.label}</p>
           )}
-          <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-slate-500 line-clamp-3 dark:text-white/45">
+          <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-ink/60 line-clamp-3 dark:text-white/55">
             {data.detail || statuses[data.status]}
           </p>
         </div>
         {data.status === "mastered" && (
-          <Check size={16} className="ml-auto shrink-0 text-emerald-600" />
+          <Check size={16} className="ml-auto shrink-0 text-ok" />
         )}
       </div>
       <button
@@ -319,14 +319,17 @@ function RoadmapNode({ id, data }) {
           event.stopPropagation();
           data.onCycleStatus(id);
         }}
-        className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border border-white bg-white text-xs shadow opacity-0 transition group-hover:opacity-100 dark:border-[#202a26] dark:bg-[#202a26]"
+        className="absolute -right-4 -top-4 grid h-11 w-11 place-items-center rounded-full transition"
         title="Đổi trạng thái"
+        aria-label={`Trạng thái: ${statuses[data.status]}. Bấm để đổi.`}
       >
-        {data.status === "mastered"
-          ? "🟢"
-          : data.status === "progress"
-            ? "🟡"
-            : "⚪"}
+        <span className="grid h-7 w-7 place-items-center rounded-full border border-ink/10 bg-slab text-sm shadow-raised dark:border-white/15 dark:bg-dark3">
+          {data.status === "mastered"
+            ? "🟢"
+            : data.status === "progress"
+              ? "🟡"
+              : "⚪"}
+        </span>
       </button>
       {directions.map(([direction]) => (
         <button
@@ -335,7 +338,7 @@ function RoadmapNode({ id, data }) {
             event.stopPropagation();
             data.onQuickAdd(id, direction);
           }}
-          className={`absolute ${direction === "top" ? "-top-4 left-1/2 -translate-x-1/2" : direction === "right" ? "-right-4 top-1/2 -translate-y-1/2" : direction === "bottom" ? "-bottom-4 left-1/2 -translate-x-1/2" : "-left-4 top-1/2 -translate-y-1/2"} grid h-7 w-7 place-items-center rounded-full bg-ink text-white opacity-0 shadow transition group-hover:opacity-100 dark:bg-lime dark:text-ink`}
+          className={`absolute ${direction === "top" ? "-top-4 left-1/2 -translate-x-1/2" : direction === "right" ? "-right-4 top-1/2 -translate-y-1/2" : direction === "bottom" ? "-bottom-4 left-1/2 -translate-x-1/2" : "-left-4 top-1/2 -translate-y-1/2"} grid h-7 w-7 place-items-center rounded-full bg-ink text-white opacity-0 shadow transition pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 dark:bg-lime dark:text-ink`}
           aria-label={`Thêm nhánh ${direction}`}
         >
           <Plus size={14} />
@@ -354,11 +357,33 @@ function MobileOutliner({ nodes, edges, onSelect, view, onViewChange }) {
   const renderNode = (node, depth = 0) => {
     const childIds = children[node.id] || [];
     const isCollapsed = collapsed.has(node.id);
-    return <div key={node.id} className="relative"><button onClick={() => onSelect(node.id)} className="flex min-h-12 w-full items-center gap-2 border-b border-zinc-200/70 py-3 text-left dark:border-white/10" style={{ paddingLeft: `${depth * 18 + 8}px` }}><span onClick={(event) => { event.stopPropagation(); setCollapsed((current) => { const next = new Set(current); isCollapsed ? next.delete(node.id) : next.add(node.id); return next; }); }} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-white/10 dark:text-white/60">{childIds.length ? (isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />) : <span className="h-1.5 w-1.5 rounded-full bg-teal-600" />}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-zinc-900 dark:text-white">{node.data.label}</strong><small className="block truncate text-xs text-zinc-500">{node.data.detail}</small></span></button>{!isCollapsed && childIds.map((id) => byId[id] && renderNode(byId[id], depth + 1))}</div>;
+    return (
+      <div key={node.id} className="relative flex items-center gap-1 border-b border-ink/[0.07] pr-2 last:border-b-0 dark:border-white/[0.07]" style={{ paddingLeft: `${depth * 18 + 4}px` }}>
+        {childIds.length ? (
+          <button
+            onClick={() => setCollapsed((current) => { const next = new Set(current); if (isCollapsed) next.delete(node.id); else next.add(node.id); return next; })}
+            aria-label={`${isCollapsed ? "Mở" : "Thu gọn"} nhánh ${node.data.label}`}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/70 transition hover:bg-ink/[0.06] dark:text-white/70 dark:hover:bg-white/10"
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+          </button>
+        ) : (
+          <span className="grid h-11 w-11 shrink-0 place-items-center"><span className="h-1.5 w-1.5 rounded-full bg-sage" /></span>
+        )}
+        <button onClick={() => onSelect(node.id)} className="flex min-h-[44px] min-w-0 flex-1 flex-col justify-center py-2 text-left">
+          <strong className="block truncate text-sm text-ink dark:text-white">{node.data.label}</strong>
+          <small className="block truncate text-xs text-ink/60 dark:text-white/55">{node.data.detail}</small>
+        </button>
+      </div>
+    );
   };
-  return <div className="md:hidden"><div className="mb-3 flex items-center justify-between gap-2"><div className="flex rounded-xl bg-zinc-100 p-1 dark:bg-white/10"><button onClick={() => onViewChange('tree')} className={`rounded-lg px-3 py-2 text-xs font-bold ${view === 'tree' ? 'bg-white shadow-sm dark:bg-[#29332f]' : 'text-zinc-500'}`}>Xem dạng cây</button><button onClick={() => onViewChange('canvas')} className={`rounded-lg px-3 py-2 text-xs font-bold ${view === 'canvas' ? 'bg-white shadow-sm dark:bg-[#29332f]' : 'text-zinc-500'}`}>Canvas</button></div><div className="flex gap-1"><button onClick={() => toggleAll(false)} className="rounded-lg border border-zinc-200 px-2 py-2 text-[10px] font-bold dark:border-white/10">Mở hết</button><button onClick={() => toggleAll(true)} className="rounded-lg border border-zinc-200 px-2 py-2 text-[10px] font-bold dark:border-white/10">Thu gọn</button></div></div>{view === 'tree' && <div className="rounded-xl border border-zinc-200/80 bg-white px-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:border-white/10 dark:bg-[#202724]">{roots.map((node) => renderNode(node))}</div>}</div>;
+  return <div className="md:hidden"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/10"><button onClick={() => onViewChange('tree')} aria-pressed={view === 'tree'} className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold ${view === 'tree' ? 'bg-slab shadow-raised dark:bg-dark3' : 'text-ink/60 dark:text-white/60'}`}>Xem dạng cây</button><button onClick={() => onViewChange('canvas')} aria-pressed={view === 'canvas'} className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold ${view === 'canvas' ? 'bg-slab shadow-raised dark:bg-dark3' : 'text-ink/60 dark:text-white/60'}`}>Canvas</button></div><div className="flex gap-1"><button onClick={() => toggleAll(false)} className="btn-secondary px-3 text-xs">Mở hết</button><button onClick={() => toggleAll(true)} className="btn-secondary px-3 text-xs">Thu gọn</button></div></div>{view === 'tree' && <div className="panel-flat px-1">{roots.map((node) => renderNode(node))}</div>}</div>;
 }
 const nodeTypes = { topic: RoadmapNode };
+// Hằng số ở cấp module: React Flow cảnh báo nếu object này được tạo lại mỗi lần render.
+const defaultEdgeOptions = { type: "smoothstep", animated: false, pathOptions: { borderRadius: 16 }, style: edgeStyle };
+const defaultFitViewOptions = { padding: 0.25 };
+const proOptions = { hideAttribution: true };
 
 function RoadmapCanvas({
   nodes,
@@ -415,10 +440,10 @@ function RoadmapCanvas({
         minZoom={0.4}
         maxZoom={1.5}
         defaultViewport={{ x: 100, y: 100, zoom: 0.9 }}
-        defaultEdgeOptions={{ type: "smoothstep", animated: false, pathOptions: { borderRadius: 16 }, style: edgeStyle }}
+        defaultEdgeOptions={defaultEdgeOptions}
         fitView
-        fitViewOptions={{ padding: 0.25 }}
-        proOptions={{ hideAttribution: true }}
+        fitViewOptions={defaultFitViewOptions}
+        proOptions={proOptions}
       >
         <Background color="#9aaa9c" gap={22} size={1} />
         <Controls showInteractive={false} />
@@ -433,7 +458,7 @@ function RoadmapCanvas({
         />
       </ReactFlow>
       <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-xl bg-white/90 px-3 py-2 shadow-sm dark:bg-[#1b211f]/90">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-ink/40 dark:text-white/40">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55">
           % Hoàn thành lộ trình
         </p>
         <p className="mt-0.5 font-display text-lg font-bold text-emerald-600">
@@ -448,34 +473,37 @@ function RoadmapCanvas({
       <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1 rounded-xl bg-white/90 p-1.5 shadow-lg md:flex dark:bg-[#1b211f]/90">
         <button
           onClick={zoomOut}
-          className="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg hover:bg-ink/10 dark:hover:bg-white/10"
+          className="pointer-events-auto icon-btn"
+          aria-label="Thu nhỏ"
         >
           <Minus size={15} />
         </button>
         <button
           onClick={zoomIn}
-          className="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg hover:bg-ink/10 dark:hover:bg-white/10"
+          className="pointer-events-auto icon-btn"
+          aria-label="Phóng to"
         >
-          <ZoomIn size={15} />
+          <ZoomIn size={17} />
         </button>
         <button
           onClick={fitView}
-          className="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg hover:bg-ink/10 dark:hover:bg-white/10"
+          className="pointer-events-auto icon-btn"
+          aria-label="Căn giữa sơ đồ"
         >
-          <Maximize2 size={15} />
-        </button>
-      </div>
-      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white/95 p-1.5 shadow-md backdrop-blur md:hidden dark:border-white/10 dark:bg-[#1b211f]/95">
-        <button onClick={zoomIn} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Phóng to">
-          <Plus size={18} />
-        </button>
-        <button onClick={zoomOut} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Thu nhỏ">
-          <Minus size={18} />
-        </button>
-        <button onClick={fitView} className="grid h-10 w-10 place-items-center rounded-xl hover:bg-ink/10 dark:hover:bg-white/10" aria-label="Căn giữa sơ đồ">
           <Maximize2 size={17} />
         </button>
-        <button onClick={onAddRoot} className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-white dark:bg-lime dark:text-ink" aria-label="Thêm chủ đề gốc">
+      </div>
+      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-2xl border border-ink/10 bg-slab/95 p-1.5 shadow-soft backdrop-blur md:hidden dark:border-white/10 dark:bg-dark2/95">
+        <button onClick={zoomIn} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Phóng to">
+          <Plus size={18} />
+        </button>
+        <button onClick={zoomOut} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Thu nhỏ">
+          <Minus size={18} />
+        </button>
+        <button onClick={fitView} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Căn giữa sơ đồ">
+          <Maximize2 size={17} />
+        </button>
+        <button onClick={onAddRoot} className="grid h-11 w-11 place-items-center rounded-xl bg-lime text-ink" aria-label="Thêm chủ đề gốc">
           <Plus size={18} />
         </button>
       </div>
@@ -515,7 +543,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
       <div className="mx-auto mb-4 h-1.5 w-12 touch-none rounded-full bg-ink/15 md:hidden dark:bg-white/20" />
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="eyebrow">Study drawer</p>
+          <p className="eyebrow">Chi tiết chủ điểm</p>
           <h2 className="mt-1 font-display text-xl font-bold">
             {node.data.label}
           </h2>
@@ -910,7 +938,7 @@ export default function StudyMindmap({ apiKey }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Interactive study roadmap</p>
+          <p className="eyebrow">Lộ trình học tương tác</p>
           <div className="mt-1 flex items-center gap-2">
             <input
               value={mapName}
@@ -964,7 +992,7 @@ export default function StudyMindmap({ apiKey }) {
       </div>
       <section className="panel flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-56 flex-1">
-          <label className="eyebrow">AI Roadmap Generator</label>
+          <label className="eyebrow">Tạo lộ trình bằng AI</label>
           <input
             value={topic}
             onChange={(event) => setTopic(event.target.value)}
@@ -1021,7 +1049,7 @@ export default function StudyMindmap({ apiKey }) {
           <span>·</span>
           <span>{edges.length} liên kết</span>
         </span>
-        <span>Chuột phải node để đổi trạng thái</span>
+        <span>Bấm nút trạng thái ở góc node để đổi (hoặc chuột phải trên máy tính)</span>
       </div>
       {status && (
         <p role="status" aria-live="polite" className="rounded-xl bg-[#e6f3e8] p-3 text-sm text-[#568460] dark:bg-[#293f31] dark:text-[#a9d5af]">

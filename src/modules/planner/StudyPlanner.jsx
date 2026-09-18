@@ -21,6 +21,7 @@ import {
 import ProgressBar from "../../components/ui/ProgressBar";
 import ReactPlayer from "react-player";
 import useCloudDoc from "../../hooks/useCloudDoc";
+import { toast as notify } from "../../services/toast";
 import { userDocKeys } from "../../services/userDocService";
 
 const STORAGE_KEY = "lingua-study-planner";
@@ -261,12 +262,12 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <section className="panel w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#1b211f]">
+      <section className="panel w-full max-w-md rounded-3xl p-6 shadow-soft">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <Music2 className="text-sage" size={20} />
             <div>
-              <p className="eyebrow">Audio settings</p>
+              <p className="eyebrow">Âm thanh</p>
               <h2 className="mt-1 font-display text-xl font-bold">
                 Cài đặt âm thanh
               </h2>
@@ -277,8 +278,8 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
           </button>
         </div>
         <div className="mt-6 flex gap-1 rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]">
-          <button onClick={() => setTab("background")} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${tab === "background" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>Nhạc nền tập trung</button>
-          <button onClick={() => setTab("alarm")} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${tab === "alarm" ? "bg-white shadow-sm dark:bg-[#29332f]" : "text-ink/45 dark:text-white/45"}`}>Chuông báo hết giờ</button>
+          <button onClick={() => setTab("background")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${tab === "background" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}>Nhạc nền tập trung</button>
+          <button onClick={() => setTab("alarm")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${tab === "alarm" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}>Chuông báo hết giờ</button>
         </div>
         <div className="mt-5">
           {tab === "background" && <div>
@@ -290,7 +291,7 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
                   onClick={() =>
                     setAudio((current) => ({ ...current, sound: option.id }))
                   }
-                  className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${audio.sound === option.id ? "border-sage bg-[#e6f3e8] dark:bg-[#293f31]" : "border-ink/[0.1] dark:border-white/[0.1]"}`}
+                  className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${audio.sound === option.id ? "border-sage bg-okbg dark:bg-okdark" : "border-ink/10 dark:border-white/15"}`}
                 >
                   {option.label}
                 </button>
@@ -322,9 +323,9 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
               </button>
             </div>
             {audio.customBackground && (
-              <div className="flex items-center gap-3 rounded-xl bg-mist px-3 py-2.5 dark:bg-[#29332f]">
+              <div className="flex items-center gap-3 rounded-xl bg-slab2 px-3 py-2.5 dark:bg-dark3">
                 {audio.customBackground.thumbnail ? <img src={audio.customBackground.thumbnail} alt="" className="h-10 w-14 rounded-md object-cover" /> : <Music2 className="shrink-0 animate-pulse text-sage" size={20} />}
-                <div className="min-w-0 flex-1"><p className="line-clamp-1 text-sm font-medium text-slate-800 dark:text-white">{audio.customBackground.title || audio.customBackground.name}</p><p className="text-[10px] text-slate-500">{audio.customBackground.type === "youtube" ? "YouTube Audio" : "Online Audio"}</p></div>
+                <div className="min-w-0 flex-1"><p className="line-clamp-1 text-sm font-medium text-ink dark:text-white">{audio.customBackground.title || audio.customBackground.name}</p><p className="text-xs text-ink/60 dark:text-white/55">{audio.customBackground.type === "youtube" ? "Âm thanh YouTube" : "Âm thanh trực tuyến"}</p></div>
                 <button onClick={() => setAudio((current) => ({ ...current, sound: "custom" }))} className="text-sage" aria-label="Chọn làm nhạc nền">◉</button>
                 <button
                   onClick={() =>
@@ -400,12 +401,12 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
           </div>}
         </div>
         <div className="mt-6 flex justify-between border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]">
-          <button onClick={onReset} className="text-xs font-bold text-red-500">
+          <button onClick={onReset} className="btn-ghost text-danger dark:text-dangerfgdark">
             Khôi phục mặc định
           </button>
           <button
             onClick={onClose}
-            className="rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-white dark:bg-lime dark:text-ink"
+            className="btn-primary px-5"
           >
             Xong
           </button>
@@ -465,7 +466,7 @@ function ZenFocus({
           <button
             onClick={onExit}
             className="grid h-12 w-12 place-items-center rounded-full border border-white/20 text-white/70"
-            aria-label="Thoát Zen Focus"
+            aria-label="Thoát chế độ tập trung"
           >
             <X size={18} />
           </button>
@@ -514,7 +515,8 @@ export default function StudyPlanner({ onStudyActivity, user }) {
   const [audio, setAudio] = useState(readAudio);
   const [isZen, setIsZen] = useState(false);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
-  const [toast, setToast] = useState("");
+  // Thông báo dùng hệ thống toast chung; giữ tên hàm để không phải sửa các chỗ gọi.
+  const setToast = (message) => { if (message) notify.info(message); };
   const date = todayKey();
   const tasks = Array.isArray(planner.days[date]) ? planner.days[date] : defaultTasks;
   const timer = planner.timer || defaultTimer;
@@ -611,7 +613,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
       }));
       if (timer.mode === "focus") {
         onStudyActivity?.();
-        setToast("Hoàn thành phiên tập trung. Task đã được tick!");
+        setToast(timer.focusTaskId
+          ? "Hết 25 phút học. Đã tick task mục tiêu, nghỉ 5 phút nhé!"
+          : "Hết 25 phút học. Nghỉ 5 phút nhé!");
+      } else {
+        setToast("Hết giờ nghỉ. Sẵn sàng học tiếp chưa?");
       }
       playChime(
         audioRef.current,
@@ -622,11 +628,6 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           ? audio.customBackground?.dataUrl
           : "",
         timer.isRunning,
-      );
-      setToast(
-        timer.mode === "focus"
-          ? "Hết 25 phút học. Nghỉ 5 phút nhé!"
-          : "Hết giờ nghỉ. Sẵn sàng học tiếp chưa?",
       );
     };
     tick();
@@ -776,7 +777,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
             )}
             <div className="flex items-start justify-between">
               <div>
-                <p className="eyebrow">Daily checklist</p>
+                <p className="eyebrow">Danh sách hôm nay</p>
                 <h2 className="mt-1 font-display text-lg font-bold">
                   Việc học hôm nay
                 </h2>
@@ -812,21 +813,26 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                 >
                   <button
                     onClick={() => toggleTask(task.id)}
-                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border ${task.completed ? "border-sage bg-sage text-white" : "border-ink/20 dark:border-white/20"}`}
+                    aria-pressed={task.completed}
+                    aria-label={`${task.completed ? "Bỏ đánh dấu" : "Đánh dấu hoàn thành"}: ${task.title}`}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/70 transition hover:bg-ink/[0.06] dark:text-white/70 dark:hover:bg-white/10"
                   >
-                    {task.completed && <Check size={13} />}
+                    <span className={`grid h-6 w-6 place-items-center rounded-md border ${task.completed ? "border-sage bg-sage text-ink" : "border-ink/25 dark:border-white/30"}`}>
+                      {task.completed && <Check size={14} />}
+                    </span>
                   </button>
                   <span
-                    className={`flex-1 text-sm font-semibold ${task.completed ? "text-ink/35 line-through dark:text-white/35" : ""}`}
+                    className={`flex-1 text-sm font-semibold ${task.completed ? "text-ink/60 line-through dark:text-white/45" : ""}`}
                   >
                     {task.title}
                   </span>
-                  <button onClick={() => focusTask(task.id)} className={`grid h-8 w-8 place-items-center rounded-lg transition ${timer.focusTaskId === task.id ? "bg-lime text-ink" : "text-ink/35 hover:bg-ink/5 hover:text-ink dark:text-white/35 dark:hover:bg-white/10 dark:hover:text-white"}`} aria-label={`Tập trung vào ${task.title}`} title="Đặt làm mục tiêu Pomodoro"><Target size={15} /></button>
+                  <button onClick={() => focusTask(task.id)} className={`grid h-11 w-11 place-items-center rounded-xl transition ${timer.focusTaskId === task.id ? "bg-lime text-ink" : "text-ink/60 hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"}`} aria-label={`Đặt ${task.title} làm mục tiêu phiên tập trung`} title="Đặt làm mục tiêu Pomodoro"><Target size={17} /></button>
                   <button
                     onClick={() => removeTask(task.id)}
-                    className="text-ink/20 opacity-0 group-hover:opacity-100 dark:text-white/20"
+                    aria-label={`Xoá task: ${task.title}`}
+                    className="icon-btn text-danger hover:bg-dangerbg dark:text-dangerfgdark dark:hover:bg-dangerdark"
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               ))}
@@ -835,7 +841,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           <section className="panel p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="eyebrow">Focus session</p>
+                <p className="eyebrow">Phiên tập trung</p>
                 <h2 className="mt-1 font-display text-lg font-bold">
                   Pomodoro
                 </h2>
@@ -843,14 +849,14 @@ export default function StudyPlanner({ onStudyActivity, user }) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setAudioSettingsOpen(true)}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-ink/[0.1] dark:border-white/[0.1]"
+                  className="icon-btn border border-ink/10 dark:border-white/15"
                   aria-label="Cài đặt âm thanh"
                 >
                   <Settings2 size={16} />
                 </button>
                 <button
                   onClick={enterZen}
-                  className="grid h-9 w-9 place-items-center rounded-lg border border-ink/[0.1] dark:border-white/[0.1]"
+                  className="icon-btn border border-ink/10 dark:border-white/15"
                   aria-label="Phóng to toàn màn hình"
                 >
                   <Maximize2 size={16} />
@@ -879,13 +885,15 @@ export default function StudyPlanner({ onStudyActivity, user }) {
               <div className="mt-5 flex justify-center gap-2">
                 <button
                   onClick={() => switchTimerMode("focus")}
-                  className={`rounded-lg px-3 py-2 text-xs font-bold ${timer.mode === "focus" ? "bg-ink text-white dark:bg-lime dark:text-ink" : "text-ink/45"}`}
+                  aria-pressed={timer.mode === "focus"}
+                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${timer.mode === "focus" ? "bg-lime text-ink" : "text-ink/60 hover:bg-ink/[0.06] dark:text-white/60 dark:hover:bg-white/10"}`}
                 >
                   Học 25 phút
                 </button>
                 <button
                   onClick={() => switchTimerMode("break")}
-                  className={`rounded-lg px-3 py-2 text-xs font-bold ${timer.mode === "break" ? "bg-ink text-white dark:bg-lime dark:text-ink" : "text-ink/45"}`}
+                  aria-pressed={timer.mode === "break"}
+                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${timer.mode === "break" ? "bg-lime text-ink" : "text-ink/60 hover:bg-ink/[0.06] dark:text-white/60 dark:hover:bg-white/10"}`}
                 >
                   Nghỉ 5 phút
                 </button>
@@ -896,7 +904,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                   onChange={(event) =>
                     setAudio({ ...audio, sound: event.target.value })
                   }
-                  className="min-w-0 flex-1 rounded-lg border border-ink/[0.1] bg-transparent px-2 py-2 text-xs dark:border-white/[0.1]"
+                  className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-2.5 py-2.5 text-sm dark:border-white/15"
                 >
                   {audioOptions.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -918,7 +926,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                   onChange={(event) =>
                     setAudio({ ...audio, volume: Number(event.target.value) })
                   }
-                  className="w-20 accent-sage"
+                  className="h-11 w-20 accent-sage"
                   aria-label="Âm lượng"
                 />
               </div>
@@ -966,7 +974,6 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           onPreview={previewAlarm}
         />
       )}
-      {toast && <div className="fixed bottom-5 right-5 z-[120] flex items-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white shadow-xl dark:bg-lime dark:text-ink"><Check size={16} />{toast}<button onClick={() => setToast("")} aria-label="Đóng thông báo"><X size={14} /></button></div>}
     </>
   );
 }
