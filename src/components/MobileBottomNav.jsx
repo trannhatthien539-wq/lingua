@@ -1,12 +1,13 @@
-import { BookOpen, CheckSquare, GitBranch, Settings, Timer } from 'lucide-react';
+import { BookOpen, CalendarDays, GitBranch, GraduationCap, PenLine, Settings2 } from 'lucide-react';
 import { navigationItems } from '../data/navigation';
 
 const iconById = {
   vocabulary: BookOpen,
-  grammar: CheckSquare,
-  planner: Timer,
+  grammar: GraduationCap,
+  writing: PenLine,
+  planner: CalendarDays,
   mindmap: GitBranch,
-  settings: Settings,
+  settings: Settings2,
 };
 
 export default function MobileBottomNav({ activeTab, onTabChange }) {
@@ -19,12 +20,12 @@ export default function MobileBottomNav({ activeTab, onTabChange }) {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-ink/10 bg-slab/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-md dark:border-white/10 dark:bg-dark1/95 md:hidden" aria-label="Điều hướng mobile">
-      {items.map(({ id, label }) => {
+      {items.map(({ id, label, shortLabel }) => {
         const Icon = iconById[id];
         const active = activeTab === id;
         return <button key={id} onClick={() => selectTab(id)} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-xs font-bold transition ${active ? 'text-ink dark:text-lime' : 'text-ink/60 dark:text-white/60'}`} aria-current={active ? 'page' : undefined}>
           <span className={`grid h-9 w-11 place-items-center rounded-xl transition ${active ? 'bg-lime text-ink' : ''}`}><Icon size={19} strokeWidth={active ? 2.4 : 1.8} /></span>
-          <span className="max-w-full truncate">{label}</span>
+          <span className="max-w-full truncate">{shortLabel || label}</span>
         </button>;
       })}
     </nav>

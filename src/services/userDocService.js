@@ -98,6 +98,7 @@ export const userDocKeys = {
   planner: "planner",
   mindmap: "mindmap",
   grammar: "grammar",
+  writing: "writing",
   reminder: "reminder",
   history: "history",
 };
