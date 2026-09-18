@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
-import { BellRing, CloudDownload, CloudUpload, RefreshCw, ShieldCheck } from "lucide-react";
+import { BellRing, CloudDownload, CloudUpload, Database, RefreshCw, ShieldCheck } from "lucide-react";
+import CollapsibleCard from "./ui/CollapsibleCard";
 import SyncStatusBadge from "./ui/SyncStatusBadge";
+import useSectionState from "../hooks/useSectionState";
 import { downloadBackup, importBackup } from "../services/backupService";
 import {
   notificationPermission,
@@ -20,6 +22,7 @@ const permissionLabels = {
 };
 
 export default function AccountDataPanel({ user, streak, reminderSettings, onUpdateReminder }) {
+  const [open, toggleSection] = useSectionState("data", false);
   const [permission, setPermission] = useState(notificationPermission);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
@@ -101,7 +104,16 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
   };
 
   return (
-    <div className="mt-5 space-y-4 border-t border-ink/[0.08] pt-5 dark:border-white/[0.08]">
+    <CollapsibleCard
+      id="settings-data"
+      icon={Database}
+      eyebrow="Dữ liệu"
+      title="Đồng bộ, nhắc học & sao lưu"
+      description="Trạng thái đám mây, nhắc học hằng ngày, xuất và khôi phục dữ liệu"
+      open={open}
+      onToggle={toggleSection}
+    >
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-bold">
           <ShieldCheck size={15} className="text-sage" />
@@ -198,5 +210,6 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
         </p>
       )}
     </div>
+    </CollapsibleCard>
   );
 }

@@ -1,6 +1,8 @@
 import { Check, MonitorSmartphone, Moon, Palette, RotateCcw, Sun, Type } from 'lucide-react'
+import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useAppearance from '../../hooks/useAppearance'
-import { FONTS, FONT_SCALES, PALETTES, THEME_MODES } from '../../services/appearanceService'
+import useSectionState from '../../hooks/useSectionState'
+import { FONTS, FONT_SCALES, PALETTES, THEME_MODES, resolveAppearance } from '../../services/appearanceService'
 
 const MODE_META = {
   light: { label: 'Sáng', icon: Sun },
@@ -20,21 +22,27 @@ const optionClass = (active) =>
  * Màu và phông chữ được lưu theo thiết bị (giống chế độ sáng/tối).
  */
 export default function AppearancePanel({ themeMode, onThemeMode }) {
+  const [open, toggleSection] = useSectionState('appearance', false)
   const { appearance, setPalette, setCustomColor, setFont, setFontScale, resetAppearance } = useAppearance()
   const activeFont = FONTS.find((font) => font.id === appearance.fontId) || FONTS[0]
+  const accentColor = resolveAppearance(appearance).colors.accent
 
   return (
-    <section className="panel mb-6 p-5 md:p-6">
-      <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink">
-          <Palette size={19} />
-        </div>
-        <div className="min-w-0">
-          <p className="eyebrow">Giao diện</p>
-          <h2 className="font-display text-lg font-bold">Màu sắc &amp; phông chữ</h2>
-          <p className="mt-1 text-xs text-ink/60 dark:text-white/60">Lưu trên thiết bị này và áp dụng ngay.</p>
-        </div>
-      </div>
+    <CollapsibleCard
+      id="settings-appearance"
+      icon={Palette}
+      eyebrow="Giao diện"
+      title="Màu sắc & phông chữ"
+      description="Chế độ sáng tối, màu chủ đề, phông chữ và cỡ chữ"
+      badge={
+        <span className="hidden items-center gap-2 sm:flex">
+          <span className="h-5 w-5 shrink-0 rounded-full border border-ink/15 dark:border-white/25" style={{ background: accentColor }} aria-hidden="true" />
+          <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{activeFont.name}</span>
+        </span>
+      }
+      open={open}
+      onToggle={toggleSection}
+    >
 
       {/* Chế độ sáng / tối */}
       <div className="mt-6">
@@ -182,6 +190,6 @@ export default function AppearancePanel({ themeMode, onThemeMode }) {
           <RotateCcw size={15} /> Đặt lại mặc định
         </button>
       </div>
-    </section>
+    </CollapsibleCard>
   )
 }

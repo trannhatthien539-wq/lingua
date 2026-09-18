@@ -5,5 +5,5 @@ export const navigationItems = [
   { id: 'grammar', label: 'Ngữ pháp', description: 'Chấm chữa', icon: PenLine },
   { id: 'planner', label: 'Todo & Lịch', description: 'Kế hoạch học', icon: CalendarDays },
   { id: 'mindmap', label: 'Sơ đồ cây', description: 'Mindmap', icon: GitBranch },
-  { id: 'settings', label: 'Cài đặt API', description: 'Kết nối dịch vụ', icon: Settings2 },
+  { id: 'settings', label: 'Cài đặt', description: 'Giao diện & dữ liệu', icon: Settings2 },
 ]
