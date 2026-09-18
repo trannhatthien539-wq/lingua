@@ -4,18 +4,23 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from 'firebase/auth';
+import { GOOGLE_WEB_CLIENT_ID } from '../config/googleAuth';
 import { auth, googleProvider } from './firebase';
 
-const nativeGoogleClientId = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID || '';
+// Web client ID dùng làm serverClientId cho Google Sign-In trên Android.
+// Ưu tiên biến môi trường khi build, sau đó tới file src/config/googleAuth.js.
+const nativeGoogleClientId = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID;
 let nativeGoogleReady = false;
 let nativeGoogleInit = null;
+
+export const hasNativeGoogleConfig = () => Boolean(nativeGoogleClientId);
 
 export const isCapacitor = () => typeof window !== 'undefined' && (window.Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:');
 
 export const initializeNativeGoogleAuth = async () => {
   if (!isCapacitor()) return;
   if (!nativeGoogleClientId) {
-    throw new Error('Thiếu VITE_GOOGLE_WEB_CLIENT_ID cho đăng nhập Google trên Android.');
+    throw new Error('Bản cài này chưa có Google Client ID nên không thể đăng nhập Google. Hãy dùng email/mật khẩu.');
   }
   if (nativeGoogleReady) return;
   if (nativeGoogleInit) return nativeGoogleInit;
@@ -40,6 +45,9 @@ const getNativeGoogleAuth = async () => {
 
 export const signInWithGoogle = async () => {
   if (!isCapacitor()) return signInWithPopup(auth, googleProvider);
+  if (!nativeGoogleClientId) {
+    throw new Error('Bản cài này chưa có Google Client ID nên không thể đăng nhập Google. Hãy dùng email/mật khẩu.');
+  }
   const GoogleAuth = await getNativeGoogleAuth();
   const googleUser = await GoogleAuth.signIn();
   const idToken = googleUser.authentication?.idToken;

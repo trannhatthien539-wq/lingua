@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
-import { getGoogleRedirectResult, initializeNativeGoogleAuth, signInWithGoogle } from './services/authService'
+import { getGoogleRedirectResult, hasNativeGoogleConfig, initializeNativeGoogleAuth, isCapacitor, signInWithGoogle } from './services/authService'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
@@ -70,7 +70,10 @@ export default function App() {
   }, [])
   useEffect(() => {
     initializeNativeGoogleAuth().catch((error) => {
-      if (error.message?.includes('VITE_GOOGLE_WEB_CLIENT_ID')) return
+      if (error.message?.includes('Google Client ID')) {
+        toast.error('Bản cài này chưa có Google Client ID nên không đăng nhập được bằng Google. Hãy dùng email/mật khẩu.', { duration: 8000 })
+        return
+      }
       toast.error('Không thể khởi tạo đăng nhập Google trên thiết bị.')
     })
     getGoogleRedirectResult().then((result) => {
@@ -117,6 +120,10 @@ export default function App() {
   const recordStudyActivity = () =>
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
   const handleGoogleLogin = async () => {
+    if (isCapacitor() && !hasNativeGoogleConfig()) {
+      toast.error('Bản APK này chưa có Google Client ID. Hãy dùng email/mật khẩu hoặc cài bản APK có cấu hình Google.', { duration: 8000 })
+      return
+    }
     try {
       await signInWithGoogle()
       toast.success('Đăng nhập Google thành công.')

@@ -5,8 +5,17 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cần quyền ghi để commit keystore cố định ở lần chạy đầu tiên.
 permissions:
-  contents: read
+  contents: write
+
+env:
+  # Keystore cố định cho bản debug: nhờ nó SHA-1 của APK không đổi giữa các lần build,
+  # nên Google Cloud chỉ cần đăng ký SHA-1 một lần là đăng nhập Google chạy mãi.
+  KEYSTORE_PATH: .github/keystore/lingua-debug.keystore
+  KEYSTORE_PASSWORD: lingua-debug-2026
+  KEY_ALIAS: lingua-debug
+  KEY_PASSWORD: lingua-debug-2026
 
 jobs:
   build-apk:
@@ -27,6 +36,62 @@ jobs:
       - name: Install Capacitor
         run: npm install --no-save @capacitor/core@6.2.2 @capacitor/cli@6.2.2 @capacitor/android@6.2.2 @codetrix-studio/capacitor-google-auth@3.4.0-rc.4
 
+      # Java cần có trước khi tạo keystore (keytool).
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ---------------------------------------------------------------------
+      # Google Sign-In: APK phải được ký bằng một chứng chỉ cố định, nếu không
+      # SHA-1 đổi mỗi lần build và Google luôn từ chối đăng nhập.
+      # ---------------------------------------------------------------------
+      - name: Warn when the Google client id is missing
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then
+            echo "::warning title=Thiếu VITE_GOOGLE_WEB_CLIENT_ID::APK sẽ không đăng nhập Google được. Hãy thêm secret VITE_GOOGLE_WEB_CLIENT_ID (Web client ID) trong Settings → Secrets and variables → Actions, hoặc điền vào src/config/googleAuth.js."
+          fi
+
+      - name: Create or reuse the fixed debug keystore
+        id: keystore
+        run: |
+          set -euo pipefail
+          if [ ! -f "$KEYSTORE_PATH" ]; then
+            mkdir -p "$(dirname "$KEYSTORE_PATH")"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+              -dname "CN=Lingua Debug, OU=Mobile, O=Lingua, L=Hanoi, ST=Hanoi, C=VN"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          fi
+          SHA1=$(keytool -list -v -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -iE 'SHA-?1:' | head -1 | sed 's/.*SHA-*1: *//')
+          printf '%s\n' "$SHA1" > .github/keystore/SHA1.txt
+          echo "SHA1=$SHA1" >> "$GITHUB_ENV"
+          echo "SHA-1 dùng cho OAuth Android client: $SHA1"
+
+      - name: Save the keystore in the repo (first run only)
+        if: steps.keystore.outputs.created == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$KEYSTORE_PATH" .github/keystore/SHA1.txt
+          git commit -m "Add the fixed Android debug keystore so the Google sign-in SHA-1 stops changing [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Inject the Google client id into the Capacitor config
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then exit 0; fi
+          node -e "const fs=require('fs');const file='capacitor.config.json';const config=JSON.parse(fs.readFileSync(file,'utf8'));config.plugins=Object.assign({},config.plugins,{GoogleAuth:{scopes:['profile','email'],serverClientId:process.env.GOOGLE_WEB_CLIENT_ID,forceCodeForRefreshToken:true}});fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');"
+
       - name: Build web assets
         env:
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
@@ -43,15 +108,16 @@ jobs:
           if [ ! -d android ]; then npx cap add android; fi
           npx cap sync android
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+      - name: Write server_client_id into Android resources
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then exit 0; fi
+          FILE=android/app/src/main/res/values/strings.xml
+          if [ -f "$FILE" ] && ! grep -q server_client_id "$FILE"; then
+            sed -i "s|</resources>|    <string name=\"server_client_id\">${GOOGLE_WEB_CLIENT_ID}</string>\n</resources>|" "$FILE"
+          fi
 
-      # GitHub-hosted runners already ship the Android SDK (ANDROID_HOME).
-      # The android-actions/setup-android action kept failing here, so only
-      # accept licenses and expose the pre-installed SDK to Gradle.
       - name: Configure Android SDK
         run: |
           SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
@@ -64,6 +130,11 @@ jobs:
 
       - name: Fix Kotlin Duplicate Classes & Build APK
         working-directory: android
+        env:
+          LINGUA_KEYSTORE: ${{ github.workspace }}/.github/keystore/lingua-debug.keystore
+          LINGUA_KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          LINGUA_KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          LINGUA_KEY_PASSWORD: ${{ env.KEY_PASSWORD }}
         run: |
           cat >> build.gradle <<'GRADLE'
           subprojects {
@@ -76,8 +147,35 @@ jobs:
             }
           }
           GRADLE
+          # Ký bản debug bằng keystore cố định (SHA-1 không đổi giữa các lần build).
+          cat >> app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  linguaDebug {
+                      storeFile file(System.getenv("LINGUA_KEYSTORE"))
+                      storePassword System.getenv("LINGUA_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("LINGUA_KEY_ALIAS")
+                      keyPassword System.getenv("LINGUA_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.linguaDebug
+                  }
+              }
+          }
+          GRADLE
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Verify the APK signature
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -n "$APKSIGNER" ] && [ -f "$APK" ]; then
+            "$APKSIGNER" verify --print-certs "$APK" | grep -i 'SHA-1' || true
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -85,3 +183,25 @@ jobs:
           name: Lingua-App-Debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Summary with the Google SHA-1
+        if: always()
+        run: |
+          {
+            echo "## Đăng nhập Google trên APK"
+            echo ""
+            echo "Chứng chỉ dùng để ký APK này (không đổi giữa các lần build):"
+            echo ""
+            echo '```'
+            echo "${SHA1:-chưa lấy được SHA-1}"
+            echo '```'
+            echo ""
+            echo "Đăng ký một lần trên Google Cloud Console:"
+            echo ""
+            echo "1. APIs & Services → Credentials → Create credentials → OAuth client ID → Android."
+            echo "2. Package name: com.lingua.studyhub"
+            echo "3. SHA-1: giá trị ở trên."
+            echo "4. Repo cần secret VITE_GOOGLE_WEB_CLIENT_ID = Web client ID (cùng project), hoặc điền vào src/config/googleAuth.js."
+            echo ""
+            echo "SHA-1 cũng được ghi vào .github/keystore/SHA1.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
