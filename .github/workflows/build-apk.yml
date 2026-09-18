@@ -225,18 +225,22 @@ jobs:
       - name: Summary with the Google setup steps
         if: always()
         run: |
-          {
-            echo "## Đăng nhập Google trên APK"
-            echo ""
-            echo "App mở **Chrome** để đăng nhập Google, Google trả kết quả về \`https://trannhatthien539-wq.github.io/lingua/oauth-callback.html\`, trang này mở lại app qua deep link \`com.lingua.studyhub://auth\`. **Không cần SHA-1**, không cần Android OAuth client."
-            echo ""
-            echo "Điều kiện duy nhất (làm 1 lần): thêm redirect URI sau vào **Authorized redirect URIs** của OAuth client Web trong Google Cloud Console:"
-            echo ""
-            echo '```'
-            echo 'https://trannhatthien539-wq.github.io/lingua/oauth-callback.html'
-            echo '```
-            echo ""
-            echo "Mở nhanh: https://console.cloud.google.com/apis/credentials?project=lingua-49fc1 → OAuth 2.0 Client ID → *Web client (auto created by Google Service)* → ADD URI → SAVE."
-            echo ""
-            echo "Trong app có sẵn mục *Cài đặt → Tài khoản → Không đăng nhập được bằng Google?* để mở lại Chrome, dán mã đăng nhập và xem nhật ký chẩn đoán."
-          } >> "$GITHUB_STEP_SUMMARY"
+          cat <<'MD' >> "$GITHUB_STEP_SUMMARY"
+          ## Đăng nhập Google trên APK
+
+          App mở **Chrome** để đăng nhập Google. Google trả kết quả về
+          `https://trannhatthien539-wq.github.io/lingua/oauth-callback.html`, trang này mở lại app
+          qua deep link `com.lingua.studyhub://auth`. **Không cần SHA-1**, không cần Android OAuth client.
+
+          Điều kiện duy nhất (làm 1 lần): thêm redirect URI sau vào **Authorized redirect URIs** của OAuth client Web:
+
+          ```
+          https://trannhatthien539-wq.github.io/lingua/oauth-callback.html
+          ```
+
+          Mở nhanh: https://console.cloud.google.com/apis/credentials?project=lingua-49fc1
+          → OAuth 2.0 Client ID → *Web client (auto created by Google Service)* → ADD URI → SAVE.
+
+          Trong app có sẵn mục *Cài đặt → Tài khoản → Không đăng nhập được bằng Google?* để mở lại Chrome,
+          dán mã đăng nhập và xem nhật ký chẩn đoán.
+          MD
