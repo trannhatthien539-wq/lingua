@@ -47,9 +47,9 @@ jobs:
       # Google Sign-In: APK phải được ký bằng một chứng chỉ cố định, nếu không
       # SHA-1 đổi mỗi lần build và Google luôn từ chối đăng nhập.
       # ---------------------------------------------------------------------
-      - name: Note about Google sign-in (no setup needed)
+      - name: Note about Google sign-in
         run: |
-          echo "::notice title=Đăng nhập Google::APK dùng chế độ tự động (handler của Firebase) nên không cần client ID, SHA-1 hay cấu hình Google Cloud."
+          echo "::notice title=Đăng nhập Google::Cần thêm redirect URI https://trannhatthien539-wq.github.io/lingua/oauth-callback.html vào OAuth client Web (Google Cloud Console) — 1 lần duy nhất."
 
       - name: Create or reuse the fixed debug keystore
         id: keystore
@@ -228,9 +228,15 @@ jobs:
           {
             echo "## Đăng nhập Google trên APK"
             echo ""
-            echo "APK này đăng nhập Google bằng cách mở **Chrome** rồi tự quay về app (deep link \`com.lingua.studyhub://auth\`), dùng trang handler có sẵn của project Firebase nên **không cần client ID, không cần SHA-1, không cần cấu hình gì**."
+            echo "App mở **Chrome** để đăng nhập Google, Google trả kết quả về \`https://trannhatthien539-wq.github.io/lingua/oauth-callback.html\`, trang này mở lại app qua deep link \`com.lingua.studyhub://auth\`. **Không cần SHA-1**, không cần Android OAuth client."
             echo ""
-            echo "Muốn đổi sang client ID riêng: mở app → Cài đặt → Tài khoản → *Cách đăng nhập Google trên APK*."
+            echo "Điều kiện duy nhất (làm 1 lần): thêm redirect URI sau vào **Authorized redirect URIs** của OAuth client Web trong Google Cloud Console:"
             echo ""
-            echo "SHA-1 của bản build này (chỉ còn dùng khi bật Google Sign-In native): \`${SHA1:-chưa lấy được}\`"
+            echo '```'
+            echo 'https://trannhatthien539-wq.github.io/lingua/oauth-callback.html'
+            echo '```
+            echo ""
+            echo "Mở nhanh: https://console.cloud.google.com/apis/credentials?project=lingua-49fc1 → OAuth 2.0 Client ID → *Web client (auto created by Google Service)* → ADD URI → SAVE."
+            echo ""
+            echo "Trong app có sẵn mục *Cài đặt → Tài khoản → Không đăng nhập được bằng Google?* để mở lại Chrome, dán mã đăng nhập và xem nhật ký chẩn đoán."
           } >> "$GITHUB_STEP_SUMMARY"

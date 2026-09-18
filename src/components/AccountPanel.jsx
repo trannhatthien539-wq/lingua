@@ -46,39 +46,46 @@ function GoogleSetup() {
     <summary className="cursor-pointer text-xs font-bold">Cách đăng nhập Google trên APK</summary>
     <div className="mt-3 space-y-3 text-xs leading-5 text-ink/70 dark:text-white/70">
       <label className="flex items-start gap-2.5 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
-        <input type="radio" name="google-mode" checked={mode === 'auto'} onChange={() => changeMode('auto')} className="mt-0.5 h-4 w-4 accent-[#86a98f]" />
+        <input type="radio" name="google-mode" checked={mode === 'direct'} onChange={() => changeMode('direct')} className="mt-0.5 h-4 w-4 accent-[#86a98f]" />
         <span>
-          <span className="block font-bold text-ink dark:text-white">Tự động (khuyên dùng)</span>
-          Dùng trang đăng nhập có sẵn của project Firebase — không cần client ID, không cần SHA-1, không cần cấu hình gì thêm.
+          <span className="block font-bold text-ink dark:text-white">Mở Chrome rồi quay về app (khuyên dùng)</span>
+          Google gửi kết quả về trang trung gian của app rồi mở lại app. Cần thêm redirect URI bên dưới vào
+          <em> Authorized redirect URIs</em> của OAuth client (làm 1 lần, khoảng 30 giây).
         </span>
       </label>
       <label className="flex items-start gap-2.5 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
-        <input type="radio" name="google-mode" checked={mode === 'direct'} onChange={() => changeMode('direct')} className="mt-0.5 h-4 w-4 accent-[#86a98f]" />
+        <input type="radio" name="google-mode" checked={mode === 'auto'} onChange={() => changeMode('auto')} className="mt-0.5 h-4 w-4 accent-[#86a98f]" />
         <span>
-          <span className="block font-bold text-ink dark:text-white">Client ID riêng (nâng cao)</span>
-          Mở thẳng trang OAuth của Google bằng client ID của bạn. Cần thêm redirect URI bên dưới vào Authorized redirect URIs trên Google Cloud Console.
+          <span className="block font-bold text-ink dark:text-white">Qua trang handler của Firebase (dự phòng)</span>
+          Không cần đăng ký URI, nhưng thực tế trang handler không chuyển tiếp kết quả về app — chỉ dùng khi bạn đã kiểm tra thấy nó chạy.
         </span>
       </label>
 
-      {mode === 'direct' && <>
-        <label className="block">
-          <span className="mb-1 block font-bold text-ink/80 dark:text-white/80">Web client ID</span>
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            spellCheck={false}
-            autoComplete="off"
-            className="field font-mono text-[11px]"
-            placeholder="1234567890-abc123.apps.googleusercontent.com"
-          />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={saveClientId} disabled={draft.trim() === getGoogleWebClientId()} className="btn-secondary px-3 disabled:opacity-50"><Save size={15} />Lưu client ID</button>
-          <button type="button" onClick={copyRedirect} className="btn-ghost px-3"><Copy size={15} />Sao chép redirect URI</button>
-        </div>
-        <code className="block break-all rounded-lg bg-ink/[0.05] p-2 font-mono text-[11px] dark:bg-white/[0.08]">{GOOGLE_REDIRECT_URI}</code>
-        {draft.trim() && !isGoogleClientId(draft) && <p className="text-danger dark:text-dangerfgdark">Client ID chưa đúng định dạng (phải kết thúc bằng <span className="font-mono">.apps.googleusercontent.com</span>).</p>}
-      </>}
+      <div className="rounded-xl bg-ink/[0.04] p-3 dark:bg-white/[0.06]">
+        <p className="font-bold text-ink dark:text-white">Thêm redirect URI vào Google Cloud Console</p>
+        <ol className="mt-1 list-decimal space-y-1 pl-4">
+          <li>Mở <span className="font-mono">console.cloud.google.com/apis/credentials?project=lingua-49fc1</span> → chọn OAuth 2.0 Client ID <em>Web client (auto created by Google Service)</em>.</li>
+          <li>Ở <em>Authorized redirect URIs</em> bấm <strong>ADD URI</strong> rồi dán đúng dòng dưới đây → <strong>SAVE</strong>.</li>
+        </ol>
+        <code className="mt-2 block break-all rounded-lg bg-ink/[0.05] p-2 font-mono text-[11px] dark:bg-white/[0.08]">{GOOGLE_REDIRECT_URI}</code>
+        <button type="button" onClick={copyRedirect} className="btn-ghost mt-2 px-3"><Copy size={15} />Sao chép redirect URI</button>
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block font-bold text-ink/80 dark:text-white/80">Web client ID</span>
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          className="field font-mono text-[11px]"
+          placeholder="1234567890-abc123.apps.googleusercontent.com"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={saveClientId} disabled={draft.trim() === getGoogleWebClientId()} className="btn-secondary px-3 disabled:opacity-50"><Save size={15} />Lưu client ID</button>
+      </div>
+      {draft.trim() && !isGoogleClientId(draft) && <p className="text-danger dark:text-dangerfgdark">Client ID chưa đúng định dạng (phải kết thúc bằng <span className="font-mono">.apps.googleusercontent.com</span>).</p>}
     </div>
   </details>;
 }

@@ -28,6 +28,10 @@
         min-height: 48px; border-radius: 14px; background: #d9f06d; color: #18201d;
         font-weight: 700; text-decoration: none; font-size: 15px;
       }
+      a.btn-alt {
+        margin-top: 8px; background: transparent; color: inherit;
+        border: 1px solid var(--line); font-size: 13px; font-weight: 600;
+      }
       button.copy {
         display: block; width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid var(--line);
         border-radius: 14px; background: transparent; color: inherit; font-weight: 700; font-size: 13px; cursor: pointer;
@@ -49,7 +53,8 @@
       <p class="mark">lingua.</p>
       <h1 id="title">Đang quay lại ứng dụng…</h1>
       <p id="message">Ứng dụng Lingua sẽ tự mở lại. Nếu không, bấm nút bên dưới.</p>
-      <a class="btn" id="open" href="#">Mở ứng dụng Lingua</a>
+      <a class="btn" id="open" href="#">Bấm để quay lại ứng dụng Lingua</a>
+      <a class="btn btn-alt" id="openIntent" href="#" hidden>Cách khác: mở thẳng bằng Android intent</a>
       <details>
         <summary>Không mở được ứng dụng?</summary>
         <p>
@@ -70,13 +75,17 @@
         var spinnerEl = document.getElementById('spinner');
         var copyEl = document.getElementById('copy');
         var copyStateEl = document.getElementById('copyState');
+        var intentEl = document.getElementById('openIntent');
 
         var raw = window.location.hash ? window.location.hash.slice(1) : window.location.search.slice(1);
         var params = new URLSearchParams(raw || '');
         var idToken = params.get('id_token');
         var error = params.get('error');
         var target = SCHEME + '://auth#' + params.toString();
+        var intentTarget = 'intent://auth?' + params.toString() + '#Intent;scheme=' + SCHEME + ';package=' + SCHEME + ';end';
         openEl.setAttribute('href', target);
+        intentEl.setAttribute('href', intentTarget);
+        intentEl.hidden = false;
 
         if (error) {
           spinnerEl.remove();
@@ -84,14 +93,16 @@
           messageEl.textContent = error === 'access_denied'
             ? 'Bạn đã huỷ hoặc không cấp quyền cho ứng dụng. Bấm nút bên dưới để quay lại app và thử lại.'
             : 'Google báo lỗi: ' + error + '. Bấm nút bên dưới để quay lại ứng dụng.';
+          intentEl.hidden = true;
           return;
         }
 
         if (!idToken) {
           spinnerEl.remove();
           titleEl.textContent = 'Thiếu dữ liệu đăng nhập';
-          messageEl.textContent = 'Trang này chỉ dùng để chuyển tiếp kết quả đăng nhập Google về ứng dụng Lingua.';
+          messageEl.textContent = 'Trang này chỉ dùng để chuyển tiếp kết quả đăng nhập Google về ứng dụng Lingua. Bấm nút bên dưới để quay lại app.';
           openEl.setAttribute('href', SCHEME + '://auth');
+          intentEl.hidden = true;
           return;
         }
 
@@ -117,8 +128,9 @@
         // Chuyển tiếp ngay về app; giữ nút dự phòng cho trường hợp trình duyệt chặn.
         window.location.replace(target);
         window.setTimeout(function () {
-          titleEl.textContent = 'Bấm để quay lại ứng dụng';
-          messageEl.textContent = 'Đăng nhập Google đã xong. Bấm nút bên dưới để hoàn tất trong ứng dụng Lingua.';
+          spinnerEl.remove();
+          titleEl.textContent = 'Bấm nút xanh để quay lại app';
+          messageEl.textContent = 'Đăng nhập Google đã xong. Chrome đôi khi chặn việc tự mở app — bấm nút xanh bên dưới để hoàn tất. Nếu vẫn không được, dùng mục “Không mở được ứng dụng?” để dán mã vào app.';
         }, 1200);
       })();
     </script>
