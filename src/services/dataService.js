@@ -78,7 +78,11 @@ const normalizeDeck = (deck) => ({
   title: deck.title || "",
   tags: deck.tags || [],
   createdAt: deck.createdAt || deck.created_at || new Date().toISOString(),
+  deletedAt: deck.deletedAt || null,
 });
+
+// ease/lapses phục vụ lịch ôn tập chung (xem `utils/srs.js`); `deletedAt` là xoá mềm (thùng rác).
+const DEFAULT_EASE = 2.5;
 
 const normalizeCard = (card) => ({
   id: card.id,
@@ -97,6 +101,9 @@ const normalizeCard = (card) => ({
   imageUrl: isSafeImageSource(card.imageUrl || card.image_url || "") ? (card.imageUrl || card.image_url) : "",
   audioUrl: card.audioUrl || card.audio_url || "",
   needAiImage: Boolean(card.needAiImage),
+  ease: Number(card.ease) || DEFAULT_EASE,
+  lapses: Number(card.lapses) || 0,
+  deletedAt: card.deletedAt || null,
 });
 
 const withUserId = (data) => ({ ...data, userId: requireUser().uid });
@@ -118,6 +125,9 @@ const cardPayload = (card) => ({
   imageUrl: card.imageUrl,
   audioUrl: card.audioUrl,
   needAiImage: card.needAiImage,
+  ease: card.ease,
+  lapses: card.lapses,
+  deletedAt: card.deletedAt,
 });
 
 // Firestore giới hạn 500 thao tác mỗi batch.
@@ -131,8 +141,9 @@ const getUserDocuments = async (collectionName) => {
 
 const dataMethods = {
   async getDecks() {
-    if (!currentUser()) return readLocal().decks.map(normalizeDeck);
+    if (!currentUser()) return readLocal().decks.filter((deck) => !deck.deletedAt).map(normalizeDeck);
     return (await getUserDocuments("study_decks"))
+      .filter((deck) => !deck.deletedAt)
       .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt)))
       .map(normalizeDeck);
   },
@@ -181,14 +192,16 @@ const dataMethods = {
   },
 
   async getCards(deckId) {
-    if (!currentUser()) return readLocal().cards.filter((card) => card.deckId === deckId).map(normalizeCard);
+    if (!currentUser()) return readLocal().cards.filter((card) => card.deckId === deckId && !card.deletedAt).map(normalizeCard);
     const user = requireUser();
     const snapshot = await getDocs(query(
       collection(db, "vocabulary_cards"),
       where("userId", "==", user.uid),
       where("deckId", "==", deckId),
     ));
-    return snapshot.docs.map((item) => normalizeCard({ id: item.id, ...item.data() }));
+    return snapshot.docs
+      .map((item) => normalizeCard({ id: item.id, ...item.data() }))
+      .filter((card) => !card.deletedAt);
   },
 
   async addCard(card) {
@@ -242,6 +255,29 @@ const dataMethods = {
     await updateDoc(doc(db, "vocabulary_cards", id), normalizedChanges);
   },
 
+  async updateCards(ids, changes) {
+    const normalizedChanges = omitUndefined({ ...changes });
+    const uniqueIds = [...new Set(ids)].filter(Boolean);
+    if (!uniqueIds.length || !Object.keys(normalizedChanges).length) return 0;
+    if (!currentUser()) {
+      const library = readLocal();
+      const idSet = new Set(uniqueIds);
+      writeLocal({
+        ...library,
+        cards: library.cards.map((card) => (idSet.has(card.id) ? { ...card, ...normalizedChanges } : card)),
+      });
+      return uniqueIds.length;
+    }
+    for (let index = 0; index < uniqueIds.length; index += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      uniqueIds.slice(index, index + BATCH_SIZE).forEach((id) => {
+        batch.update(doc(db, "vocabulary_cards", id), normalizedChanges);
+      });
+      await batch.commit();
+    }
+    return uniqueIds.length;
+  },
+
   async deleteCard(id) {
     if (!currentUser()) {
       const library = readLocal();
@@ -249,6 +285,129 @@ const dataMethods = {
       return;
     }
     await deleteDoc(doc(db, "vocabulary_cards", id));
+  },
+
+  /**
+   * Thùng rác: xoá mềm để người dùng còn khôi phục.
+   * `deletedAt` là chuỗi ISO; bộ thẻ và các thẻ con được đánh dấu cùng lúc.
+   */
+  async trashDeck(id) {
+    const deletedAt = new Date().toISOString();
+    if (!currentUser()) {
+      const library = readLocal();
+      writeLocal({
+        ...library,
+        decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt } : deck)),
+        cards: library.cards.map((card) => (card.deckId === id ? { ...card, deletedAt } : card)),
+      });
+      return deletedAt;
+    }
+    const user = requireUser();
+    await updateDoc(doc(db, "study_decks", id), { deletedAt });
+    const cards = await getDocs(query(
+      collection(db, "vocabulary_cards"),
+      where("userId", "==", user.uid),
+      where("deckId", "==", id),
+    ));
+    for (let index = 0; index < cards.docs.length; index += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      cards.docs.slice(index, index + BATCH_SIZE).forEach((card) => batch.update(card.ref, { deletedAt }));
+      await batch.commit();
+    }
+    return deletedAt;
+  },
+
+  async restoreDeck(id) {
+    if (!currentUser()) {
+      const library = readLocal();
+      writeLocal({
+        ...library,
+        decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt: null } : deck)),
+        cards: library.cards.map((card) => (card.deckId === id ? { ...card, deletedAt: null } : card)),
+      });
+      return;
+    }
+    const user = requireUser();
+    await updateDoc(doc(db, "study_decks", id), { deletedAt: null });
+    const cards = await getDocs(query(
+      collection(db, "vocabulary_cards"),
+      where("userId", "==", user.uid),
+      where("deckId", "==", id),
+    ));
+    for (let index = 0; index < cards.docs.length; index += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      cards.docs.slice(index, index + BATCH_SIZE).forEach((card) => batch.update(card.ref, { deletedAt: null }));
+      await batch.commit();
+    }
+  },
+
+  async trashCard(id) {
+    const deletedAt = new Date().toISOString();
+    if (!currentUser()) {
+      const library = readLocal();
+      writeLocal({ ...library, cards: library.cards.map((card) => (card.id === id ? { ...card, deletedAt } : card)) });
+      return deletedAt;
+    }
+    await updateDoc(doc(db, "vocabulary_cards", id), { deletedAt });
+    return deletedAt;
+  },
+
+  async restoreCard(id) {
+    if (!currentUser()) {
+      const library = readLocal();
+      writeLocal({ ...library, cards: library.cards.map((card) => (card.id === id ? { ...card, deletedAt: null } : card)) });
+      return;
+    }
+    await updateDoc(doc(db, "vocabulary_cards", id), { deletedAt: null });
+  },
+
+  /** Danh sách đang nằm trong thùng rác (bộ thẻ + thẻ lẻ). */
+  async getTrashed() {
+    if (!currentUser()) {
+      const library = readLocal();
+      const trashedDeckIds = new Set(library.decks.filter((deck) => deck.deletedAt).map((deck) => deck.id));
+      return {
+        decks: library.decks.filter((deck) => deck.deletedAt).map(normalizeDeck),
+        cards: library.cards
+          .filter((card) => card.deletedAt && !trashedDeckIds.has(card.deckId))
+          .map(normalizeCard),
+      };
+    }
+    const decks = (await getUserDocuments("study_decks")).filter((deck) => deck.deletedAt).map(normalizeDeck);
+    const deckIds = new Set(decks.map((deck) => deck.id));
+    const cards = (await getUserDocuments("vocabulary_cards"))
+      .map((item) => normalizeCard({ id: item.id, ...item.data() }))
+      .filter((card) => card.deletedAt && !deckIds.has(card.deckId));
+    return { decks, cards };
+  },
+
+  /** Xoá vĩnh viễn mọi thứ trong thùng rác (dùng khi người dùng bấm "Dọn thùng rác"). */
+  async purgeTrash() {
+    if (!currentUser()) {
+      const library = readLocal();
+      const trashedDeckIds = new Set(library.decks.filter((deck) => deck.deletedAt).map((deck) => deck.id));
+      writeLocal({
+        decks: library.decks.filter((deck) => !deck.deletedAt),
+        cards: library.cards.filter((card) => !card.deletedAt && !trashedDeckIds.has(card.deckId)),
+      });
+      return;
+    }
+    const decks = await getUserDocuments("study_decks");
+    const cards = await getUserDocuments("vocabulary_cards");
+    const trashedDeckIds = new Set(decks.filter((deck) => deck.deletedAt).map((deck) => deck.id));
+    const targets = [
+      ...decks.filter((deck) => deck.deletedAt).map((deck) => ["study_decks", deck.id]),
+      ...cards
+        .filter((card) => card.deletedAt || trashedDeckIds.has(card.deckId))
+        .map((card) => ["vocabulary_cards", card.id]),
+    ];
+    for (let index = 0; index < targets.length; index += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      targets.slice(index, index + BATCH_SIZE).forEach(([collectionName, id]) => {
+        batch.delete(doc(db, collectionName, id));
+      });
+      await batch.commit();
+    }
   },
 };
 

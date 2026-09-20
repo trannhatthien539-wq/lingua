@@ -1,8 +1,10 @@
 import StudyHistoryChart from './ui/StudyHistoryChart';
+import useDailyGoal from '../hooks/useDailyGoal';
 
 const dayKey = (date) => new Date(date).toISOString().slice(0, 10);
 
 export default function StudyAnalyticsWidget({ cards = [], streak, dueCount = 0, deckTitle = '', onStartToday }) {
+  const { target } = useDailyGoal();
   const today = dayKey(new Date());
   const mastered = cards.filter((card) => card.status === 'mastered').length;
   const learning = cards.filter((card) => card.status === 'learning').length;
@@ -49,6 +51,19 @@ export default function StudyAnalyticsWidget({ cards = [], streak, dueCount = 0,
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
         <div className="h-full rounded-full bg-sage transition-all duration-500" style={{ width: `${masteredPercent}%` }} />
       </div>
+      {target > 0 && (
+        <div className="mt-4 rounded-xl bg-ink/[0.04] p-3 dark:bg-white/[0.06]">
+          <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+            <span>Mục tiêu hôm nay: {studiedToday}/{target} từ</span>
+            <span className={studiedToday >= target ? 'text-sage' : 'text-ink/55 dark:text-white/55'}>
+              {studiedToday >= target ? 'Đã đạt mục tiêu 🎉' : `còn ${target - studiedToday} từ`}
+            </span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+            <div className={`h-full rounded-full transition-all duration-500 ${studiedToday >= target ? 'bg-ok' : 'bg-lime'}`} style={{ width: `${Math.min(100, Math.round((studiedToday / target) * 100))}%` }} />
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-ink/60 dark:text-white/55">
         <span><i className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-ok" />Đã thuộc {mastered}</span>
         <span><i className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-lime" />Đang học {learning}</span>

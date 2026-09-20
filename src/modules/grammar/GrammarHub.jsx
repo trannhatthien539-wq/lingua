@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BadgeCheck, GraduationCap, PlayCircle, Table2 } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
@@ -6,6 +6,7 @@ import useGrammarProgress from '../../hooks/useGrammarProgress'
 import GrammarLesson from './GrammarLesson'
 import { grammarCheatSheet } from '../../data/grammarCurriculum'
 import { grammarAllItems, grammarSections } from '../../data/grammarIndex'
+import { consumePendingItem } from '../../services/deepLink'
 
 /** Module Ngữ pháp: 12 thì + cấu trúc nâng cao B1, mỗi bài có cấu trúc – ví dụ – câu hỏi – bài kiểm tra cuối bài. */
 export default function GrammarHub({ onStudyActivity }) {
@@ -20,6 +21,12 @@ export default function GrammarHub({ onStudyActivity }) {
     return nextIncomplete || saved || grammarAllItems[0]
   }, [progress])
   const [activeId, setActiveId] = useState(initialLesson.id)
+
+  // Mở đúng bài khi người dùng chọn kết quả từ tìm kiếm toàn cục (Ctrl/⌘+K).
+  useEffect(() => {
+    const pending = consumePendingItem('grammar')
+    if (pending?.itemId && grammarAllItems.some((item) => item.id === pending.itemId)) setActiveId(pending.itemId)
+  }, [])
 
   const activeIndex = Math.max(0, grammarAllItems.findIndex((lesson) => lesson.id === activeId))
   const lesson = grammarAllItems[activeIndex] || grammarAllItems[0]

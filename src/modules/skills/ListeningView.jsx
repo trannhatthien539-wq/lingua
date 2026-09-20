@@ -11,7 +11,7 @@ const RATES = [
 ]
 
 /** Luyện nghe: phát hội thoại bằng giọng tiếng Anh của thiết bị, chép chính tả, làm câu hỏi. */
-export default function ListeningView({ progress, onResult, onLines }) {
+export default function ListeningView({ progress, onResult, onLines, focusId }) {
   const [lessonId, setLessonId] = useState(listeningLessons[0].id)
   const [playing, setPlaying] = useState(false)
   const [currentLine, setCurrentLine] = useState(-1)
@@ -21,6 +21,11 @@ export default function ListeningView({ progress, onResult, onLines }) {
 
   const lesson = listeningLessons.find((item) => item.id === lessonId) || listeningLessons[0]
   const best = progress?.listening?.[lesson.id]
+
+  // Mở đúng bài khi đến từ tìm kiếm toàn cục.
+  useEffect(() => {
+    if (focusId && listeningLessons.some((item) => item.id === focusId)) setLessonId(focusId)
+  }, [focusId])
 
   const stop = () => {
     stoppedRef.current = true

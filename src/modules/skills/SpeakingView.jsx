@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CircleStop, Mic, Quote, Volume2 } from 'lucide-react'
 import { speakingTopics } from '../../data/skills/speaking'
 import { speakText, stopSpeech } from '../../utils/speech'
+import { createRecognizer, isSpeechRecognitionSupported, scoreLabel, scorePronunciation, speedLabel } from '../../utils/speechScore'
 
 const formatSeconds = (value) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
 
 /** Luyện nói B1: Part 1, cue card Part 2 có bài mẫu, thảo luận Part 3 và ghi âm để tự nghe lại. */
-export default function SpeakingView() {
+export default function SpeakingView({ focusId }) {
   const [topicId, setTopicId] = useState(speakingTopics[0].id)
   const [openSample, setOpenSample] = useState(null)
   const [recording, setRecording] = useState(false)
@@ -14,17 +15,43 @@ export default function SpeakingView() {
   const [seconds, setSeconds] = useState(0)
   const [audioUrl, setAudioUrl] = useState('')
   const [recError, setRecError] = useState('')
+  const [practiceIndex, setPracticeIndex] = useState(0)
+  const [listening, setListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [speechScore, setSpeechScore] = useState(null)
+  const [speechError, setSpeechError] = useState('')
 
   const recorderRef = useRef(null)
   const chunksRef = useRef([])
   const streamRef = useRef(null)
+  const recognizerRef = useRef(null)
+  const listenStartedAt = useRef(0)
   const topic = speakingTopics.find((item) => item.id === topicId) || speakingTopics[0]
+
+  // Câu mẫu dùng để chấm phát âm: câu hỏi Part 1, bài mẫu cue card và câu thảo luận Part 3.
+  const practiceSentences = useMemo(() => [
+    ...topic.warmUp.map((item) => ({ id: `w-${item.q}`, label: item.q, text: item.sample })),
+    ...(topic.cue ? [{ id: 'cue', label: `Cue card: ${topic.cue.task}`, text: topic.cue.model }] : []),
+    ...topic.discussion.map((item) => ({ id: `d-${item.q}`, label: item.q, text: item.sample })),
+  ], [topic])
+  const practice = practiceSentences[Math.min(practiceIndex, practiceSentences.length - 1)]
 
   useEffect(() => {
     setOpenSample(null)
     setRecError('')
+    setPracticeIndex(0)
+    setTranscript('')
+    setSpeechScore(null)
+    setSpeechError('')
+    try { recognizerRef.current?.stop() } catch { /* bỏ qua */ }
+    recognizerRef.current = null
+    setListening(false)
     stopSpeech()
   }, [topic.id])
+
+  useEffect(() => {
+    if (focusId && speakingTopics.some((item) => item.id === focusId)) setTopicId(focusId)
+  }, [focusId])
 
   useEffect(() => {
     if (!recording) return undefined
@@ -32,9 +59,10 @@ export default function SpeakingView() {
     return () => window.clearInterval(timer)
   }, [recording])
 
-  // Dọn dẹp khi rời trang: ngừng ghi âm, tắt micro, thu hồi blob.
+  // Dọn dẹp khi rời trang: ngừng ghi âm, ngừng nhận dạng, tắt micro, thu hồi blob.
   useEffect(() => () => {
     recorderRef.current?.state === 'recording' && recorderRef.current.stop()
+    try { recognizerRef.current?.stop() } catch { /* bỏ qua */ }
     streamRef.current?.getTracks().forEach((track) => track.stop())
     if (audioUrl) URL.revokeObjectURL(audioUrl)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,6 +103,55 @@ export default function SpeakingView() {
     setRecording(false)
   }
 
+  // --- Chấm điểm phát âm (Web Speech API, không cần server) ---------------
+  const stopListening = () => {
+    try { recognizerRef.current?.stop() } catch { /* bỏ qua */ }
+    recognizerRef.current = null
+    setListening(false)
+  }
+
+  const startListening = () => {
+    if (!isSpeechRecognitionSupported()) {
+      setSpeechError('Trình duyệt chưa hỗ trợ nhận dạng giọng nói. Hãy dùng Chrome hoặc Edge (máy tính/Android).')
+      return
+    }
+    stopSpeech()
+    setSpeechError('')
+    setTranscript('')
+    setSpeechScore(null)
+    const recognizer = createRecognizer({
+      onPartial: (text) => setTranscript(text),
+      onFinal: (text) => setTranscript((current) => `${current} ${text}`.trim()),
+      onError: (error) => {
+        setSpeechError(
+          error === 'not-allowed'
+            ? 'Bạn chưa cho phép dùng micro cho phần chấm phát âm.'
+            : error === 'no-speech'
+              ? 'Chưa nghe thấy gì. Thử lại và nói gần micro hơn.'
+              : 'Không nhận dạng được giọng nói. Thử lại sau vài giây.',
+        )
+        setListening(false)
+      },
+      onEnd: () => setListening(false),
+    })
+    if (!recognizer) return
+    recognizerRef.current = recognizer
+    listenStartedAt.current = Date.now()
+    try {
+      recognizer.start()
+      setListening(true)
+    } catch {
+      setSpeechError('Không thể bắt đầu nghe. Thử lại sau vài giây.')
+      setListening(false)
+    }
+  }
+
+  const finishListening = () => {
+    stopListening()
+    const seconds = Math.max(1, Math.round((Date.now() - listenStartedAt.current) / 1000))
+    setSpeechScore(scorePronunciation(transcript, practice.text, seconds))
+  }
+
   return (
     <div className="space-y-4">
       <nav className="panel p-3" aria-label="Danh sách chủ đề nói">
@@ -108,6 +185,75 @@ export default function SpeakingView() {
           {audioUrl && <audio controls src={audioUrl} className="h-11 w-full max-w-sm" />}
         </div>
         {recError && <p className="mt-2 text-xs text-danger dark:text-dangerfgdark">{recError}</p>}
+      </section>
+
+      <section className="panel p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow">Chấm điểm phát âm</p>
+            <h3 className="mt-1 font-display text-lg font-bold">Đọc to câu mẫu để xem điểm</h3>
+            <p className="mt-1 text-xs leading-5 text-ink/60 dark:text-white/60">Trình duyệt nghe bạn đọc rồi so khớp với câu mẫu. Hoạt động tốt nhất trên Chrome/Edge.</p>
+          </div>
+          <select
+            value={practiceIndex}
+            onChange={(event) => {
+              stopListening()
+              setPracticeIndex(Number(event.target.value))
+              setTranscript('')
+              setSpeechScore(null)
+              setSpeechError('')
+            }}
+            className="max-w-full rounded-xl border border-ink/10 bg-transparent px-3 py-2.5 text-xs font-bold outline-none dark:border-white/15"
+            aria-label="Chọn câu mẫu để luyện"
+          >
+            {practiceSentences.map((item, index) => (
+              <option key={item.id} value={index}>{item.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
+          <p className="text-xs font-bold text-ink/60 dark:text-white/60">{practice.label}</p>
+          <p className="mt-1.5 text-sm leading-6">{practice.text}</p>
+          <button type="button" onClick={() => speakText(practice.text)} className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-sage">
+            <Volume2 size={14} />Nghe mẫu
+          </button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {listening
+            ? <button type="button" onClick={finishListening} className="btn-primary px-4"><CircleStop size={16} />Dừng &amp; chấm điểm</button>
+            : <button type="button" onClick={startListening} className="btn-secondary px-4"><Mic size={16} />Bắt đầu đọc</button>}
+          {(transcript || speechScore) && (
+            <button type="button" onClick={() => { setTranscript(''); setSpeechScore(null); setSpeechError('') }} className="btn-ghost px-3 text-xs">Làm lại</button>
+          )}
+        </div>
+        {speechError && <p className="mt-2 text-xs text-danger dark:text-dangerfgdark">{speechError}</p>}
+        {transcript && (
+          <p className="mt-3 rounded-xl bg-ink/[0.04] p-3 text-sm leading-6 dark:bg-white/[0.06]">
+            <span className="text-xs font-bold uppercase tracking-wide text-ink/50 dark:text-white/50">Bạn đọc: </span>
+            {transcript}
+          </p>
+        )}
+        {speechScore && (
+          <div className="mt-4 rounded-xl border border-sage/40 bg-sage/10 p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="metric text-3xl">{speechScore.score}<span className="text-base">%</span></p>
+              <div className="min-w-0">
+                <p className="text-sm font-bold">{scoreLabel(speechScore.score)}</p>
+                <p className="text-xs text-ink/60 dark:text-white/60">
+                  Khớp {speechScore.matched}/{speechScore.total} từ
+                  {speechScore.wpm ? ` · ${speechScore.wpm} từ/phút · ${speedLabel(speechScore.wpm)}` : ''}
+                </p>
+              </div>
+            </div>
+            {speechScore.missing.length > 0 && (
+              <p className="mt-3 text-xs leading-5">
+                Từ chưa nghe rõ: <span className="font-bold text-danger dark:text-dangerfgdark">{speechScore.missing.slice(0, 12).join(', ')}</span>
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="panel p-4 sm:p-5">

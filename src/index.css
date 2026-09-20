@@ -118,3 +118,24 @@
   color: rgba(24, 32, 29, 0.55);
 }
 
+/*
+ * Xuất báo cáo tiến độ: chỉ in phần báo cáo, bỏ qua điều hướng và nút bấm.
+ * Dùng `window.print()` ở trang Tiến độ (nút "Xuất báo cáo").
+ */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-report {
+    break-inside: avoid;
+    border: 1px solid #d4d4d8 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #18201d !important;
+  }
+}
+

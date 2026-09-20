@@ -1,13 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BookMarked, Clock3, Volume2 } from 'lucide-react'
 import QuestionSet from '../grammar/GrammarQuiz'
 import { readingPassages } from '../../data/skills/reading'
 import { speakText } from '../../utils/speech'
 
 /** Luyện đọc B1: đoạn văn theo chủ đề, từ khoá, câu hỏi đọc hiểu. */
-export default function ReadingView({ progress, onResult }) {
+export default function ReadingView({ progress, onResult, focusId }) {
   const [passageId, setPassageId] = useState(readingPassages[0].id)
   const [showGlossary, setShowGlossary] = useState(true)
+
+  // Mở đúng bài khi đến từ tìm kiếm toàn cục.
+  useEffect(() => {
+    if (focusId && readingPassages.some((passage) => passage.id === focusId)) setPassageId(focusId)
+  }, [focusId])
 
   const passage = readingPassages.find((item) => item.id === passageId) || readingPassages[0]
   const best = progress?.reading?.[passage.id]

@@ -102,6 +102,7 @@ export const userDocKeys = {
   skills: "skills",
   reminder: "reminder",
   history: "history",
+  goal: "goal",
 };
 
 /**

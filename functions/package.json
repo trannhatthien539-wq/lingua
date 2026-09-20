@@ -1,0 +1,12 @@
+{
+  "name": "lingua-ai-proxy",
+  "description": "Proxy tuỳ chọn cho API AI của Lingua (xem index.js). Chỉ cần deploy nếu bạn muốn người dùng không phải dán API key.",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-functions": "^6.0.1"
+  }
+}

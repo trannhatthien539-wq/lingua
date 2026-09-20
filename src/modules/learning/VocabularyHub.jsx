@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArchiveRestore,
   ArrowLeft,
   BookOpen,
   CalendarClock,
@@ -10,6 +11,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Share2,
   Sparkles,
@@ -22,6 +24,8 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../services/aiService";
+import { lookupWordOffline } from "../../services/dictionaryService";
+import { consumePendingItem } from "../../services/deepLink";
 import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
@@ -38,7 +42,7 @@ import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
 import SafeImage from "../../components/ui/SafeImage";
-import { addDaysKey, dateKey } from "../../utils/srs";
+import { dateKey, isDue, isLeech, schedulePayload } from "../../utils/srs";
 import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
 import { createStarterDeck } from "../../data/starterDeck";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
@@ -64,6 +68,7 @@ const srsFilterLabels = {
   "interval-1": "Ôn sau 1 ngày",
   "interval-3": "Ôn sau 3 ngày",
   "interval-5": "Ôn sau 5 ngày",
+  leech: "Từ hay quên",
 };
 
 const makeId = (prefix) =>
@@ -149,17 +154,18 @@ function AddWordsSheet({ tab, onTabChange, draft, levels, busy, onChange, onSugg
           <label><FieldLabel>Dịch nghĩa ví dụ</FieldLabel><textarea value={draft.exampleTranslation} onChange={(event) => onChange("exampleTranslation", event.target.value)} rows={3} placeholder="Chúng tôi đặt chỗ ở gần nhà ga." className="w-full resize-none rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /></label>
           <label><FieldLabel>Cấp độ</FieldLabel><select value={draft.level} onChange={(event) => onChange("level", event.target.value)} className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label>
           <div className="flex justify-end gap-2 sm:col-span-2"><button type="button" onClick={onClose} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Hủy</button><button disabled={busy} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">{busy ? "Đang lưu..." : "Lưu thẻ"}</button></div>
-        </form> : <div className="mt-5 space-y-4"><form onSubmit={(event) => { event.preventDefault(); onLookupWord(); }} className="flex gap-2"><input autoFocus value={manualWord} onChange={(event) => onManualWordChange(event.target.value)} placeholder="Nhập từ cần tra..." className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><button disabled={lookupLoading} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink text-white dark:bg-lime dark:text-ink" aria-label="Tra từ">{lookupLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Search size={16} />}</button></form>{lookupResult && <div className="rounded-xl border border-lime/60 bg-lime/20 p-4 text-sm"><p className="font-display font-bold">{lookupResult.word} <span className="ml-1 text-xs font-normal text-sage">{lookupResult.ipa}</span></p><p className="mt-1 font-semibold">{lookupResult.meaning}</p><p className="mt-1 text-xs text-ink/55 dark:text-white/55">{lookupResult.example}</p><button onClick={onSaveLookup} disabled={lookupLoading} className="mt-3 w-full rounded-lg bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">Thêm vào bộ này</button></div>}<div className="border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]"><p className="text-sm font-bold">Sinh theo chủ đề</p><input value={topic} onChange={(event) => onTopicChange(event.target.value)} placeholder="Ví dụ: du lịch, công việc..." className="mt-3 w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><div className="mt-2 grid grid-cols-3 gap-2"><select value={level} onChange={(event) => onLevelChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select><select value={amount} onChange={(event) => onAmountChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10"><option value="5">5 từ</option><option value="10">10 từ</option></select><button onClick={onGenerate} disabled={busy} className="flex items-center justify-center gap-1 rounded-xl bg-lime px-2 text-xs font-bold text-ink disabled:opacity-60"><Sparkles size={14} />Sinh</button></div></div></div>}
+        </form> : <div className="mt-5 space-y-4"><p className="text-xs leading-5 text-ink/60 dark:text-white/60">Tra từ bằng AI nếu bạn đã lưu API key, hoặc bằng từ điển miễn phí — không cần key.</p><form onSubmit={(event) => { event.preventDefault(); onLookupWord(); }} className="flex gap-2"><input autoFocus value={manualWord} onChange={(event) => onManualWordChange(event.target.value)} placeholder="Nhập từ cần tra..." className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><button disabled={lookupLoading} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ink text-white dark:bg-lime dark:text-ink" aria-label="Tra từ">{lookupLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Search size={16} />}</button></form>{lookupResult && <div className="rounded-xl border border-lime/60 bg-lime/20 p-4 text-sm"><p className="font-display font-bold">{lookupResult.word} <span className="ml-1 text-xs font-normal text-sage">{lookupResult.ipa}</span></p><p className="mt-1 font-semibold">{lookupResult.meaning}</p><p className="mt-1 text-xs text-ink/55 dark:text-white/55">{lookupResult.example}</p><button onClick={onSaveLookup} disabled={lookupLoading} className="mt-3 w-full rounded-lg bg-ink px-3 py-2.5 text-xs font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink">Thêm vào bộ này</button></div>}<div className="border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]"><p className="text-sm font-bold">Sinh theo chủ đề</p><input value={topic} onChange={(event) => onTopicChange(event.target.value)} placeholder="Ví dụ: du lịch, công việc..." className="mt-3 w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" /><div className="mt-2 grid grid-cols-3 gap-2"><select value={level} onChange={(event) => onLevelChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select><select value={amount} onChange={(event) => onAmountChange(event.target.value)} className="rounded-xl border border-ink/10 bg-transparent px-2 py-3 text-xs outline-none dark:border-white/10"><option value="5">5 từ</option><option value="10">10 từ</option></select><button onClick={onGenerate} disabled={busy} className="flex items-center justify-center gap-1 rounded-xl bg-lime px-2 text-xs font-bold text-ink disabled:opacity-60"><Sparkles size={14} />Sinh</button></div></div></div>}
       </section>
     </div>
   );
 }
 
-function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemove }) {
+function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemove, selectMode = false, selected = false, onToggleSelect }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  return <article className="relative flex flex-col gap-3 border-b border-ink/[0.07] p-4 last:border-b-0 dark:border-white/[0.07] sm:p-5 md:flex-row md:items-center">
+  return <article className={`relative flex flex-col gap-3 border-b border-ink/[0.07] p-4 last:border-b-0 dark:border-white/[0.07] sm:p-5 md:flex-row md:items-center ${selected ? "bg-lime/15" : ""}`}>
+    {selectMode && <label className="flex shrink-0 items-center"><input type="checkbox" checked={selected} onChange={() => onToggleSelect(card.id)} className="h-5 w-5 accent-lime" aria-label={`Chọn từ ${card.word}`} /></label>}
     <div className="flex min-w-0 items-start gap-3"><SafeImage src={card.imageUrl} alt={card.word} fallbackWord={card.word} className="hidden h-10 w-10 shrink-0 rounded-lg object-cover sm:block" /><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-display text-base font-bold sm:text-lg">{card.word}</p><button onClick={() => onSpeak(card.word, card.id)} className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-ink/10 text-ink/55 hover:text-ink dark:border-white/10 dark:text-white/55 dark:hover:text-white ${speakingWord === card.id ? "animate-pulse text-sage" : ""}`} aria-label={`Nghe phát âm ${card.word}`}><Volume2 size={17} /></button></div><div className="mt-1 flex items-center gap-2"><p className="min-w-0 truncate text-sm text-ink/70 dark:text-white/70">{card.meaning}</p><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{card.level}</span><StatusBadge status={card.status} /></div><button onClick={() => onSpeak(card.example, `${card.id}-example`)} className={`mt-2 hidden min-h-[44px] max-w-full items-center gap-1.5 text-left text-xs leading-5 text-ink/60 hover:text-ink md:flex dark:text-white/55 dark:hover:text-white ${speakingWord === `${card.id}-example` ? "text-sage" : ""}`}><Volume2 size={14} className="shrink-0" />{card.example || "Chưa có ví dụ"}</button></div></div>
-    <button onClick={() => onStudy(card.id)} className="btn-secondary hidden min-h-11 px-3.5 md:inline-flex" title="Học riêng từ này"><BookOpen size={16} />Học</button>
+    {!selectMode && <button onClick={() => onStudy(card.id)} className="btn-secondary hidden min-h-11 px-3.5 md:inline-flex" title="Học riêng từ này"><BookOpen size={16} />Học</button>}
     <div className="absolute right-3 top-3 md:static"><button onClick={() => setMenuOpen((value) => !value)} className="icon-btn" aria-label={`Tùy chọn cho ${card.word}`} aria-expanded={menuOpen}><MoreVertical size={18} /></button>{menuOpen && <div className="absolute right-0 top-14 z-20 w-56 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><button onClick={() => { onStudy(card.id); setMenuOpen(false); }} className="menu-item"><BookOpen size={16} />Học từ này</button><label className="menu-item cursor-pointer"><span className="flex-1">Cấp độ</span><select value={card.level} onChange={(event) => onUpdate(card.id, { level: event.target.value })} className="w-14 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label><label className="menu-item cursor-pointer"><span className="flex-1">Trạng thái</span><select value={card.status} onChange={(event) => onUpdate(card.id, { status: event.target.value })} className="w-20 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button onClick={() => { onRemove(card.id); setMenuOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá từ</button></div>}</div>
   </article>;
 }
@@ -255,15 +261,8 @@ function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, s
 
   const submitResult = (isCorrect) => {
     const nextResults = [...results, isCorrect];
-    const interval = isCorrect ? 5 : 1;
-    const nextReviewDate = addDaysKey(interval);
-    onUpdateCard(card.id, {
-      status: isCorrect ? "mastered" : "learning",
-      interval,
-      nextReviewDate,
-      lastStudiedDate: dateKey(),
-      reviewDate: `${nextReviewDate}T00:00:00.000Z`,
-    });
+    // Dùng chung lịch ôn với flashcard để tiến độ không bị lệch giữa các chế độ.
+    onUpdateCard(card.id, schedulePayload(card, isCorrect ? "mastered" : "again"));
     setAnswer(isCorrect);
     if (mode === "quiz") {
       playStudySound(isCorrect ? "correct" : "wrong");
@@ -617,6 +616,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [reloadToken, setReloadToken] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [srsMenuOpen, setSrsMenuOpen] = useState(false);
+  // Sửa hàng loạt + thùng rác (xoá mềm).
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashItems, setTrashItems] = useState({ decks: [], cards: [] });
+  const [trashBusy, setTrashBusy] = useState(false);
   const debouncedSearch = useDebounce(searchQuery);
   const debouncedManualWord = useDebounce(manualWord);
   const debouncedTopic = useDebounce(topic);
@@ -643,10 +649,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     [library.cards, selectedDeck?.id],
   );
   const today = dateKey();
-  const dueCards = useMemo(() => deckCards.filter((card) => {
-    const reviewDate = (card.nextReviewDate || card.reviewDate || "").slice(0, 10);
-    return card.status === "new" || Boolean(reviewDate && reviewDate <= today);
-  }), [deckCards, today]);
+  const dueCards = useMemo(() => deckCards.filter((card) => isDue(card, today)), [deckCards, today]);
   const statusCounts = useMemo(() => ({
     all: deckCards.length,
     unlearned: deckCards.filter((card) => card.status !== "mastered").length,
@@ -661,9 +664,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         ? deckCards.filter((card) => card.status !== "mastered")
         : activeFilter === "mastered"
           ? deckCards.filter((card) => card.status === "mastered")
-          : intervalMatch
-            ? deckCards.filter((card) => Number(card.interval) === Number(intervalMatch[1]))
-            : deckCards;
+          : activeFilter === "leech"
+            ? deckCards.filter((card) => isLeech(card))
+            : intervalMatch
+              ? deckCards.filter((card) => Number(card.interval) === Number(intervalMatch[1]))
+              : deckCards;
     if (!searchTerm) return base;
     return base.filter((card) => `${card.word} ${card.meaning} ${card.example}`.toLowerCase().includes(searchTerm));
   }, [activeFilter, deckCards, dueCards, searchTerm]);
@@ -756,6 +761,18 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     return undefined;
   }, [library.cards, library.decks]);
 
+  // Tìm kiếm toàn cục (Ctrl/⌘+K): mở đúng từ/bộ khi người dùng chọn kết quả.
+  useEffect(() => {
+    const pending = consumePendingItem("vocabulary");
+    if (!pending) return;
+    if (pending.type === "word" && pending.itemId) {
+      setSearchQuery(pending.itemId);
+      setActiveFilter("all");
+    } else if (pending.type === "theme" && pending.itemId) {
+      setThemePickerOpen(true);
+    }
+  }, []);
+
   const updateLibrary = (changes) =>
     setLibrary((current) => ({ ...current, ...changes }));
   const addDeck = async (event) => {
@@ -777,24 +794,24 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const deleteDeck = async (deck) => {
     if (library.decks.length === 1)
       return setError("Cần giữ lại ít nhất một bộ từ vựng.");
-    if (!window.confirm(`Xóa bộ “${deck.title}” và toàn bộ từ trong bộ?`))
+    if (!window.confirm(`Chuyển bộ “${deck.title}” và toàn bộ từ trong bộ vào thùng rác?`))
       return;
     const removedCards = library.cards.filter((card) => card.deckId === deck.id);
-    await dataService.deleteDeck(deck.id);
+    await dataService.trashDeck(deck.id);
     const nextDecks = library.decks.filter((item) => item.id !== deck.id);
     updateLibrary({
       decks: nextDecks,
       cards: library.cards.filter((card) => card.deckId !== deck.id),
     });
     setSelectedDeckId(nextDecks[0].id);
-    offerUndo(`Đã xoá bộ “${deck.title}” (${removedCards.length} từ).`, async () => {
-      const restoredDeck = await dataService.createDeck(deck.title);
-      const restoredCards = await Promise.all(removedCards.map((card) => dataService.addCard({ ...card, deckId: restoredDeck.id })));
+    offerUndo(`Đã chuyển bộ “${deck.title}” (${removedCards.length} từ) vào thùng rác.`, async () => {
+      await dataService.restoreDeck(deck.id);
       setLibrary((current) => ({
-        decks: [...current.decks, { ...restoredDeck, tags: deck.tags || [], description: deck.description, createdAt: deck.createdAt || restoredDeck.createdAt }],
-        cards: [...restoredCards, ...current.cards],
+        ...current,
+        decks: [...current.decks, { ...deck, deletedAt: null }],
+        cards: [...removedCards.map((card) => ({ ...card, deletedAt: null })), ...current.cards],
       }));
-      setSelectedDeckId(restoredDeck.id);
+      setSelectedDeckId(deck.id);
     });
   };
 
@@ -859,6 +876,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         nextReviewDate: null,
         repetition: 0,
         imageUrl: item.imageUrl || "",
+        audioUrl: item.audioUrl || "",
       }))
       .filter((card) => card.word);
     const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
@@ -878,27 +896,37 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const lookupWord = async () => {
-    if (!debouncedManualWord.trim()) return;
-    if (!apiKey)
-      return setError(
-        "Hãy lưu API key trong tab Cài đặt API trước khi tra từ.",
-      );
+    const term = debouncedManualWord.trim();
+    if (!term) return;
     setLoading("lookup");
     setError("");
     try {
-      if (deckCards.some((card) => normalizeWord(card.word) === normalizeWord(debouncedManualWord))) {
+      if (deckCards.some((card) => normalizeWord(card.word) === normalizeWord(term))) {
         setError("Từ này đã có trong bộ hiện tại.");
         return;
       }
-      const result = parseAiJson(
-        await requestAi(
-          localStorage.getItem(PROVIDER_STORAGE) || "gemini",
-          apiKey,
-          quickLookupPrompt(debouncedManualWord),
-          { json: true },
-        ),
-      );
-      setLookupResult({ ...result, word: titleCaseWord(debouncedManualWord), level });
+      // Có API key thì dùng AI; chưa có hoặc AI lỗi thì rơi về từ điển miễn phí.
+      let result = null;
+      let aiFailed = false;
+      if (apiKey) {
+        try {
+          result = parseAiJson(
+            await requestAi(
+              localStorage.getItem(PROVIDER_STORAGE) || "gemini",
+              apiKey,
+              quickLookupPrompt(term),
+              { json: true },
+            ),
+          );
+        } catch {
+          aiFailed = true;
+        }
+      }
+      if (!result) {
+        result = await lookupWordOffline(term);
+        if (aiFailed) toast.info("AI không phản hồi, đã tra bằng từ điển miễn phí.");
+      }
+      setLookupResult({ ...result, word: titleCaseWord(result.word || term), level });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -1044,18 +1072,116 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
   const removeCard = useCallback(async (cardId) => {
     const removedCard = library.cards.find((card) => card.id === cardId);
-    await dataService.deleteCard(cardId);
+    await dataService.trashCard(cardId);
     setLibrary((current) => ({ ...current, cards: current.cards.filter((card) => card.id !== cardId) }));
     if (removedCard) {
-      offerUndo(`Đã xoá từ “${removedCard.word}”.`, async () => {
-        const restored = await dataService.addCard(removedCard);
-        setLibrary((current) => ({ ...current, cards: [restored, ...current.cards] }));
+      offerUndo(`Đã chuyển từ “${removedCard.word}” vào thùng rác.`, async () => {
+        await dataService.restoreCard(removedCard.id);
+        setLibrary((current) => ({ ...current, cards: [{ ...removedCard, deletedAt: null }, ...current.cards] }));
       });
     }
   }, [library.cards, offerUndo]);
   const speak = (word, id = word) => {
     setSpeakingWord(id);
     speakText(word, { onEnd: () => setSpeakingWord("") });
+  };
+
+  // --- Sửa hàng loạt -------------------------------------------------------
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds([]);
+  };
+  const toggleSelect = useCallback((cardId) => {
+    setSelectedIds((current) => (current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]));
+  }, []);
+  const toggleSelectAll = () =>
+    setSelectedIds((current) => (current.length === filteredCards.length ? [] : filteredCards.map((card) => card.id)));
+  const applyBulk = async (changes, message) => {
+    if (!selectedIds.length) return;
+    setBulkBusy(true);
+    try {
+      await dataService.updateCards(selectedIds, changes);
+      const idSet = new Set(selectedIds);
+      setLibrary((current) => ({ ...current, cards: current.cards.map((card) => (idSet.has(card.id) ? { ...card, ...changes } : card)) }));
+      setNotice(message);
+      setSelectedIds([]);
+    } catch (bulkError) {
+      setError(bulkError.message || "Không thể cập nhật các từ đã chọn.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+  const bulkTrash = async () => {
+    if (!selectedIds.length) return;
+    setBulkBusy(true);
+    try {
+      const idSet = new Set(selectedIds);
+      const removed = library.cards.filter((card) => idSet.has(card.id));
+      await Promise.all(removed.map((card) => dataService.trashCard(card.id)));
+      setLibrary((current) => ({ ...current, cards: current.cards.filter((card) => !idSet.has(card.id)) }));
+      setSelectedIds([]);
+      offerUndo(`Đã chuyển ${removed.length} từ vào thùng rác.`, async () => {
+        await Promise.all(removed.map((card) => dataService.restoreCard(card.id)));
+        setLibrary((current) => ({ ...current, cards: [...removed.map((card) => ({ ...card, deletedAt: null })), ...current.cards] }));
+      });
+    } catch (bulkError) {
+      setError(bulkError.message || "Không thể xoá các từ đã chọn.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  // --- Thùng rác -----------------------------------------------------------
+  const openTrash = async () => {
+    setActionsOpen(false);
+    setTrashOpen(true);
+    setTrashBusy(true);
+    try {
+      setTrashItems(await dataService.getTrashed());
+    } catch (trashError) {
+      setError(trashError.message || "Không thể tải thùng rác.");
+    } finally {
+      setTrashBusy(false);
+    }
+  };
+  const restoreTrashedDeck = async (deck) => {
+    setTrashBusy(true);
+    try {
+      await dataService.restoreDeck(deck.id);
+      setTrashItems(await dataService.getTrashed());
+      setReloadToken((value) => value + 1);
+      setNotice(`Đã khôi phục bộ “${deck.title}”.`);
+    } catch (trashError) {
+      setError(trashError.message || "Không thể khôi phục bộ thẻ.");
+    } finally {
+      setTrashBusy(false);
+    }
+  };
+  const restoreTrashedCard = async (card) => {
+    setTrashBusy(true);
+    try {
+      await dataService.restoreCard(card.id);
+      setTrashItems(await dataService.getTrashed());
+      setReloadToken((value) => value + 1);
+      setNotice(`Đã khôi phục từ “${card.word}”.`);
+    } catch (trashError) {
+      setError(trashError.message || "Không thể khôi phục từ này.");
+    } finally {
+      setTrashBusy(false);
+    }
+  };
+  const emptyTrash = async () => {
+    if (!window.confirm("Xoá vĩnh viễn toàn bộ bộ thẻ và từ trong thùng rác?")) return;
+    setTrashBusy(true);
+    try {
+      await dataService.purgeTrash();
+      setTrashItems({ decks: [], cards: [] });
+      setNotice("Đã dọn sạch thùng rác.");
+    } catch (trashError) {
+      setError(trashError.message || "Không thể dọn thùng rác.");
+    } finally {
+      setTrashBusy(false);
+    }
   };
 
   const openStudy = (cards) => {
@@ -1163,7 +1289,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="btn-primary min-h-12 flex-1 px-5 disabled:cursor-not-allowed sm:flex-none">
                 <Sparkles size={17} />Bắt đầu học ngay
               </button>
-              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { setThemePickerOpen(true); setActionsOpen(false); }} className="menu-item"><BookOpen size={16} />Thêm bộ từ theo chủ đề</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { setThemePickerOpen(true); setActionsOpen(false); }} className="menu-item"><BookOpen size={16} />Thêm bộ từ theo chủ đề</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { openTrash(); }} className="menu-item"><ArchiveRestore size={16} />Thùng rác</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
             </div>
           </div>
           <section className="panel overflow-hidden">
@@ -1181,6 +1307,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                   />
                 </label>
                 <div className="ml-auto flex items-center gap-2">
+                  <button onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))} aria-pressed={selectMode} className="btn-ghost px-3 text-xs">
+                    {selectMode ? "Xong" : "Sửa hàng loạt"}
+                  </button>
                   <button onClick={() => openStudy(filteredCards)} disabled={!filteredCards.length} className="btn-secondary px-4">
                     <Sparkles size={16} />
                     Học {sessionCount(filteredCards)} từ
@@ -1226,6 +1355,31 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 </div>
                 <span className="ml-auto text-xs font-semibold text-ink/60 dark:text-white/55">Hiện {filteredCards.length} từ</span>
               </div>
+              {selectMode && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-sage/40 bg-sage/10 px-3 py-2">
+                  <label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={filteredCards.length > 0 && selectedIds.length === filteredCards.length} onChange={toggleSelectAll} className="h-4 w-4 accent-lime" />Chọn tất cả</label>
+                  <span className="text-xs font-semibold text-ink/60 dark:text-white/60">Đã chọn {selectedIds.length}</span>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <button disabled={!selectedIds.length || bulkBusy} onClick={() => applyBulk({ status: "mastered" }, `Đã đánh dấu thuộc ${selectedIds.length} từ.`)} className="btn-secondary px-3 text-xs">Đã thuộc</button>
+                    <button disabled={!selectedIds.length || bulkBusy} onClick={() => applyBulk({ status: "new", interval: 0, repetition: 0, lapses: 0, ease: 2.5, nextReviewDate: null, reviewDate: null, lastStudiedDate: null }, `Đã đặt lại tiến độ ${selectedIds.length} từ.`)} className="btn-secondary px-3 text-xs">Học lại từ đầu</button>
+                    <select
+                      disabled={!selectedIds.length || bulkBusy}
+                      defaultValue=""
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        event.target.value = "";
+                        if (value) applyBulk({ level: value }, `Đã đổi ${selectedIds.length} từ sang cấp độ ${value}.`);
+                      }}
+                      className="min-h-[44px] rounded-xl border border-ink/10 bg-transparent px-2 text-xs font-bold dark:border-white/15"
+                      aria-label="Đổi cấp độ cho các từ đã chọn"
+                    >
+                      <option value="">Cấp độ…</option>
+                      {levels.map((item) => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                    <button disabled={!selectedIds.length || bulkBusy} onClick={bulkTrash} className="btn-ghost px-3 text-xs text-danger dark:text-dangerfgdark"><Trash2 size={15} />Vào thùng rác</button>
+                  </div>
+                </div>
+              )}
             </div>
             {filteredCards.length === 0 ? (
               <div className="p-10 text-center">
@@ -1240,7 +1394,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             ) : (
               <div>
-                {visibleCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} />)}
+                {visibleCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} selectMode={selectMode} selected={selectedIds.includes(card.id)} onToggleSelect={toggleSelect} />)}
                 {filteredCards.length > visibleCards.length && (
                   <div className="border-t border-ink/[0.08] p-4 text-center dark:border-white/[0.08]">
                     <button onClick={() => setVisibleCount((value) => value + RENDER_LIMIT)} className="btn-secondary px-4">
@@ -1254,6 +1408,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </main>
       </div>
       {themePickerOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-lg p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Bộ từ theo chủ đề</p><h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ</h2></div><button onClick={() => setThemePickerOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Học cụm từ (collocation, phrasal verb) giúp bạn dùng từ đúng ngữ cảnh — đây là phần hay mất điểm ở trình độ B1.</p><ul className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto">{themeDecks.map((deck) => <li key={deck.id}><button onClick={() => addThemeDeck(deck.id)} disabled={loading === `theme-${deck.id}`} className="flex w-full items-center gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><BookOpen size={17} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="mt-0.5 block truncate text-xs text-ink/60 dark:text-white/60">{deck.description}</span></span><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{loading === `theme-${deck.id}` ? 'Đang thêm…' : deck.level}</span></button></li>)}</ul></section></div>}
+      {trashOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Thùng rác</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ &amp; từ đã xoá</h2></div><button onClick={() => setTrashOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Mọi thứ bạn xoá được giữ ở đây để khôi phục. “Dọn thùng rác” sẽ xoá vĩnh viễn.</p>{trashBusy && <p className="mt-4 flex items-center gap-2 text-xs text-ink/60 dark:text-white/60"><LoaderCircle size={14} className="animate-spin" />Đang xử lý…</p>}<div className="mt-4 space-y-2">{trashItems.decks.map((deck) => <div key={deck.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><BookOpen size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="text-xs text-ink/50 dark:text-white/50">Bộ thẻ</span></span><button disabled={trashBusy} onClick={() => restoreTrashedDeck(deck)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{trashItems.cards.map((card) => <div key={card.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><RotateCcw size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{card.word}</span><span className="block truncate text-xs text-ink/50 dark:text-white/50">{card.meaning}</span></span><button disabled={trashBusy} onClick={() => restoreTrashedCard(card)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{!trashBusy && !trashItems.decks.length && !trashItems.cards.length && <p className="rounded-xl bg-ink/[0.04] p-4 text-center text-sm text-ink/50 dark:bg-white/[0.06] dark:text-white/50">Thùng rác đang trống.</p>}</div><div className="mt-5 flex justify-end gap-2"><button onClick={() => setTrashOpen(false)} className="btn-secondary px-4">Đóng</button><button disabled={trashBusy || (!trashItems.decks.length && !trashItems.cards.length)} onClick={emptyTrash} className="btn-ghost px-4 text-danger dark:text-dangerfgdark"><Trash2 size={16} />Dọn thùng rác</button></div></section></div>}
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
       {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}
       <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-lime px-5 text-sm font-bold text-ink shadow-soft transition hover:-translate-y-0.5 sm:hidden" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>

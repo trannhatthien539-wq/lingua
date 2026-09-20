@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Headphones, BookOpen, Mic, PenLine, ListChecks, Sparkles } from 'lucide-react'
 import ListeningView from './ListeningView'
 import ReadingView from './ReadingView'
@@ -8,6 +8,7 @@ import SentenceView from './SentenceView'
 import MockTestView from './MockTestView'
 import useSkillsProgress from '../../hooks/useSkillsProgress'
 import useSectionState from '../../hooks/useSectionState'
+import { consumePendingItem } from '../../services/deepLink'
 
 const TABS = [
   { id: 'listening', label: 'Nghe', icon: Headphones },
@@ -21,8 +22,17 @@ const TABS = [
 /** Trung tâm luyện 4 kỹ năng + luyện câu + thi thử B1. */
 export default function SkillsHub({ onStudyActivity }) {
   const [tab, setTab] = useState('listening')
+  const [focusId, setFocusId] = useState(null)
   const [openIntro, toggleIntro] = useSectionState('skills-intro', true)
   const { progress, recordSection, recordMock, recordSentence } = useSkillsProgress()
+
+  // Mở đúng tab/bài khi đến từ tìm kiếm toàn cục (Ctrl/⌘+K).
+  useEffect(() => {
+    const pending = consumePendingItem('skills')
+    if (!pending) return
+    if (TABS.some((item) => item.id === pending.type)) setTab(pending.type)
+    if (pending.itemId && pending.type !== 'sentence') setFocusId(pending.itemId)
+  }, [])
 
   const listeningDone = Object.keys(progress.listening || {}).length
   const readingDone = Object.keys(progress.reading || {}).length
@@ -82,9 +92,9 @@ export default function SkillsHub({ onStudyActivity }) {
         </section>
       )}
 
-      {tab === 'listening' && <ListeningView progress={progress} onResult={(id, correct, total) => { recordSection('listening', id, correct, total); onStudyActivity?.() }} />}
-      {tab === 'reading' && <ReadingView progress={progress} onResult={(id, correct, total) => { recordSection('reading', id, correct, total); onStudyActivity?.() }} />}
-      {tab === 'speaking' && <SpeakingView />}
+      {tab === 'listening' && <ListeningView progress={progress} focusId={focusId} onResult={(id, correct, total) => { recordSection('listening', id, correct, total); onStudyActivity?.() }} />}
+      {tab === 'reading' && <ReadingView progress={progress} focusId={focusId} onResult={(id, correct, total) => { recordSection('reading', id, correct, total); onStudyActivity?.() }} />}
+      {tab === 'speaking' && <SpeakingView focusId={focusId} />}
       {tab === 'writing' && <WritingView />}
       {tab === 'sentence' && <SentenceView onStats={(correct, total) => { recordSentence(correct, total); if (correct > 0) onStudyActivity?.() }} />}
       {tab === 'mock' && <MockTestView history={progress.mock} onFinish={(score, total) => { recordMock(score, total); onStudyActivity?.() }} />}

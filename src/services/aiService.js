@@ -65,9 +65,34 @@ async function requestModel(providerId, apiKey, prompt, json, model) {
   return text;
 }
 
+/**
+ * Chế độ proxy (tuỳ chọn): nếu cấu hình `VITE_AI_PROXY_URL`, mọi yêu cầu AI đi qua
+ * máy chủ của bạn (xem `functions/index.js`) nên người dùng không cần dán API key.
+ */
+const PROXY_URL = (import.meta.env?.VITE_AI_PROXY_URL || "").trim();
+export const hasAiProxy = () => Boolean(PROXY_URL);
+
+async function requestViaProxy(providerId, prompt, json) {
+  const response = await fetch(PROXY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: providerId, prompt, json }),
+  });
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || `Máy chủ AI trả về lỗi HTTP ${response.status}.`);
+    error.status = response.status;
+    throw error;
+  }
+  const text = String(payload?.text || getResponseText(providerId, payload) || "").trim();
+  if (!text) throw new Error("Máy chủ AI không trả về nội dung. Vui lòng thử lại.");
+  return text;
+}
+
 export async function requestAi(providerId, apiKey, prompt, { json = false } = {}) {
-  if (!apiKey?.trim()) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
   const normalizedProvider = providerId === "groq" ? "groq" : "gemini";
+  if (PROXY_URL) return requestViaProxy(normalizedProvider, prompt, json);
+  if (!apiKey?.trim()) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
   const models = normalizedProvider === "gemini" ? GEMINI_MODELS : [GROQ_MODEL];
   let lastError;
   for (const model of models) {
