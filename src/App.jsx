@@ -8,10 +8,12 @@ import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
 import { openItem } from './services/deepLink'
+import { subscribeAppLinks } from './services/appLinks'
 import { syncVocabulary } from './services/vocabularySync'
 import { syncGuestUserDocs, userDocKeys } from './services/userDocService'
 import { resetHistoryCache } from './services/historyService'
 import useStudyReminder from './hooks/useStudyReminder'
+import useWidgetSummary from './hooks/useWidgetSummary'
 import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
@@ -56,6 +58,8 @@ export default function App() {
   const isLoginRoute = location.pathname === '/login'
   const { theme, themeMode, setThemeMode, toggleTheme } = useTheme()
   const { settings: reminderSettings, updateSettings: updateReminder } = useStudyReminder(streak)
+  // Widget màn hình chính (APK): đẩy thẻ đến hạn / chuỗi ngày / chủ điểm ngữ pháp ra widget.
+  useWidgetSummary({ streak })
   const activeItem = navigationItems.find((item) => item.id === activeTab)
   const ActiveModule = modules[activeTab]
   useEffect(() => {
@@ -68,6 +72,14 @@ export default function App() {
     if (location.pathname === '/') navigate(tabPaths.vocabulary, { replace: true })
     else if (!isLoginRoute && !pathTabs[location.pathname]) navigate(tabPaths.vocabulary, { replace: true })
   }, [isLoginRoute, location.pathname, navigate])
+  // Widget / shortcut trên Android mở app bằng deep link `…://tab/<tab>`.
+  useEffect(() => {
+    let stopLinks = () => {}
+    subscribeAppLinks((link) => {
+      if (link?.path) navigate(link.path)
+    }).then((stop) => { stopLinks = stop || (() => {}) })
+    return () => stopLinks()
+  }, [navigate])
   useEffect(() => {
     const openSearch = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {

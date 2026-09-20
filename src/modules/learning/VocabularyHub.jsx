@@ -32,6 +32,7 @@ import { dataService } from "../../services/dataService";
 import { recordStudyEvent } from "../../services/historyService";
 import { clearSharedDeckFromUrl, copyShareLink, readSharedDeckFromUrl, shareDeck } from "../../services/shareDeck";
 import { refreshRequestedEvent } from "../../services/syncStatus";
+import { publishCardStats } from "../../services/widgetBridge";
 import { toast } from "../../services/toast";
 import FlashcardModal from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
@@ -746,6 +747,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     if (!selectedDeck && library.decks[0])
       setSelectedDeckId(library.decks[0].id);
   }, [library.decks, selectedDeck]);
+  // Widget màn hình chính (APK) dùng số liệu này: chỉ ghi localStorage + bắn event, không gọi mạng.
+  useEffect(() => {
+    publishCardStats(library.cards);
+  }, [library.cards]);
   useEffect(() => {
     const topic = localStorage.getItem("lingua-practice-topic");
     if (!topic) return undefined;

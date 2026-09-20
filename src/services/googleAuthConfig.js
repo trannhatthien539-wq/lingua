@@ -12,7 +12,7 @@
  * Thứ tự ưu tiên: giá trị nhập trong app (Cài đặt → Tài khoản) → biến môi trường khi build
  * → hằng số `GOOGLE_WEB_CLIENT_ID` trong `src/config/googleAuth.js`.
  */
-import { GOOGLE_LOGIN_MODE, GOOGLE_WEB_CLIENT_ID } from '../config/googleAuth'
+import { GOOGLE_LOGIN_MODE, GOOGLE_WEB_CLIENT_ID } from '../config/googleAuth.js'
 
 const CLIENT_ID_KEY = 'lingua-google-client-id'
 const LOGIN_MODE_KEY = 'lingua-google-login-mode'

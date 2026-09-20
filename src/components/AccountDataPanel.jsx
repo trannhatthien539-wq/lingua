@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { BellRing, CloudDownload, CloudUpload, Database, RefreshCw, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { BellRing, CloudDownload, CloudUpload, Database, Grid2x2, RefreshCw, ShieldCheck } from "lucide-react";
 import CollapsibleCard from "./ui/CollapsibleCard";
 import SyncStatusBadge from "./ui/SyncStatusBadge";
 import useSectionState from "../hooks/useSectionState";
@@ -16,6 +16,7 @@ import {
   sendNativeTestNotification,
 } from "../services/localNotifications";
 import { requestDataRefresh } from "../services/syncStatus";
+import { readWidgetSummary, widgetStatsChangedEvent } from "../services/widgetBridge";
 import { notifyReminderChanged } from "../services/reminderService";
 import { reloadHistory } from "../services/historyService";
 
@@ -34,6 +35,14 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
   const fileRef = useRef(null);
 
   const settings = reminderSettings || { enabled: false, time: "20:00" };
+  const [widgetSummary, setWidgetSummary] = useState(readWidgetSummary);
+
+  // Cập nhật phần xem trước mỗi khi số liệu thẻ đổi (VocabularyHub ghi lại).
+  useEffect(() => {
+    const sync = () => setWidgetSummary(readWidgetSummary());
+    window.addEventListener(widgetStatsChangedEvent, sync);
+    return () => window.removeEventListener(widgetStatsChangedEvent, sync);
+  }, []);
 
   const isDevice = nativeNotificationsAvailable();
 
@@ -196,6 +205,28 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
           {isDevice
             ? "Trên app APK, thông báo do hệ điều hành lên lịch nên vẫn hiện dù bạn đã đóng app."
             : "Trên web, thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy)."}
+        </p>
+      </div>
+
+      <div className="panel-flat p-4">
+        <p className="flex items-center gap-2 text-sm font-bold">
+          <Grid2x2 size={16} /> Widget màn hình chính
+        </p>
+        {widgetSummary ? (
+          <div className="mt-2 rounded-xl border border-ink/[0.08] bg-ink/[0.03] p-3 dark:border-white/[0.08] dark:bg-white/[0.05]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink/50 dark:text-white/50">{widgetSummary.title}</p>
+            <p className="mt-1 font-display text-base font-bold text-sage">{widgetSummary.primary}</p>
+            <p className="mt-0.5 text-xs text-ink/80 dark:text-white/80">{widgetSummary.secondary}</p>
+            <p className="text-xs text-ink/60 dark:text-white/60">{widgetSummary.tertiary}</p>
+            <p className="mt-1 text-[10px] text-ink/45 dark:text-white/45">{widgetSummary.footer}</p>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
+            Mở tab Từ vựng một lần để Lingua tính số thẻ đến hạn và gửi ra widget.
+          </p>
+        )}
+        <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
+          Trên app Android: giữ vào chỗ trống ở màn hình chính → <strong>Widgets</strong> → <strong>Lingua</strong> → kéo widget ra. Widget tự cập nhật mỗi 30 phút và ngay khi bạn học trong app.
         </p>
       </div>
 

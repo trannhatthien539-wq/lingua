@@ -92,12 +92,17 @@ src/
 │  ├─ planner/StudyPlanner.jsx          # todo + lịch + pomodoro
 │  ├─ mindmap/StudyMindmap.jsx          # sơ đồ cây React Flow (+ sinh bằng AI)
 │  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
-├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce
+├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
 ├─ services/               # xem bảng §7
 ├─ utils/                  # srs, speech, speechScore, ankiParser, sanitizeCard, studyFeedback
 ├─ data/                   # navigation + toàn bộ nội dung học (tĩnh, không cần mạng)
 ├─ config/googleAuth.js    # chế độ đăng nhập Google
 └─ lib/formatters.js       # format ngày/giờ tiếng Việt
+
+native/android-widget/     # mã native cho widget màn hình chính + shortcut (workflow chép vào project Android)
+├─ java/com/lingua/studyhub/LinguaWidgetProvider.java   # AppWidgetProvider (RemoteViews)
+├─ java/com/lingua/studyhub/LinguaWidgetPlugin.java     # plugin cục bộ `LinguaWidget` ghi SharedPreferences
+└─ res/{layout,xml,drawable,values}/                    # layout widget, widget_info, shortcuts, màu, chuỗi
 ```
 
 Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `scripts/` (script QA nội dung), `tests/`, `.github/workflows/` (deploy + build APK).
@@ -190,6 +195,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
 | `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
 | `deepLink.js` | Mở đúng bài sau khi tìm kiếm (`openItem` / `consumePendingItem(tab)`) |
+| `appLinks.js` | Deep link nội bộ từ widget/shortcut: `com.lingua.studyhub://tab/<tab>` → `parseAppLink` + `subscribeAppLinks` (bỏ qua link `auth`) |
+| `widgetBridge.js` | Cầu nối widget màn hình chính: `summarizeCards`, `publishCardStats`, `buildWidgetSummary`, `pushWidgetSummary`, `readWidgetSummary` (web chỉ ghi localStorage để xem trước) |
 | `gamification.js` | `computeStats`, `computeXp`, `levelFor`, `achievementsFor` (hàm thuần, có test) |
 | `vstepScoring.js` | Chấm điểm VSTEP thuần: `examQuestions`, `scoreObjectiveSection`, `selfAssessedScore10`, `summariseAttempt`, `examMinutes` (hàm thuần, có test) |
 | `vstepService.js` | Nạp đề VSTEP (lazy qua `registry.js`) + re-export toàn bộ hàm chấm điểm |
@@ -219,6 +226,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `useVstepProgress()` | Lịch sử thi VSTEP + bản nháp Writing (key `vstep`), `recordAttempt`, `bestFor`, `clearHistory` |
 | `useGrammarProgress()` / `useSkillsProgress()` | Tiến độ ngữ pháp / kỹ năng (record + đọc) |
 | `useMistakeBank()` | **Sổ câu sai dùng chung** (key `mistakes`): `mistakes` (đã gộp + sắp theo số lần sai), `record(details, source, refId, label)`, `remove`, `clear`, `recordRetry`, `stats.bySource` |
+| `useWidgetSummary({ streak })` | Đẩy nội dung ra widget màn hình chính (số liệu thẻ lấy từ đệm của `VocabularyHub`, bài ngữ pháp chưa đạt đầu tiên, chuỗi ngày); chống đẩy trùng bằng `summarySignature` |
 | `useStudyReminder(streak)` | Cấu hình nhắc học; trên thiết bị tự gọi `syncNativeReminder` để lên lịch thông báo của hệ điều hành |
 | `useSectionState(id, default)` | Trạng thái mở/đóng khối UI (localStorage) |
 | `useTheme()`, `useAppearance()` | Dark mode + tuỳ biến giao diện |
@@ -350,6 +358,18 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 - Đã xoá: `AppLoginPanel` (“Bản APK → Đăng nhập trên app bằng mật khẩu”), `GoogleSignInHelp` (mở lại Chrome / dán id_token / nhật ký), khối `GoogleSetup` trong `AccountPanel` (chọn chế độ + dán client ID + hướng dẫn Google Cloud Console), và phần “Sao chép mã đăng nhập” trong `public/oauth-callback.html`.
 - Luồng thật vẫn giữ: Google trên web (popup) và trên APK (mở Chrome rồi quay về app qua deep link `com.lingua.studyhub://auth`); tài khoản Email + mật khẩu hoạt động như tài khoản Firebase bình thường.
 - Nếu sau này cần vào app bằng tài khoản Google (không có mật khẩu): `src/services/accountAuthService.js` vẫn giữ `createPasswordForApp` (thêm provider `password` vào tài khoản Google bằng `linkWithCredential`) — chỉ cần thêm một nút trong Cài đặt là dùng được ngay. Không thể “copy key” phiên từ web sang APK vì Firebase không xuất session/refresh token ở client (muốn thế phải có Cloud Function + Admin SDK `createCustomToken`).
+
+## 17.2 Widget màn hình chính (Android) + shortcut giữ icon
+
+- **Widget 4×2** hiển thị: `Ôn 50 thẻ hôm nay` · `Ngữ pháp: <bài chưa đạt đầu tiên>` · `Chuỗi N ngày · 1000 thẻ đến hạn` · `Cập nhật HH:MM DD/MM`, kèm 2 nút **Ôn từ vựng** / **Học ngữ pháp** mở thẳng tab.
+- **Shortcut khi giữ icon app** (Android 7.1+): Ôn từ vựng · Học ngữ pháp · Thi thử VSTEP · Tiến độ hôm nay.
+- **Vì sao có thư mục `native/android-widget/`**: Capacitor không hỗ trợ widget, mà repo **không chứa project `android/`** (CI tự `cap add android`). Vì vậy mã native nằm trong repo và bước **“Inject the home-screen widget and app shortcuts”** của `build-apk.yml` sẽ:
+  1. chép `java/**` → `android/app/src/main/java/com/lingua/studyhub/`, chép `res/**` → `android/app/src/main/res/`;
+  2. vá `AndroidManifest.xml`: thêm `<receiver .LinguaWidgetProvider>` + `<meta-data android.app.shortcuts>` trong `<activity .MainActivity>`;
+  3. vá `MainActivity.java`: chèn `registerPlugin(LinguaWidgetPlugin.class);` trước `super.onCreate(…)` (plugin cục bộ, không phải npm plugin);
+  4. kiểm tra file tài nguyên đã có, thiếu thì **fail build** để không xuất APK thiếu widget.
+- **Luồng dữ liệu**: `VocabHub` gọi `publishCardStats(cards)` → localStorage + event `lingua:widget-stats` → `useWidgetSummary` (trong `App`) ghép với tiến độ ngữ pháp + `streak` → `pushWidgetSummary` → plugin `LinguaWidget.save()` ghi SharedPreferences `lingua_widget` → provider vẽ lại **ngay** (không cần chờ 30 phút). Web: plugin không có → chỉ ghi localStorage để Cài đặt → Dữ liệu hiện **xem trước** đúng nội dung widget.
+- **Giới hạn cần biết**: chỉ Android; Android giới hạn widget tự cập nhật ≥ 30 phút (`updatePeriodMillis`) — số liệu chỉ mới ngay khi app ghi; widget chỉ hiển thị + mở app, không học trực tiếp trên widget; muốn thấy widget phải **cài APK mới** rồi thêm widget vào màn hình (giữ chỗ trống → Widgets → Lingua).
 
 ## 18. Checklist khi thêm tính năng
 

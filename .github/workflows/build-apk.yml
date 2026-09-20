@@ -157,6 +157,89 @@ jobs:
             sed -i "s|</resources>|    <string name=\"server_client_id\">${GOOGLE_WEB_CLIENT_ID}</string>\n</resources>|" "$FILE"
           fi
 
+      # ---------------------------------------------------------------------
+      # Widget màn hình chính + shortcut khi giữ icon.
+      # Capacitor không có sẵn widget nên repo giữ mã nguồn native ở
+      # native/android-widget/ và bước này chép vào project Android vừa sinh ra,
+      # rồi vá AndroidManifest.xml (receiver + meta-data shortcuts) và
+      # MainActivity.java (đăng ký plugin cục bộ LinguaWidget).
+      # ---------------------------------------------------------------------
+      - name: Inject the home-screen widget and app shortcuts
+        run: |
+          set -euo pipefail
+          JAVA_DIR=android/app/src/main/java/com/lingua/studyhub
+          mkdir -p "$JAVA_DIR"
+          cp native/android-widget/java/com/lingua/studyhub/*.java "$JAVA_DIR/"
+          cp -R native/android-widget/res/. android/app/src/main/res/
+          node <<'NODE'
+          const fs = require('fs');
+
+          // 1. Khai báo widget provider trong AndroidManifest.
+          const manifestPath = 'android/app/src/main/AndroidManifest.xml';
+          let xml = fs.readFileSync(manifestPath, 'utf8');
+
+          if (!xml.includes('LinguaWidgetProvider')) {
+            // Giữ đúng thụt lề của </application> để XML luôn hợp lệ.
+            xml = xml.replace(/([ \t]*)<\/application>/, (match, indent) => {
+              const pad = `${indent}    `;
+              const block = [
+                '<receiver',
+                '    android:name=".LinguaWidgetProvider"',
+                '    android:exported="true">',
+                '    <intent-filter>',
+                '        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />',
+                '    </intent-filter>',
+                '    <meta-data',
+                '        android:name="android.appwidget.provider"',
+                '        android:resource="@xml/lingua_widget_info" />',
+                '</receiver>',
+              ].map((line) => pad + line).join('\n');
+              return `\n${block}\n${indent}</application>`;
+            });
+          }
+
+          // 2. Khai báo shortcut khi giữ icon app.
+          if (!xml.includes('android.app.shortcuts')) {
+            xml = xml.replace(
+              /(<activity[^>]*?android:name="\.MainActivity"[^>]*?>)/,
+              '$1\n            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />',
+            );
+          }
+          fs.writeFileSync(manifestPath, xml);
+
+          const manifestOk = xml.includes('LinguaWidgetProvider') && xml.includes('android.app.shortcuts');
+
+          // 3. Đăng ký plugin cục bộ để JS gọi được (registerPlugin trước super.onCreate).
+          const mainPath = 'android/app/src/main/java/com/lingua/studyhub/MainActivity.java';
+          let main = fs.readFileSync(mainPath, 'utf8');
+          if (!main.includes('LinguaWidgetPlugin')) {
+            main = main.replace(
+              'super.onCreate(savedInstanceState);',
+              'registerPlugin(LinguaWidgetPlugin.class);\n        super.onCreate(savedInstanceState);',
+            );
+          }
+          fs.writeFileSync(mainPath, main);
+          const mainOk = main.includes('LinguaWidgetPlugin');
+
+          console.log(main);
+          if (!manifestOk || !mainOk) {
+            console.error('Không thêm được widget/shortcut vào project Android');
+            process.exit(1);
+          }
+
+          // 4. Kiểm tra tài nguyên đã được chép sang.
+          const required = [
+            'android/app/src/main/res/layout/lingua_widget.xml',
+            'android/app/src/main/res/xml/lingua_widget_info.xml',
+            'android/app/src/main/res/xml/shortcuts.xml',
+          ];
+          const missing = required.filter((file) => !fs.existsSync(file));
+          if (missing.length) {
+            console.error('Thiếu file tài nguyên:', missing.join(', '));
+            process.exit(1);
+          }
+          NODE
+
       - name: Configure Android SDK
         run: |
           SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shortcut khi giữ icon app (Android 7.1+).
+  Mỗi shortcut dùng deep link …://tab/<tab> và được xử lý ở src/services/appLinks.js.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="lingua_vocabulary"
+        android:shortcutLongLabel="@string/lingua_shortcut_vocab"
+        android:shortcutShortLabel="@string/lingua_shortcut_vocab">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.lingua.studyhub://tab/vocabulary"
+            android:targetPackage="com.lingua.studyhub" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="lingua_grammar"
+        android:shortcutLongLabel="@string/lingua_shortcut_grammar"
+        android:shortcutShortLabel="@string/lingua_shortcut_grammar">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.lingua.studyhub://tab/grammar"
+            android:targetPackage="com.lingua.studyhub" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="lingua_vstep"
+        android:shortcutLongLabel="@string/lingua_shortcut_vstep"
+        android:shortcutShortLabel="@string/lingua_shortcut_vstep">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.lingua.studyhub://tab/vstep"
+            android:targetPackage="com.lingua.studyhub" />
+    </shortcut>
+
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="lingua_progress"
+        android:shortcutLongLabel="@string/lingua_shortcut_progress"
+        android:shortcutShortLabel="@string/lingua_shortcut_progress">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="com.lingua.studyhub://tab/progress"
+            android:targetPackage="com.lingua.studyhub" />
+    </shortcut>
+</shortcuts>
