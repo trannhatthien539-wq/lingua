@@ -81,7 +81,7 @@ src/
 │  ├─ Auth/AuthPage.jsx    # đăng nhập/đăng ký (Email + Google) và chế độ khách
 │  ├─ AiTutorPanel.jsx     # chat gia sư AI
 │  ├─ SearchPalette.jsx    # tìm kiếm toàn cục (Ctrl/⌘+K)
-│  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, GoogleSignInHelp, AppMark, WordAvatar, StudyAnalyticsWidget, MobileHeader, MobileBottomNav
+│  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, StudyAnalyticsWidget, MobileHeader, MobileBottomNav
 ├─ modules/                # 1 folder = 1 tab
 │  ├─ learning/VocabularyHub.jsx        # tab Từ vựng (file lớn nhất, ~1.4k dòng)
 │  ├─ learning/GrammarAndVocabulary.jsx # WritingChecker (tab Writing)
@@ -200,12 +200,12 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `imageService.js` | Tìm ảnh an toàn cho thẻ (`findVocabularyImageSafely`), whitelist nguồn ảnh |
 | `speech.js` (utils) | TTS tiếng Anh bằng Web Speech API |
 | `firebase.js` | Khởi tạo app/auth/firestore (có offline cache) + re-export API Firebase |
-| `authService.js`, `googleBrowserAuth.js`, `googleAuthConfig.js` | Đăng nhập Google: popup (web), browser flow + deep link (APK), paste id_token dự phòng |
+| `authService.js`, `googleBrowserAuth.js`, `googleAuthConfig.js` | Đăng nhập Google: popup (web), browser flow + deep link (APK) |
 | `backupService.js` | Xuất/nhập toàn bộ dữ liệu (file JSON) |
 | `shareDeck.js` | Chia sẻ bộ thẻ qua URL `#deck=<base64url>` |
 | `reminderService.js` | Nhắc học bằng Web Notification (chỉ khi app đang mở trên web) |
 | `localNotifications.js` | Nhắc học trên **APK**: lên lịch thông báo hằng ngày của hệ điều hành (`@capacitor/local-notifications`), có `sendNativeTestNotification`; plugin nạp động nên bundle web không phình |
-| `accountAuthService.js` | **Cầu mật khẩu web → APK**: tạo/đổi mật khẩu cho tài khoản Google, gửi email đặt lại mật khẩu (xem §11.1) |
+| `accountAuthService.js` | Email đặt lại mật khẩu (`sendResetPasswordEmail`) + hàm tạo/đổi mật khẩu cho tài khoản Google (`createPasswordForApp`, `changeAccountPassword`) — **hiện không có UI nào gọi** (đã bỏ phần hướng dẫn đăng nhập APK); có thể bật lại bằng 1 nút trong Cài đặt nếu cần |
 | `appearanceService.js` | Bảng màu/font/cỡ chữ, đổi CSS variables |
 | `vocabularySync.js` | Merge dữ liệu khách → tài khoản sau khi đăng nhập |
 | `platform.js`, `apiClient.js`, `aiClient.js`, `apiKeyStorage.js` | Tiện ích nền tảng, client dự phòng, đọc/ghi API key |
@@ -336,22 +336,19 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 17. Chưa làm (roadmap)
 
-- Tài khoản: xác thực email, xoá tài khoản, đăng nhập Facebook/Apple. (Đã có: quên mật khẩu, tạo/đổi mật khẩu để đăng nhập trên APK.)
+- Tài khoản: xác thực email, xoá tài khoản, đăng nhập Facebook/Apple. (Đã có: quên mật khẩu qua email.)
 - Xã hội: thư viện bộ từ cộng đồng, xếp hạng bạn bè, chế độ lớp học/giáo viên (cần backend + rules mới).
 - Push notification từ server (FCM) khi app đóng. (Đã có: thông báo theo lịch của hệ điều hành trên APK.)
 - Đa ngôn ngữ giao diện (i18n) và học ngôn ngữ khác ngoài tiếng Anh.
 - Sửa hàng loạt nâng cao (gắn tag, đổi bộ), tìm ảnh thủ công cho thư viện lớn.
 - Bấm-vào-từ cho phần Nghe (transcript) và Writing.
 
-## 17.1 Đăng nhập trên APK (cầu mật khẩu web → app)
+## 17.1 Đăng nhập trên APK (đã dọn hết hướng dẫn)
 
-Firebase **không** cho xuất session/refresh token ra client, nên không thể “copy key” từ web sang APK; muốn đăng nhập bằng mã một lần thì phải có Cloud Function + Admin SDK (`createCustomToken`). Cách đang dùng (không cần backend):
-
-1. Trên **bản web**, đăng nhập Google → Cài đặt → **“Đăng nhập trên app bằng mật khẩu”** (`AppLoginPanel`): tạo mật khẩu cho đúng email tài khoản (dùng `linkWithCredential` để thêm provider `password` vào tài khoản Google hiện có) rồi sao chép email.
-2. Mở **APK** → Đăng nhập → nhập email + mật khẩu đó (đăng nhập email/password của Firebase; dữ liệu vẫn là cùng một tài khoản nên đồng bộ nguyên vẹn).
-3. Quên mật khẩu: `AuthPage` có nút **“Quên mật khẩu?”** gửi email đặt lại qua Firebase; hoặc đổi mật khẩu trong `AppLoginPanel` (yêu cầu nhập mật khẩu hiện tại — `reauthenticateWithCredential`).
-
-Luồng Google trực tiếp trên APK vẫn có (mở Chrome + deep link `com.lingua.studyhub://auth`), nhưng phụ thuộc OAuth client/SHA-1 nên cầu mật khẩu là đường dự phòng chắc chắn nhất.
+- **Trang đăng nhập trên APK chỉ hiện form Email + mật khẩu** (ẩn cột giới thiệu khi `isCapacitor()` → vào app là thấy ngay ô nhập), kèm nút Google và “Quên mật khẩu?”. Không còn khối hướng dẫn nào trên app.
+- Đã xoá: `AppLoginPanel` (“Bản APK → Đăng nhập trên app bằng mật khẩu”), `GoogleSignInHelp` (mở lại Chrome / dán id_token / nhật ký), khối `GoogleSetup` trong `AccountPanel` (chọn chế độ + dán client ID + hướng dẫn Google Cloud Console), và phần “Sao chép mã đăng nhập” trong `public/oauth-callback.html`.
+- Luồng thật vẫn giữ: Google trên web (popup) và trên APK (mở Chrome rồi quay về app qua deep link `com.lingua.studyhub://auth`); tài khoản Email + mật khẩu hoạt động như tài khoản Firebase bình thường.
+- Nếu sau này cần vào app bằng tài khoản Google (không có mật khẩu): `src/services/accountAuthService.js` vẫn giữ `createPasswordForApp` (thêm provider `password` vào tài khoản Google bằng `linkWithCredential`) — chỉ cần thêm một nút trong Cài đặt là dùng được ngay. Không thể “copy key” phiên từ web sang APK vì Firebase không xuất session/refresh token ở client (muốn thế phải có Cloud Function + Admin SDK `createCustomToken`).
 
 ## 18. Checklist khi thêm tính năng
 

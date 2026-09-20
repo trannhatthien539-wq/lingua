@@ -12,7 +12,7 @@ const NOTIFICATION_ID = 1001;
 const CHANNEL_ID = "lingua-reminder";
 
 const loadPlugin = async () => {
-  if (!isCapacitor()) return null;
+  if (!nativeNotificationsAvailable()) return null;
   try {
     const module = await import("@capacitor/local-notifications");
     return module.LocalNotifications || null;
@@ -22,7 +22,11 @@ const loadPlugin = async () => {
   }
 };
 
-export const nativeNotificationsAvailable = () => isCapacitor();
+export const nativeNotificationsAvailable = () => {
+  if (!isCapacitor()) return false;
+  // Chỉ dùng khi plugin thực sự có trên thiết bị (đề phòng APK cũ chưa `cap sync`).
+  return window.Capacitor?.isPluginAvailable?.("LocalNotifications") ?? true;
+};
 
 const parseTime = (time = "20:00") => {
   const [hour, minute] = String(time).split(":");

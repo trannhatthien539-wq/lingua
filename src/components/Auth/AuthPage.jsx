@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, BookOpen, BrainCircuit, Check, Clock3, Mail } from "lucide-react";
 import AppMark from "../AppMark";
-import GoogleSignInHelp from "../GoogleSignInHelp";
 import { isCapacitor } from "../../services/platform";
 import {
   auth,
@@ -24,6 +23,8 @@ export default function AuthPage({ onGuest }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Trên app APK, giao diện chỉ hiện form đăng nhập để Email + mật khẩu luôn thấy ngay.
+  const isDevice = isCapacitor();
 
   const runAuth = async (action) => {
     setError("");
@@ -32,7 +33,7 @@ export default function AuthPage({ onGuest }) {
     try {
       const result = await action();
       // Bản APK mở Chrome để đăng nhập: phiên sẽ được tạo khi app được mở lại.
-      if (result?.pending) setNotice("Đã mở Chrome. Chọn tài khoản Google rồi quay lại app — đăng nhập sẽ tự hoàn tất.");
+      if (result?.pending) setNotice("Đang chờ hoàn tất đăng nhập trong trình duyệt…");
     } catch (authError) {
       const messages = {
         "auth/invalid-credential": "Email hoặc mật khẩu chưa chính xác.",
@@ -40,7 +41,7 @@ export default function AuthPage({ onGuest }) {
         "auth/weak-password": "Mật khẩu cần có ít nhất 6 ký tự.",
         "auth/invalid-email": "Email chưa đúng định dạng.",
         "auth/popup-closed-by-user": "Cửa sổ Google đã được đóng.",
-        "lingua/missing-client-id": "Chế độ “client ID riêng” cần một Web client ID. Vào Cài đặt → Tài khoản để dán, hoặc chuyển về chế độ Tự động.",
+        "lingua/missing-client-id": "Bản cài này chưa có Google Client ID nên chưa đăng nhập Google được. Hãy dùng Email + mật khẩu.",
       };
       setError(messages[authError.code] || authError.message || "Không thể đăng nhập. Vui lòng thử lại.");
     } finally {
@@ -76,7 +77,8 @@ export default function AuthPage({ onGuest }) {
 
   return (
     <main className="min-h-screen bg-mist p-4 text-ink dark:bg-dark1 dark:text-white sm:p-6 lg:p-10">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]">
+      <div className={`mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 ${isDevice ? "lg:min-h-[calc(100vh-5rem)]" : "lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]"}`}>
+        {!isDevice && (
         <section className="relative overflow-hidden bg-ink p-8 text-white sm:p-12 lg:p-16">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-lime/20 blur-3xl" />
           <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[#8bc5a1]/20 blur-3xl" />
@@ -91,9 +93,16 @@ export default function AuthPage({ onGuest }) {
             <p className="text-xs text-white/35">Lingua Study Hub · học theo cách của bạn</p>
           </div>
         </section>
+        )}
 
         <section className="flex items-center p-6 sm:p-12 lg:p-16">
           <div className="mx-auto w-full max-w-md">
+            {isDevice && (
+              <div className="mb-6 flex items-center gap-3">
+                <AppMark className="h-10 w-10" />
+                <span className="font-display text-lg font-bold">lingua.</span>
+              </div>
+            )}
             <p className="eyebrow">Chào mừng trở lại</p>
             <h2 className="mt-2 font-display text-3xl font-bold">Bắt đầu phiên học</h2>
             <p className="mt-3 text-sm leading-6 text-ink/50 dark:text-white/50">Đăng nhập để lưu streak, bộ thẻ và tiến độ trên mọi thiết bị.</p>
@@ -109,15 +118,8 @@ export default function AuthPage({ onGuest }) {
             </form>
             <div className="mt-5 flex flex-wrap items-center justify-between gap-2 text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
             <button type="button" onClick={forgotPassword} disabled={loading} className="mt-3 text-xs font-bold text-ink/55 underline disabled:opacity-50 dark:text-white/55">Quên mật khẩu?</button>
-            {isCapacitor() && (
-              <p className="mt-4 rounded-xl bg-lime/15 px-3 py-2.5 text-xs leading-5">
-                Trên app, cách đăng nhập chắc chắn nhất là <strong>Email + mật khẩu</strong>: mở bản web → Cài đặt →
-                “Đăng nhập trên app bằng mật khẩu” để tạo mật khẩu, rồi quay lại đây nhập.
-              </p>
-            )}
             {error && <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2.5 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
             {notice && <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:text-amber-200" role="status">{notice}</p>}
-            {isCapacitor() && <GoogleSignInHelp compact />}
             <p className="mt-8 flex items-center justify-center gap-1.5 text-xs text-ink/60 dark:text-white/55"><Check size={13} /> Dữ liệu được đồng bộ riêng theo tài khoản</p>
           </div>
         </section>

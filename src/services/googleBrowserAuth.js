@@ -24,7 +24,7 @@ const PENDING_KEY = 'lingua-google-oauth-pending'
 const listeners = new Set()
 
 export const MissingClientIdError = () => {
-  const error = new Error('Chế độ “client ID riêng” cần một Web client ID. Vào Cài đặt → Tài khoản để dán, hoặc chuyển về chế độ Tự động.')
+  const error = new Error('Bản cài này chưa có Google Client ID nên chưa đăng nhập Google được. Hãy dùng Email + mật khẩu.')
   error.code = 'lingua/missing-client-id'
   return error
 }
