@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
-import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled, signInWithGoogle } from './services/authService'
+import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled } from './services/authService'
 import { subscribeGoogleReturn } from './services/googleBrowserAuth'
 import { readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
@@ -147,27 +147,6 @@ export default function App() {
 
   const recordStudyActivity = () =>
     updateUserStreak(user?.uid).then(setStreak).catch(() => {})
-  const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithGoogle()
-      if (result?.pending) {
-        toast.info('Đã mở Chrome. Hãy chọn tài khoản Google rồi quay lại app — đăng nhập sẽ tự hoàn tất.', { duration: 9000 })
-        return
-      }
-      toast.success('Đăng nhập Google thành công.')
-    } catch (authError) {
-      if (authError.code === 'lingua/missing-client-id') {
-        toast.error('Bản cài này chưa có Google Client ID nên chưa đăng nhập Google được. Hãy dùng Email + mật khẩu.', { duration: 10000 })
-        return
-      }
-      const messages = {
-        'auth/popup-closed-by-user': 'Bạn đã đóng cửa sổ đăng nhập.',
-        'auth/invalid-credential': 'Client ID không thuộc cùng project Firebase.',
-        'auth/network-request-failed': 'Mạng không ổn định, vui lòng thử lại.',
-      }
-      toast.error(messages[authError.code] || 'Không thể đăng nhập Google. Vui lòng thử lại.')
-    }
-  }
   const handleSignOut = async () => {
     setApiKey('')
     clearGuestVocabulary()
@@ -180,5 +159,5 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' ? <div className="max-w-3xl space-y-4"><AccountPanel user={user} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} /><AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} /><InstallAppPanel /><AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} /><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} onNavigate={selectTab} /></div> : <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onGoogleLogin={handleGoogleLogin} onSignOut={handleSignOut} onNavigate={selectTab} />}</Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={() => { setSearchOpen(false); setTutorOpen(true) }} onSelect={(item) => { selectTab(item.tab); if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type }); setSearchOpen(false) }} />}{tutorOpen && <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />}{shortcutsOpen && <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />}<Toaster /></div>
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-20 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={`${activeTab}-${user?.uid || 'guest'}-${dataVersion}`}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' ? <div className="max-w-3xl space-y-4"><AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} /><InstallAppPanel /><AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} /><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} /></div> : <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />}</Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={() => { setSearchOpen(false); setTutorOpen(true) }} onSelect={(item) => { selectTab(item.tab); if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type }); setSearchOpen(false) }} />}{tutorOpen && <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />}{shortcutsOpen && <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />}<Toaster /></div>
 }

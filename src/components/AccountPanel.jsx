@@ -3,7 +3,7 @@ import { Check, LogIn, LogOut, UserRound } from 'lucide-react';
 const initial = (user) => (user?.displayName || user?.email || 'K').trim().charAt(0).toUpperCase();
 
 
-export default function AccountPanel({ user, onGoogleLogin, onSignOut }) {
+export default function AccountPanel({ user, onOpenAuth, onSignOut }) {
   return <section className="panel p-5 md:p-6">
     <div className="flex items-center gap-3">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><UserRound size={19} /></span>
@@ -25,7 +25,8 @@ export default function AccountPanel({ user, onGoogleLogin, onSignOut }) {
       <p className="mt-3 flex items-center gap-2 text-xs text-ink/60 dark:text-white/60"><Check size={14} className="text-sage" /> Dữ liệu được đồng bộ riêng theo tài khoản này.</p>
     </> : <>
       <p className="mt-4 text-sm leading-6 text-ink/70 dark:text-white/70">Đăng nhập để đồng bộ bộ thẻ, tiến độ, kế hoạch học và streak trên mọi thiết bị. Dữ liệu đang có trên thiết bị này vẫn được giữ nguyên và gộp vào tài khoản sau khi đăng nhập.</p>
-      <button onClick={onGoogleLogin} className="btn-primary mt-4 w-full"><LogIn size={17} />Đăng nhập bằng Google</button>
+      {/* Mở trang đăng nhập (Email + mật khẩu hoặc Google) thay vì nhảy thẳng sang Google. */}
+      <button onClick={onOpenAuth} className="btn-primary mt-4 w-full"><LogIn size={17} />Đăng nhập / Tạo tài khoản</button>
     </>}
   </section>;
 }

@@ -345,7 +345,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 17.1 Đăng nhập trên APK (đã dọn hết hướng dẫn)
 
-- **Trang đăng nhập trên APK chỉ hiện form Email + mật khẩu** (ẩn cột giới thiệu khi `isCapacitor()` → vào app là thấy ngay ô nhập), kèm nút Google và “Quên mật khẩu?”. Không còn khối hướng dẫn nào trên app.
+- **Mọi nút đăng nhập trong app đều mở `/login`** (Sidebar, MobileHeader, Cài đặt → Tài khoản “Đăng nhập / Tạo tài khoản”) — **không** nhảy thẳng sang Google. Chỉ ở trang `/login`, bấm “Đăng nhập nhanh bằng Google” mới gọi Google thật (`signInWithGoogle`). App không còn `handleGoogleLogin` riêng.
+- **Trang đăng nhập (AuthPage)**: cột giới thiệu chỉ hiện từ `lg` trở lên (`hidden lg:block`); trên điện thoại/webview (kể cả APK) chỉ hiện form **Email + mật khẩu** kèm logo + nút Google → trước đây form nằm dưới khối hero cao gần 1 màn hình nên tưởng là app không có đăng nhập email.
 - Đã xoá: `AppLoginPanel` (“Bản APK → Đăng nhập trên app bằng mật khẩu”), `GoogleSignInHelp` (mở lại Chrome / dán id_token / nhật ký), khối `GoogleSetup` trong `AccountPanel` (chọn chế độ + dán client ID + hướng dẫn Google Cloud Console), và phần “Sao chép mã đăng nhập” trong `public/oauth-callback.html`.
 - Luồng thật vẫn giữ: Google trên web (popup) và trên APK (mở Chrome rồi quay về app qua deep link `com.lingua.studyhub://auth`); tài khoản Email + mật khẩu hoạt động như tài khoản Firebase bình thường.
 - Nếu sau này cần vào app bằng tài khoản Google (không có mật khẩu): `src/services/accountAuthService.js` vẫn giữ `createPasswordForApp` (thêm provider `password` vào tài khoản Google bằng `linkWithCredential`) — chỉ cần thêm một nút trong Cài đặt là dùng được ngay. Không thể “copy key” phiên từ web sang APK vì Firebase không xuất session/refresh token ở client (muốn thế phải có Cloud Function + Admin SDK `createCustomToken`).

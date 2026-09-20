@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, BookOpen, BrainCircuit, Check, Clock3, Mail } from "lucide-react";
 import AppMark from "../AppMark";
-import { isCapacitor } from "../../services/platform";
 import {
   auth,
   createUserWithEmailAndPassword,
@@ -23,8 +22,6 @@ export default function AuthPage({ onGuest }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  // Trên app APK, giao diện chỉ hiện form đăng nhập để Email + mật khẩu luôn thấy ngay.
-  const isDevice = isCapacitor();
 
   const runAuth = async (action) => {
     setError("");
@@ -77,9 +74,9 @@ export default function AuthPage({ onGuest }) {
 
   return (
     <main className="min-h-screen bg-mist p-4 text-ink dark:bg-dark1 dark:text-white sm:p-6 lg:p-10">
-      <div className={`mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 ${isDevice ? "lg:min-h-[calc(100vh-5rem)]" : "lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]"}`}>
-        {!isDevice && (
-        <section className="relative overflow-hidden bg-ink p-8 text-white sm:p-12 lg:p-16">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]">
+        {/* Cột giới thiệu chỉ hiện trên màn hình lớn; điện thoại (và app APK) vào là thấy form đăng nhập. */}
+        <section className="relative hidden overflow-hidden bg-ink p-8 text-white sm:p-12 lg:block lg:p-16">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-lime/20 blur-3xl" />
           <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[#8bc5a1]/20 blur-3xl" />
           <div className="relative flex h-full flex-col">
@@ -93,16 +90,13 @@ export default function AuthPage({ onGuest }) {
             <p className="text-xs text-white/35">Lingua Study Hub · học theo cách của bạn</p>
           </div>
         </section>
-        )}
 
         <section className="flex items-center p-6 sm:p-12 lg:p-16">
           <div className="mx-auto w-full max-w-md">
-            {isDevice && (
-              <div className="mb-6 flex items-center gap-3">
-                <AppMark className="h-10 w-10" />
-                <span className="font-display text-lg font-bold">lingua.</span>
-              </div>
-            )}
+            <div className="mb-6 flex items-center gap-3 lg:hidden">
+              <AppMark className="h-10 w-10" />
+              <span className="font-display text-lg font-bold">lingua.</span>
+            </div>
             <p className="eyebrow">Chào mừng trở lại</p>
             <h2 className="mt-2 font-display text-3xl font-bold">Bắt đầu phiên học</h2>
             <p className="mt-3 text-sm leading-6 text-ink/50 dark:text-white/50">Đăng nhập để lưu streak, bộ thẻ và tiến độ trên mọi thiết bị.</p>
