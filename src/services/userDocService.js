@@ -103,6 +103,9 @@ export const userDocKeys = {
   reminder: "reminder",
   history: "history",
   goal: "goal",
+  vstep: "vstep",
+  /** Sổ câu sai dùng chung cho Nghe / Đọc / VSTEP. */
+  mistakes: "mistakes",
 };
 
 /**

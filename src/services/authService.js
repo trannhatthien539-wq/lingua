@@ -14,16 +14,16 @@ export { isCapacitor, platformName };
 // Google Sign-In native (plugin @codetrix-studio/capacitor-google-auth) chỉ dùng khi bật rõ
 // ràng bằng VITE_GOOGLE_USE_NATIVE_AUTH=1. Mặc định bản APK dùng luồng mở Chrome vì không cần
 // SHA-1/Android client — xem src/services/googleBrowserAuth.js.
-const useNativeGoogle = () => import.meta.env.VITE_GOOGLE_USE_NATIVE_AUTH === '1';
+const nativeGoogleRequested = () => import.meta.env.VITE_GOOGLE_USE_NATIVE_AUTH === '1';
 let nativeGoogleReady = false;
 
 /** Bản APK có đang dùng Google Sign-In native không (mặc định là không). */
-export const isNativeGoogleAuthEnabled = () => isCapacitor() && useNativeGoogle();
+export const isNativeGoogleAuthEnabled = () => isCapacitor() && nativeGoogleRequested();
 
 export const hasNativeGoogleConfig = () => Boolean(getGoogleWebClientId());
 
 export const initializeNativeGoogleAuth = async () => {
-  if (!isCapacitor() || !useNativeGoogle()) return;
+  if (!isCapacitor() || !nativeGoogleRequested()) return;
   const clientId = getGoogleWebClientId();
   if (!clientId) {
     throw new Error('Bản cài này chưa có Google Client ID nên không thể đăng nhập Google. Hãy dùng email/mật khẩu.');
@@ -59,7 +59,7 @@ const signInWithNativeGoogle = async () => {
  */
 export const signInWithGoogle = async () => {
   if (!isCapacitor()) return signInWithPopup(auth, googleProvider);
-  if (useNativeGoogle()) {
+  if (nativeGoogleRequested()) {
     if (!getGoogleWebClientId()) {
       const error = new Error('Chế độ Google Sign-In native cần một Web client ID.');
       error.code = 'lingua/missing-client-id';

@@ -9,6 +9,7 @@ import {
   signInWithEmailAndPassword,
 } from "../../services/firebase";
 import { signInWithGoogle } from "../../services/authService";
+import { sendResetPasswordEmail } from "../../services/accountAuthService";
 
 const features = [
   { icon: BookOpen, title: "SRS Flashcard", text: "Ôn đúng lúc, nhớ lâu hơn với nhịp học cá nhân." },
@@ -54,6 +55,25 @@ export default function AuthPage({ onGuest }) {
       : createUserWithEmailAndPassword(auth, email, password));
   };
 
+  // "Quên mật khẩu": gửi email đặt lại. Cũng là cách vào app khi quên mật khẩu đã tạo ở bản web.
+  const forgotPassword = async () => {
+    setError("");
+    setNotice("");
+    if (!email.trim()) {
+      setError("Hãy nhập email tài khoản trước, rồi bấm “Quên mật khẩu?”.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendResetPasswordEmail(email);
+      setNotice(`Đã gửi email đặt lại mật khẩu tới ${email.trim()}. Mở email để đặt mật khẩu mới, sau đó đăng nhập lại.`);
+    } catch (resetError) {
+      setError(resetError.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-mist p-4 text-ink dark:bg-dark1 dark:text-white sm:p-6 lg:p-10">
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]">
@@ -87,7 +107,14 @@ export default function AuthPage({ onGuest }) {
               <label className="block"><span className="mb-2 block text-xs font-bold text-ink/60 dark:text-white/60">Mật khẩu</span><input required minLength={6} type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" placeholder="Ít nhất 6 ký tự" /></label>
               <button disabled={loading} className="btn-primary w-full">{loading ? "Đang xử lý..." : mode === "signin" ? "Đăng nhập" : "Tạo tài khoản"}<ArrowRight size={16} /></button>
             </form>
-            <div className="mt-5 flex items-center justify-between text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
+            <button type="button" onClick={forgotPassword} disabled={loading} className="mt-3 text-xs font-bold text-ink/55 underline disabled:opacity-50 dark:text-white/55">Quên mật khẩu?</button>
+            {isCapacitor() && (
+              <p className="mt-4 rounded-xl bg-lime/15 px-3 py-2.5 text-xs leading-5">
+                Trên app, cách đăng nhập chắc chắn nhất là <strong>Email + mật khẩu</strong>: mở bản web → Cài đặt →
+                “Đăng nhập trên app bằng mật khẩu” để tạo mật khẩu, rồi quay lại đây nhập.
+              </p>
+            )}
             {error && <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2.5 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
             {notice && <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:text-amber-200" role="status">{notice}</p>}
             {isCapacitor() && <GoogleSignInHelp compact />}

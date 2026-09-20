@@ -45,8 +45,12 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
           <select value={provider} onChange={(event) => setProvider(event.target.value)} className="field">
             <option value="gemini">Google Gemini</option>
             <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek (deepseek-chat)</option>
           </select>
         </label>
+        <p className="-mt-2 text-xs leading-5 text-ink/60 dark:text-white/60">
+          DeepSeek dùng key dạng <code>sk-...</code> lấy tại platform.deepseek.com — phù hợp cho chấm Writing VSTEP và gia sư AI.
+        </p>
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-ink/60 dark:text-white/60">API key</span>
           <div className="flex items-center gap-2 rounded-xl border border-ink/10 px-3 dark:border-white/10">
@@ -55,7 +59,7 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
               type="password"
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              placeholder={provider === 'gemini' ? 'AIza...' : 'gsk_...'}
+              placeholder={provider === 'gemini' ? 'AIza...' : provider === 'deepseek' ? 'sk-...' : 'gsk_...'}
               className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-ink/50 dark:placeholder:text-white/50"
             />
           </div>

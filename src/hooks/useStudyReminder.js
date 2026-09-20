@@ -10,6 +10,7 @@ import {
   showStudyNotification,
   todayKey,
 } from "../services/reminderService";
+import { nativeNotificationsAvailable, syncNativeReminder } from "../services/localNotifications";
 
 const CHECK_INTERVAL = 60_000;
 
@@ -38,8 +39,16 @@ export default function useStudyReminder(streak) {
     return () => window.removeEventListener(reminderChangedEvent, handle);
   }, [reload]);
 
+  // Trên thiết bị (APK): lên lịch thông báo hằng ngày của hệ điều hành,
+  // nhờ vậy vẫn nhắc được khi app đã đóng.
   useEffect(() => {
-    if (!settings.enabled) return undefined;
+    if (!nativeNotificationsAvailable()) return;
+    syncNativeReminder(settings, streak).catch(() => {});
+  }, [settings, streak]);
+
+  useEffect(() => {
+    // Trên web, thông báo chỉ hiện khi app còn mở — thiết bị đã có lịch riêng.
+    if (!settings.enabled || nativeNotificationsAvailable()) return undefined;
     let cancelled = false;
     const check = async () => {
       if (cancelled || !isReminderDue(settings)) return;

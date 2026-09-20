@@ -40,6 +40,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'If you heat water to 100°C, it ___.', options: ['boils', 'will boil', 'would boil', 'boiled'], answer: 'boils', explain: 'Loại 0: sự thật hiển nhiên, dùng hiện tại đơn cho cả hai mệnh đề.' },
       { type: 'fill', prompt: 'If I ___ (be) you, I would apologise.', answers: ['were'], explain: 'Loại 2 với “be” dùng “were” cho mọi ngôi.' },
       { type: 'choice', prompt: '___ you hurry, you will miss the bus.', options: ['If', 'Unless', 'When', 'Although'], answer: 'Unless', explain: '“Unless” = if not (nếu bạn không nhanh).' },
+      { type: 'choice', prompt: 'If she ___ the 7 a.m. train, she will arrive before noon.', options: ['miss', 'misses', 'missed', 'will miss'], answer: 'misses', explain: 'Loại 1: mệnh đề “if” dùng hiện tại đơn, chủ ngữ số ít thêm -s.' },
+      { type: 'error', prompt: 'If I would have a car, I would drive to work.', answers: ['if i had a car, i would drive to work'], hint: 'Sửa lỗi sai trong câu.', explain: 'Loại 2 dùng quá khứ đơn trong mệnh đề “if”, không dùng “would”.' },
     ],
   },
   {
@@ -78,6 +80,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'All mobile phones ___ during the exam.', options: ['must switch off', 'must be switched off', 'must switched off', 'must be switching off'], answer: 'must be switched off', explain: 'Modal + be + V3.' },
       { type: 'fill', prompt: 'The song ___ (write) by a young singer.', answers: ['was written'], explain: 'V3 của “write” là written.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['The letter was send yesterday.', 'The letter was sent yesterday.', 'The letter sent yesterday.', 'The letter was sending yesterday.'], answer: 'The letter was sent yesterday.', explain: 'Bị động quá khứ: was + V3 (sent).' },
+      { type: 'choice', prompt: 'A new hospital ___ in our town next year.', options: ['will build', 'will be built', 'is building', 'will been built'], answer: 'will be built', explain: 'Tương lai bị động: will + be + V3.' },
+      { type: 'transform', prompt: 'They clean the streets every morning. Viết lại ở dạng bị động, bắt đầu bằng “The streets…”.', answers: ['the streets are cleaned every morning'], hint: 'Hiện tại đơn bị động: am/is/are + V3.', explain: 'Hiện tại đơn bị động: The streets are cleaned every morning.' },
     ],
   },
   {
@@ -117,6 +121,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'She passed the test, ___ surprised her parents.', options: ['that', 'which', 'who', 'where'], answer: 'which', explain: 'Mệnh đề không xác định thay cho cả sự việc dùng “which”.' },
       { type: 'fill', prompt: 'The film ___ we watched was very long.', answers: ['which', 'that'], explain: 'Có thể dùng which/that, hoặc bỏ hẳn đại từ.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['My uncle, that lives in Hue, is a doctor.', 'My uncle, who lives in Hue, is a doctor.', 'My uncle who lives in Hue is a doctor.', 'My uncle, whose lives in Hue, is a doctor.'], answer: 'My uncle, who lives in Hue, is a doctor.', explain: 'Mệnh đề không xác định dùng “who”, có dấu phẩy.' },
+      { type: 'choice', prompt: 'Do you remember the day ___ we first met?', options: ['which', 'when', 'where', 'who'], answer: 'when', explain: '“when” thay cho trạng ngữ chỉ thời gian (on that day).' },
+      { type: 'error', prompt: 'The woman which lives next door is a nurse.', answers: ['the woman who lives next door is a nurse', 'the woman that lives next door is a nurse'], hint: 'Sửa lỗi sai trong câu.', explain: '“who” hoặc “that” dùng cho người, “which” chỉ dùng cho vật.' },
     ],
   },
   {
@@ -155,6 +161,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: '“Close the window,” she said to me. → She told me ___ the window.', options: ['close', 'to close', 'closing', 'closed'], answer: 'to close', explain: 'Câu mệnh lệnh: told + O + to + V.' },
       { type: 'fill', prompt: '“I have finished,” Lan said. → Lan said she ___ finished.', answers: ['had'], explain: 'Hiện tại hoàn thành lùi thành quá khứ hoàn thành.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['He said me he was late.', 'He told that he was late.', 'He told me he was late.', 'He said to me that was late.'], answer: 'He told me he was late.', explain: '“tell + người + (that) + câu”.' },
+      { type: 'choice', prompt: '“I will call you tomorrow,” she said. → She said she ___ call me the next day.', options: ['will', 'would', 'can', 'has'], answer: 'would', explain: '“will” lùi thành “would” trong câu tường thuật.' },
+      { type: 'error', prompt: 'She asked me what time does the film start.', answers: ['she asked me what time the film started'], hint: 'Sửa lỗi sai trong câu.', explain: 'Câu hỏi tường thuật không đảo trợ động từ và phải lùi thì (does start → started).' },
     ],
   },
   {
@@ -194,6 +202,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'She ___ be at home — the lights are off.', options: ['must', "can't", 'should', 'has to'], answer: "can't", explain: 'Suy đoán phủ định chắc chắn: can’t.' },
       { type: 'fill', prompt: 'You ___ (should / tell) me earlier about the meeting.', answers: ['should have told'], explain: 'Lẽ ra nên làm trong quá khứ: should have + V3.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['He can to drive.', 'He can drives.', 'He can drive.', 'He cans drive.'], answer: 'He can drive.', explain: 'Modal + V nguyên mẫu.' },
+      { type: 'choice', prompt: 'I ___ stay at home yesterday because my mother was ill.', options: ['must', 'had to', 'should have', 'might'], answer: 'had to', explain: 'Bắt buộc trong quá khứ dùng “had to”, vì “must” không có dạng quá khứ.' },
+      { type: 'error', prompt: 'You must to wear a helmet when you ride a motorbike.', answers: ['you must wear a helmet when you ride a motorbike'], hint: 'Sửa lỗi sai trong câu.', explain: 'Sau “must” là động từ nguyên mẫu, không dùng “to”.' },
     ],
   },
   {
@@ -233,6 +243,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'The weather today is ___ than yesterday.', options: ['bad', 'worse', 'worst', 'more bad'], answer: 'worse', explain: 'Bất quy tắc: bad → worse.' },
       { type: 'fill', prompt: 'The more you practise, the ___ (good) you become.', answers: ['better'], explain: 'So sánh kép với “better”.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['She is more taller than me.', 'She is taller than me.', 'She is the tallest than me.', 'She is more tall than me.'], answer: 'She is taller than me.', explain: 'Tính từ ngắn chỉ thêm -er.' },
+      { type: 'choice', prompt: 'This is ___ expensive hotel in the city.', options: ['the most', 'most', 'more', 'the more'], answer: 'the most', explain: 'So sánh nhất tính từ dài: the most + adj.' },
+      { type: 'transform', prompt: 'My car is cheaper than yours. Viết lại bắt đầu bằng “Your car is…” và dùng “more”.', answers: ['your car is more expensive than mine'], hint: 'So sánh hơn với tính từ dài “expensive”.', explain: 'Đổi chiều so sánh: cheap hơn → more expensive than.' },
     ],
   },
   {
@@ -272,6 +284,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: 'You should avoid ___ too much coffee at night.', options: ['drink', 'drinking', 'to drink', 'drank'], answer: 'drinking', explain: '“avoid” + V-ing.' },
       { type: 'fill', prompt: 'I went to the shop ___ (buy) some bread.', answers: ['to buy'], explain: 'Diễn tả mục đích: to + V.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['He finished to write the report.', 'He finished writing the report.', 'He finished write the report.', 'He finished to writing the report.'], answer: 'He finished writing the report.', explain: '“finish” + V-ing.' },
+      { type: 'choice', prompt: 'Remember ___ off the lights before you leave.', options: ['turn', 'turning', 'to turn', 'turned'], answer: 'to turn', explain: '“remember + to V” = nhớ phải làm việc gì đó (việc chưa xảy ra).' },
+      { type: 'transform', prompt: 'I like reading books. Viết lại bắt đầu bằng “I am interested…”', answers: ['i am interested in reading books'], hint: 'Tính từ “interested” đi với giới từ “in”.', explain: 'Sau giới từ “in” phải dùng V-ing: interested in reading.' },
     ],
   },
   {
@@ -310,6 +324,8 @@ export const grammarTopics = [
       { type: 'choice', prompt: '___ information you gave me was very useful.', options: ['A', 'An', 'The', 'Some of'], answer: 'The', explain: 'Thông tin đã xác định (bạn đưa cho tôi) → dùng the.' },
       { type: 'fill', prompt: 'I would like ___ apple, please. (a/an)', answers: ['an'], explain: '“apple” bắt đầu bằng nguyên âm → an.' },
       { type: 'choice', prompt: 'Câu nào đúng?', options: ['She gave me many advices.', 'She gave me much advices.', 'She gave me a lot of advice.', 'She gave me a advice.'], answer: 'She gave me a lot of advice.', explain: '“advice” không đếm được → a lot of advice.' },
+      { type: 'choice', prompt: 'How ___ money do you need for the trip?', options: ['many', 'much', 'a few', 'few'], answer: 'much', explain: '“money” là danh từ không đếm được nên dùng “much”.' },
+      { type: 'error', prompt: 'I have visited the Japan twice.', answers: ['i have visited japan twice'], hint: 'Sửa lỗi sai trong câu.', explain: 'Không dùng “the” trước tên quốc gia (trừ the USA, the UK, the Philippines).' },
     ],
   },
 ]

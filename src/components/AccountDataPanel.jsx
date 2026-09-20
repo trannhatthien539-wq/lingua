@@ -10,6 +10,11 @@ import {
   requestNotificationPermission,
   showStudyNotification,
 } from "../services/reminderService";
+import {
+  nativeNotificationsAvailable,
+  requestNativePermission,
+  sendNativeTestNotification,
+} from "../services/localNotifications";
 import { requestDataRefresh } from "../services/syncStatus";
 import { notifyReminderChanged } from "../services/reminderService";
 import { reloadHistory } from "../services/historyService";
@@ -30,9 +35,23 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
 
   const settings = reminderSettings || { enabled: false, time: "20:00" };
 
+  const isDevice = nativeNotificationsAvailable();
+
   const flash = (text) => {
     setMessage(text);
     window.setTimeout(() => setMessage(""), 4200);
+  };
+
+  /** Xin quyền thông báo: bản APK dùng quyền của hệ điều hành, web dùng Notification API. */
+  const ensurePermission = async () => {
+    if (isDevice) {
+      const result = await requestNativePermission();
+      setPermission(result === "granted" ? "granted" : result);
+      return result;
+    }
+    const result = permission === "granted" ? "granted" : await requestNotificationPermission();
+    setPermission(result);
+    return result;
   };
 
   const toggleReminder = async (enabled) => {
@@ -40,21 +59,24 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
       await onUpdateReminder({ enabled: false }).catch(() => flash("Không thể lưu cài đặt nhắc học."));
       return;
     }
-    const result = permission === "granted" ? "granted" : await requestNotificationPermission();
-    setPermission(result);
+    const result = await ensurePermission();
     if (result !== "granted") {
       flash(permissionLabels[result] || permissionLabels.default);
       return;
     }
     await onUpdateReminder({ enabled: true }).catch(() => flash("Không thể lưu cài đặt nhắc học."));
-    flash(`Đã bật nhắc học lúc ${settings.time}.`);
+    flash(`Đã bật nhắc học lúc ${settings.time}${isDevice ? " (thông báo của hệ điều hành)" : ""}.`);
   };
 
   const testNotification = async () => {
-    const result = permission === "granted" ? "granted" : await requestNotificationPermission();
-    setPermission(result);
+    const result = await ensurePermission();
     if (result !== "granted") {
       flash(permissionLabels[result] || permissionLabels.default);
+      return;
+    }
+    if (isDevice) {
+      const scheduled = await sendNativeTestNotification(streak);
+      flash(scheduled ? "Thông báo thử sẽ hiện sau 5 giây (bạn có thể thoát app)." : "Không thể lên lịch thông báo trên thiết bị này.");
       return;
     }
     const shown = await showStudyNotification("Đến giờ học rồi! 📚", reminderBody(streak));
@@ -170,7 +192,10 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
           </button>
         </div>
         <p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/55">
-          {permissionLabels[permission] || permissionLabels.default} Thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy).
+          {permissionLabels[permission] || permissionLabels.default}{" "}
+          {isDevice
+            ? "Trên app APK, thông báo do hệ điều hành lên lịch nên vẫn hiện dù bạn đã đóng app."
+            : "Trên web, thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy)."}
         </p>
       </div>
 

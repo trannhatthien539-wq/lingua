@@ -49,7 +49,7 @@ export async function updateUserStreak(userId = auth.currentUser?.uid) {
     return next;
   } catch (error) {
     console.error("Lingua streak update error", error);
-    throw new Error("Không thể cập nhật chuỗi học tập. Vui lòng thử lại sau.");
+    throw new Error("Không thể cập nhật chuỗi học tập. Vui lòng thử lại sau.", { cause: error });
   }
 }
 
@@ -60,7 +60,7 @@ export async function getUserStreak(userId = auth.currentUser?.uid) {
     return snapshot.exists() ? { ...emptyStreak, ...snapshot.data() } : emptyStreak;
   } catch (error) {
     console.error("Lingua streak read error", error);
-    throw new Error("Không thể tải chuỗi học tập. Vui lòng thử lại sau.");
+    throw new Error("Không thể tải chuỗi học tập. Vui lòng thử lại sau.", { cause: error });
   }
 }
 

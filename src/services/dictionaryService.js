@@ -24,7 +24,9 @@ const requestJson = async (url) => {
     }
     return await response.json();
   } catch (error) {
-    if (error?.name === "AbortError") throw new Error("Tra từ quá lâu. Kiểm tra mạng rồi thử lại nhé.");
+    if (error?.name === "AbortError") {
+      throw new Error("Tra từ quá lâu. Kiểm tra mạng rồi thử lại nhé.", { cause: error });
+    }
     throw error;
   } finally {
     clearTimeout(timer);
@@ -67,16 +69,12 @@ export async function translateToVietnamese(text) {
 /** Kết quả tra từ đầy đủ để đưa thẳng vào thẻ từ vựng. */
 export async function lookupWordOffline(word) {
   const dictionary = await lookupEnglishWord(word);
-  let meaning = "";
-  try {
-    meaning = await translateToVietnamese(dictionary.definition || dictionary.word);
-  } catch {
-    meaning = "";
-  }
+  const meaning = await translateToVietnamese(dictionary.definition || dictionary.word).catch(() => "");
   return {
     word: dictionary.word,
     ipa: dictionary.ipa,
     meaning: meaning || dictionary.definition,
+    definition: dictionary.definition,
     example: dictionary.example,
     audioUrl: dictionary.audioUrl,
     source: meaning ? "dictionary" : "dictionary-english",

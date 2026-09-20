@@ -5,6 +5,7 @@ const iconById = {
   vocabulary: BookOpen,
   grammar: GraduationCap,
   skills: Headphones,
+  vstep: GraduationCap,
   writing: PenLine,
   progress: Trophy,
   planner: CalendarDays,

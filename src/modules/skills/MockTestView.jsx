@@ -132,10 +132,10 @@ export default function MockTestView({ history, onFinish }) {
               subtitle="Không có đáp án trong lúc làm — kết quả hiện sau khi nộp"
               finishLabel="Làm đề khác"
               timeLimit={TIME_LIMIT}
-              onFinish={(correct, total, advance) => {
+              onFinish={(correct, total, advance, details) => {
                 const percent = Math.round((correct / total) * 100)
                 setScore({ correct, total, percent, ...bandFor(percent) })
-                if (!advance) onFinish?.(correct, total)
+                if (!advance) onFinish?.(correct, total, details)
                 else restart()
               }}
             />

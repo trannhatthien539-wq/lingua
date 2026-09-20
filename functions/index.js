@@ -23,6 +23,7 @@ const groqKey = defineSecret("GROQ_API_KEY");
 
 const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 const GROQ_MODEL = "llama-3.3-70b-versatile";
+const DEEPSEEK_MODEL = "deepseek-chat";
 
 // Giới hạn đơn giản theo IP để tránh bị lạm dụng (đủ dùng cho quy mô nhỏ).
 const WINDOW_MS = 60_000;

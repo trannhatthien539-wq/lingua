@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
+import AiExplainButton from './AiExplainButton'
 
 const normalizeAnswer = (value) =>
   String(value || '')
@@ -31,10 +32,10 @@ const shuffle = (items) => {
  * - `immediate`: hiện đáp án + giải thích ngay sau mỗi câu (chế độ luyện tập).
  * - Không bật: trả lời hết rồi mới chấm điểm và xem lại (bài kiểm tra cuối bài).
  */
-export default function GrammarQuiz({ questions, immediate = false, title, subtitle, onFinish, finishLabel = 'Tiếp tục', timeLimit = 0, onTimeUp }) {
+export default function GrammarQuiz({ questions, immediate = false, title, subtitle, onFinish, finishLabel = 'Tiếp tục', timeLimit = 0, onTimeUp, onAnswerResult, apiKey, provider = 'gemini', limit = 4 }) {
   const items = useMemo(
-    () => (immediate ? questions.slice(0, Math.min(4, questions.length)) : shuffle(questions)),
-    [questions, immediate],
+    () => (immediate ? questions.slice(0, Math.min(limit, questions.length)) : shuffle(questions)),
+    [questions, immediate, limit],
   )
   const [index, setIndex] = useState(0)
   const [response, setResponse] = useState('')
@@ -78,6 +79,8 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
     const correct = isCorrect(question, response)
     const next = [...results, { id: index, correct, response, question }]
     setResults(next)
+    // Báo từng câu để component cha lưu vào sổ câu sai.
+    onAnswerResult?.(next[next.length - 1])
     if (immediate) {
       setChecked(true)
       return
@@ -88,7 +91,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       setResponse('')
     } else {
       setFinished(true)
-      onFinish?.(next.filter((item) => item.correct).length, items.length)
+      onFinish?.(next.filter((item) => item.correct).length, items.length, false, next)
     }
   }
 
@@ -100,7 +103,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       return
     }
     setFinished(true)
-    onFinish?.(results.filter((item) => item.correct).length, items.length)
+    onFinish?.(results.filter((item) => item.correct).length, items.length, false, results)
   }
 
   if (finished) {
@@ -147,13 +150,14 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
                 </p>
               )}
               {item.question.explain && <p className="mt-1 pl-6 text-xs text-ink/60 dark:text-white/60">{item.question.explain}</p>}
+              {!item.correct && <AiExplainButton question={item.question} response={item.response} apiKey={apiKey} provider={provider} />}
             </div>
           ))}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={reset} className="btn-secondary px-4"><RotateCcw size={15} />Làm lại</button>
-          <button type="button" onClick={() => onFinish?.(correctCount, items.length, true)} className="btn-primary px-4">{finishLabel}<ArrowRight size={15} /></button>
+          <button type="button" onClick={() => onFinish?.(correctCount, items.length, true, results)} className="btn-primary px-4">{finishLabel}<ArrowRight size={15} /></button>
         </div>
       </div>
     )
@@ -183,7 +187,11 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       </div>
 
       <p className="mt-4 text-sm font-bold leading-6">{question.prompt}</p>
-      {question.type === 'fill' && <p className="mt-1 text-xs text-ink/60 dark:text-white/60">Điền dạng đúng của từ trong ngoặc, không cần viết hoa.</p>}
+      {question.type !== 'choice' && (
+        <p className="mt-1 text-xs text-ink/60 dark:text-white/60">
+          {question.hint || 'Điền dạng đúng của từ trong ngoặc, không cần viết hoa.'}
+        </p>
+      )}
 
       {question.type === 'choice' ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -247,7 +255,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
             {index + 1 < items.length ? 'Câu tiếp theo' : 'Xem kết quả'}
           </button>
         )}
-        {question.type === 'fill' && checked && (
+        {question.type !== 'choice' && checked && (
           <button type="button" onClick={nextQuestion} className="btn-primary px-4">
             {index + 1 < items.length ? 'Câu tiếp theo' : 'Xem kết quả'}
           </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { ArrowLeft, ArrowRight, BadgeCheck, CircleAlert, Lightbulb, Quote, Volume2 } from 'lucide-react'
 import GrammarQuiz from './GrammarQuiz'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
@@ -17,8 +17,16 @@ const Section = ({ icon: Icon, title, children, hint }) => (
   </section>
 )
 
-export default function GrammarLesson({ lesson, completed, onResult, onNext, onPrev, hasNext, hasPrev }) {
+export default function GrammarLesson({ lesson, completed, onResult, onNext, onPrev, hasNext, hasPrev, mistakeIds = [], onMistake, apiKey, provider }) {
   const topRef = useRef(null)
+
+  // Luyện tập ưu tiên câu từng làm sai của chính bài này (kèm các câu còn lại).
+  const practiceQuestions = useMemo(() => {
+    if (!mistakeIds.length) return lesson.questions
+    const wrong = lesson.questions.filter((question) => mistakeIds.includes(question.id))
+    const rest = lesson.questions.filter((question) => !mistakeIds.includes(question.id))
+    return wrong.length ? [...wrong, ...rest] : lesson.questions
+  }, [lesson.questions, mistakeIds])
 
   // Đổi bài thì đưa người học về đầu nội dung bài mới.
   useEffect(() => {
@@ -111,7 +119,7 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
       </Section>
 
       <Section icon={Lightbulb} title="Luyện tập nhanh" hint="Có đáp án ngay sau mỗi câu">
-        <GrammarQuiz key={`${lesson.id}-practice`} questions={lesson.questions} immediate title="Luyện tập" subtitle="4 câu đầu của bài" finishLabel="Sang bài kiểm tra" onFinish={() => {}} />
+        <GrammarQuiz key={`${lesson.id}-practice`} questions={practiceQuestions} immediate title="Luyện tập" subtitle={mistakeIds.length ? 'Ưu tiên câu bạn từng làm sai' : '4 câu đầu của bài'} finishLabel="Sang bài kiểm tra" onFinish={() => {}} onAnswerResult={onMistake} apiKey={apiKey} provider={provider} />
       </Section>
 
       <Section icon={BadgeCheck} title="Kiểm tra cuối bài" hint={`Cần đạt ${Math.round(PASS_RATIO * 100)}% để hoàn thành`}>
@@ -121,8 +129,10 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
           title="Bài kiểm tra"
           subtitle={`${lesson.questions.length} câu · đảo thứ tự mỗi lần làm`}
           finishLabel="Bài tiếp theo"
-          onFinish={(correct, total, advance) => {
-            if (!advance) onResult(correct, total)
+          apiKey={apiKey}
+          provider={provider}
+          onFinish={(correct, total, advance, details) => {
+            if (!advance) onResult(correct, total, details)
             if (advance && hasNext) onNext()
           }}
         />

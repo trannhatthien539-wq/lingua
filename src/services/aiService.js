@@ -1,5 +1,23 @@
 const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 const GROQ_MODEL = "llama-3.3-70b-versatile";
+// DeepSeek dùng API tương thích OpenAI (deepseek-chat = V3, deepseek-reasoner = R1).
+const DEEPSEEK_MODEL = "deepseek-chat";
+
+/** Danh sách provider + model dùng thử lần lượt (chỉ Gemini mới thử nhiều model). */
+const AI_PROVIDERS = {
+  gemini: { models: GEMINI_MODELS },
+  groq: { models: [GROQ_MODEL] },
+  deepseek: { models: [DEEPSEEK_MODEL] },
+};
+
+const OPENAI_COMPATIBLE_ENDPOINTS = {
+  groq: "https://api.groq.com/openai/v1/chat/completions",
+  deepseek: "https://api.deepseek.com/chat/completions",
+};
+
+/** Chuẩn hoá id provider, mặc định về gemini. */
+export const normalizeProvider = (providerId) =>
+  providerId === "groq" || providerId === "deepseek" ? providerId : "gemini";
 
 export const generateSmartVocabularyPrompt = (topic, level, amount, existingWords = []) =>
   `Bạn là giáo viên tiếng Anh. Tạo đúng ${amount} từ vựng theo chủ đề "${topic}" ở trình độ ${level}. TẤT CẢ TỪ PHẢI MỚI VÀ TUYỆT ĐỐI KHÔNG TRÙNG LẶP VỚI CÁC TỪ SAU ĐÂY: ${existingWords.join(", ") || "(chưa có từ nào)"}. Chỉ trả về JSON hợp lệ theo schema {"cards":[{"word":"...","ipa":"...","meaning":"nghĩa tiếng Việt","example":"câu ví dụ tiếng Anh"}]}. Không markdown.`;
@@ -37,14 +55,14 @@ async function requestModel(providerId, apiKey, prompt, json, model) {
   const isGemini = providerId === "gemini";
   const endpoint = isGemini
     ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
-    : "https://api.groq.com/openai/v1/chat/completions";
+    : OPENAI_COMPATIBLE_ENDPOINTS[providerId];
   const body = isGemini
     ? {
         contents: [{ parts: [{ text: prompt }] }],
         ...(json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
       }
     : {
-        model: GROQ_MODEL,
+        model,
         temperature: 0.2,
         messages: [{ role: "user", content: prompt }],
         ...(json ? { response_format: { type: "json_object" } } : {}),
@@ -90,10 +108,10 @@ async function requestViaProxy(providerId, prompt, json) {
 }
 
 export async function requestAi(providerId, apiKey, prompt, { json = false } = {}) {
-  const normalizedProvider = providerId === "groq" ? "groq" : "gemini";
+  const normalizedProvider = normalizeProvider(providerId);
   if (PROXY_URL) return requestViaProxy(normalizedProvider, prompt, json);
   if (!apiKey?.trim()) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
-  const models = normalizedProvider === "gemini" ? GEMINI_MODELS : [GROQ_MODEL];
+  const models = AI_PROVIDERS[normalizedProvider].models;
   let lastError;
   for (const model of models) {
     try {

@@ -416,7 +416,7 @@ const withFriendlyDataError = async (operation, args) => {
     return await operation(...args);
   } catch (error) {
     console.error("Lingua data service error", error);
-    throw new Error("Không thể đồng bộ dữ liệu. Vui lòng kiểm tra kết nối và thử lại.");
+    throw new Error("Không thể đồng bộ dữ liệu. Vui lòng kiểm tra kết nối và thử lại.", { cause: error });
   }
 };
 

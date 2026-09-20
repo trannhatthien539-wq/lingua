@@ -7,6 +7,7 @@ import WritingView from './WritingView'
 import SentenceView from './SentenceView'
 import MockTestView from './MockTestView'
 import useSkillsProgress from '../../hooks/useSkillsProgress'
+import useMistakeBank from '../../hooks/useMistakeBank'
 import useSectionState from '../../hooks/useSectionState'
 import { consumePendingItem } from '../../services/deepLink'
 
@@ -25,6 +26,7 @@ export default function SkillsHub({ onStudyActivity }) {
   const [focusId, setFocusId] = useState(null)
   const [openIntro, toggleIntro] = useSectionState('skills-intro', true)
   const { progress, recordSection, recordMock, recordSentence } = useSkillsProgress()
+  const { record: recordMistakes } = useMistakeBank()
 
   // Mở đúng tab/bài khi đến từ tìm kiếm toàn cục (Ctrl/⌘+K).
   useEffect(() => {
@@ -92,12 +94,32 @@ export default function SkillsHub({ onStudyActivity }) {
         </section>
       )}
 
-      {tab === 'listening' && <ListeningView progress={progress} focusId={focusId} onResult={(id, correct, total) => { recordSection('listening', id, correct, total); onStudyActivity?.() }} />}
-      {tab === 'reading' && <ReadingView progress={progress} focusId={focusId} onResult={(id, correct, total) => { recordSection('reading', id, correct, total); onStudyActivity?.() }} />}
+      {tab === 'listening' && (
+        <ListeningView
+          progress={progress}
+          focusId={focusId}
+          onResult={(id, correct, total, details) => {
+            recordSection('listening', id, correct, total)
+            recordMistakes(details, 'listening', id)
+            onStudyActivity?.()
+          }}
+        />
+      )}
+      {tab === 'reading' && (
+        <ReadingView
+          progress={progress}
+          focusId={focusId}
+          onResult={(id, correct, total, details) => {
+            recordSection('reading', id, correct, total)
+            recordMistakes(details, 'reading', id)
+            onStudyActivity?.()
+          }}
+        />
+      )}
       {tab === 'speaking' && <SpeakingView focusId={focusId} />}
       {tab === 'writing' && <WritingView />}
       {tab === 'sentence' && <SentenceView onStats={(correct, total) => { recordSentence(correct, total); if (correct > 0) onStudyActivity?.() }} />}
-      {tab === 'mock' && <MockTestView history={progress.mock} onFinish={(score, total) => { recordMock(score, total); onStudyActivity?.() }} />}
+      {tab === 'mock' && <MockTestView history={progress.mock} onFinish={(score, total, details) => { recordMock(score, total); recordMistakes(details, 'mock', 'mock'); onStudyActivity?.() }} />}
     </div>
   )
 }

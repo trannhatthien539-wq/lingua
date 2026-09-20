@@ -13,6 +13,9 @@ const TYPE_ICONS = {
   sentence: ListChecks,
   theme: BookOpen,
   word: BookOpen,
+  vstep: GraduationCap,
+  "vstep-doc": BookOpen,
+  vstepWord: BookOpen,
 }
 
 const COMMANDS = [

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Award, BookOpen, CalendarCheck, Download, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
+import TodayPlanCard from "../../components/TodayPlanCard";
+import MistakeBankCard from "../../components/MistakeBankCard";
 import useGrammarProgress from "../../hooks/useGrammarProgress";
 import useSkillsProgress from "../../hooks/useSkillsProgress";
+import useVstepProgress from "../../hooks/useVstepProgress";
 import useDailyGoal, { GOAL_PRESETS } from "../../hooks/useDailyGoal";
 import { dataService } from "../../services/dataService";
 import { getHistoryDays, historyChangedEvent, loadHistory, recentHistory } from "../../services/historyService";
@@ -39,9 +42,10 @@ function StatTile({ label, value, note }) {
 }
 
 /** Trang Tiến độ: mục tiêu ngày, XP/cấp độ, huy hiệu và thống kê gộp mọi module. */
-export default function ProgressHub({ user, streak }) {
-  const { progress: grammarProgress } = useGrammarProgress();
+export default function ProgressHub({ user, streak, onNavigate }) {
+  const { progress: grammarProgress, total: grammarTotal } = useGrammarProgress();
   const { progress: skillsProgress } = useSkillsProgress();
+  const { attempts: vstepAttempts } = useVstepProgress();
   const { target, setGoal } = useDailyGoal();
   const [days, setDays] = useState(() => getHistoryDays());
   const [cards, setCards] = useState([]);
@@ -88,8 +92,16 @@ export default function ProgressHub({ user, streak }) {
   }, []);
 
   const summary = useMemo(
-    () => summarize({ days, streak, cards, grammar: grammarProgress, skills: skillsProgress, goal: { target } }),
-    [days, streak, cards, grammarProgress, skillsProgress, target],
+    () => summarize({
+      days,
+      streak,
+      cards,
+      grammar: { ...grammarProgress, total: grammarTotal },
+      skills: skillsProgress,
+      goal: { target },
+      vstep: { attempts: vstepAttempts },
+    }),
+    [days, streak, cards, grammarProgress, grammarTotal, skillsProgress, target, vstepAttempts],
   );
   const { stats, xp, achievements } = summary;
   const level = levelFor(xp);
@@ -111,6 +123,13 @@ export default function ProgressHub({ user, streak }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <TodayPlanCard
+          cards={cards}
+          target={target}
+          goalToday={stats.goal.today}
+          streak={streak}
+          onNavigate={onNavigate}
+        />
         <section className="panel p-5 print-report">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -194,6 +213,8 @@ export default function ProgressHub({ user, streak }) {
         </section>
       </div>
 
+      <MistakeBankCard />
+
       <section className="panel p-5 print-report">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -232,6 +253,8 @@ export default function ProgressHub({ user, streak }) {
             <StatTile label="Nghe · Đọc" value={`${stats.skills.listening} · ${stats.skills.reading}`} note="bài đã làm" />
             <StatTile label="Luyện câu" value={`${stats.skills.sentenceAccuracy}%`} note={`${stats.skills.sentenceAttempted} câu`} />
             <StatTile label="Thi thử tốt nhất" value={stats.skills.mockBest} note={`${stats.skills.mockCount} lần thi`} />
+            <StatTile label="Đề VSTEP đã thi" value={stats.vstep.attempts} note="đủ 4 kỹ năng" />
+            <StatTile label="VSTEP cao nhất" value={stats.vstep.best ? `${stats.vstep.best}/10` : "—"} note={stats.vstep.band ? `mức ${stats.vstep.band}` : "chưa có kết quả"} />
             <StatTile label="Ngày học tốt nhất" value={stats.bestDay} note="lượt ôn/ngày" />
             <StatTile label="Buổi học" value={stats.sessions} note="phiên hoàn thành" />
             <StatTile label="Đúng 7 ngày qua" value={`${stats.last7.accuracy}%`} note={`${stats.last7.activeDays} ngày có học`} />

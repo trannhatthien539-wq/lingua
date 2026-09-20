@@ -180,8 +180,8 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
             title="Nghe hiểu"
             subtitle={`${lesson.questions.length} câu · chấm điểm sau khi trả lời hết`}
             finishLabel="Nghe bài khác"
-            onFinish={(correct, total) => {
-              onResult(lesson.id, correct, total)
+            onFinish={(correct, total, _advance, details) => {
+              onResult(lesson.id, correct, total, details)
               onLines?.(lesson.transcript.length)
             }}
           />

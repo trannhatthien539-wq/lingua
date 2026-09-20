@@ -1,6 +1,8 @@
 import { navigationItems } from "../data/navigation";
 import { grammarAllItems } from "../data/grammarIndex";
 import { themeDecks } from "../data/themeDecks";
+import { registry as vstepRegistry } from "../data/vstep/registry";
+import { vocabularyTopics } from "../data/vstep/vocabulary/topics";
 import { listeningLessons } from "../data/skills/listening";
 import { readingPassages } from "../data/skills/reading";
 import { writingTasks } from "../data/skills/writing";
@@ -22,6 +24,9 @@ export const TYPE_LABELS = {
   sentence: "Luyện câu",
   theme: "Bộ theo chủ đề",
   word: "Từ thông dụng",
+  vstep: "Đề VSTEP",
+  "vstep-doc": "Tài liệu VSTEP",
+  vstepWord: "Từ vựng VSTEP",
 };
 
 /** Bỏ dấu để "ngu phap" vẫn khớp "Ngữ pháp". */
@@ -119,6 +124,39 @@ const staticItems = [
       extra: deck.description,
     }),
   ),
+  ...vstepRegistry.map((meta) =>
+    makeItem({
+      id: `vstep:${meta.id}`,
+      type: "vstep",
+      tab: "vstep",
+      itemId: meta.id,
+      label: meta.title,
+      detail: `Đề thi VSTEP ${meta.level} · 35 câu Nghe + 40 câu Đọc + Viết + Nói`,
+      extra: (meta.tags || []).join(" "),
+    }),
+  ),
+  ...[['handbook', 'Sổ tay VSTEP'], ['vocabulary', 'Từ vựng VSTEP theo chủ đề'], ['phrases', 'Mẫu câu & lỗi thường gặp']].map(([viewId, title]) =>
+    makeItem({
+      id: `vstep-doc:${viewId}`,
+      type: "vstep-doc",
+      tab: "vstep",
+      itemId: viewId,
+      label: title,
+      detail: "Tài liệu VSTEP · sổ tay, từ vựng, mẫu câu",
+      extra: "vstep handbook guide",
+    }),
+  ),
+  ...vocabularyTopics.map((topic) =>
+    makeItem({
+      id: `vstep-vocab:${topic.id}`,
+      type: "vstepWord",
+      tab: "vstep",
+      itemId: topic.id,
+      label: topic.title,
+      detail: `Từ vựng VSTEP · mức ${topic.level}`,
+      extra: "vstep vocabulary tu vung",
+    }),
+  ),
 ];
 
 let commonWordItems = null;
@@ -160,15 +198,14 @@ export async function searchEverything(rawQuery, { limit = 14 } = {}) {
     .map((item) => ({ ...item, score: score(item) }))
     .filter((item) => item.score > 0);
 
-  let wordResults = [];
-  try {
-    wordResults = (await loadCommonWordIndex())
-      .map((item) => ({ ...item, score: score(item) }))
-      .filter((item) => item.score > 0)
-      .slice(0, 6);
-  } catch {
-    wordResults = [];
-  }
+  const wordResults = await loadCommonWordIndex()
+    .then((words) =>
+      words
+        .map((item) => ({ ...item, score: score(item) }))
+        .filter((item) => item.score > 0)
+        .slice(0, 6),
+    )
+    .catch(() => []);
 
   return [...scored, ...wordResults].sort((first, second) => second.score - first.score).slice(0, limit);
 }

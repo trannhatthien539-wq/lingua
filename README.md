@@ -23,10 +23,10 @@
 | Hiệu ứng | `canvas-confetti` (chúc mừng), `react-player` (audio/video), `html-to-image` |
 | Dữ liệu | Firebase Auth + Firestore (`initializeFirestore` + `persistentLocalCache` để dùng offline) |
 | Nội dung nâng cao | `@xyflow/react` + `dagre` (mindmap), `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) |
-| Di động | `@capacitor/core|app|browser`, `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
+| Di động | `@capacitor/core|app|browser`, `@capacitor/local-notifications` (nhắc học trên APK), `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
 | Build | Vite (`base` = `/lingua/` khi `GITHUB_PAGES=true`), PostCSS/Tailwind |
 
-Node ≥ 20 (đã kiểm chứng với Node 24). Không có ESLint/TypeScript; chất lượng dựa vào convention + test hàm thuần.
+Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất lượng dựa vào **ESLint (flat config)** + test hàm thuần.
 
 ## 2. Lệnh thường dùng
 
@@ -36,7 +36,11 @@ Node ≥ 20 (đã kiểm chứng với Node 24). Không có ESLint/TypeScript; c
 | `npm run dev` | Dev server (thêm `-- --force` khi dependency cache lỗi thời) |
 | `npm run build` | Build production ra `dist/` (dùng để **kiểm tra sau mỗi lần sửa**) |
 | `npm run preview` | Xem thử bản build |
-| `npm test` | `node --test "tests/*.test.js"` — 4 file test, 26 test |
+| `npm test` | `node --test "tests/*.test.js"` — 7 file test, 46 test |
+| `npm run lint` | `eslint .` — cấu hình ở `eslint.config.js` (0 error, warning không chặn CI) |
+| `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
+
+CI (`deploy.yml`) chạy theo thứ tự: `npm ci` → `npm test` → `npm run lint` → `npm run build` → deploy GitHub Pages.
 
 ## 3. Kiến trúc & luồng
 
@@ -84,6 +88,7 @@ src/
 │  ├─ grammar/                          # GrammarHub, GrammarLesson, GrammarQuiz (QuestionSet dùng lại cho nghe/đọc/thi thử)
 │  ├─ skills/                           # SkillsHub + ListeningView, ReadingView, SpeakingView, WritingView, SentenceView, MockTestView
 │  ├─ progress/ProgressHub.jsx          # mục tiêu, XP, huy hiệu, thống kê gộp, xuất báo cáo
+│  ├─ vstep/                            # tab VSTEP: VstepHub, VstepExamRunner, VstepResult, sections/*, docs/*, useTranscriptAudio, useAudioRecorder
 │  ├─ planner/StudyPlanner.jsx          # todo + lịch + pomodoro
 │  ├─ mindmap/StudyMindmap.jsx          # sơ đồ cây React Flow (+ sinh bằng AI)
 │  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
@@ -95,7 +100,7 @@ src/
 └─ lib/formatters.js       # format ngày/giờ tiếng Việt
 ```
 
-Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `tests/`, `.github/workflows/` (deploy + build APK).
+Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `scripts/` (script QA nội dung), `tests/`, `.github/workflows/` (deploy + build APK).
 
 **File chết (đã bị thay thế, xoá được)**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`.
 
@@ -104,8 +109,9 @@ Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest
 | Tab id | URL | Module | Nội dung chính |
 | --- | --- | --- | --- |
 | `vocabulary` | `/vocabulary` | `VocabularyHub` | Bộ thẻ, SRS, 4 chế độ học, thùng rác, sửa hàng loạt, thêm từ (AI/từ điển miễn phí), import/export |
-| `grammar` | `/grammar` | `GrammarHub` | 12 thì + 8 cấu trúc B1, cheat sheet, kiểm tra cuối bài (đạt ≥ 80%) |
+| `grammar` | `/grammar` | `GrammarHub` | 30 bài (12 thì + cấu trúc B1 + mở rộng + C1), sổ câu sai, thi tổng hợp, bảng tra nhanh, cặp dễ lẫn |
 | `skills` | `/skills` | `SkillsHub` | 6 sub-tab: Nghe, Đọc, Nói (chấm phát âm), Viết, Luyện câu, Thi thử B1 |
+| `vstep` | `/vstep` | `VstepHub` | **Kho đề VSTEP** (10 đề B1/B2/C1) + sổ tay, từ vựng, mẫu câu, lịch sử thi |
 | `writing` | `/writing` | `WritingChecker` | Chấm chữa bài viết bằng AI |
 | `progress` | `/progress` | `ProgressHub` | Mục tiêu ngày, XP/cấp, huy hiệu, 12 ô thống kê, biểu đồ, in báo cáo |
 | `planner` | `/planner` | `StudyPlanner` | Todo, lịch học, pomodoro |
@@ -144,12 +150,14 @@ Doc id `<uid>__<key>`, payload `{ userId, key, payload, updatedAt }`; có bản 
 | --- | --- |
 | `planner` | Todo + lịch học |
 | `mindmap` | Node/edge của sơ đồ |
-| `grammar` | `{ completed: { [lessonId]: { best, total, passed } }, lastLesson }` |
+| `grammar` | `{ completed: { [lessonId]: { best, total, passed } }, lastLesson, mistakes: { [questionId]: { prompt, answer, explain, response, count, at } }, attempts: [{ source, correct, total }] (≤30) }` |
 | `writing` | Bản nháp/bài đã chấm |
 | `skills` | `{ listening: {id:{best,total}}, reading: {…}, mock: [{score,total,at}] (≤20), sentence: {attempted, correct} }` |
 | `reminder` | `{ enabled, time }` |
 | `history` | `{ days: { "YYYY-MM-DD": { reviewed, correct, sessions } } }` (≤ 400 ngày) |
 | `goal` | `{ target }` — mục tiêu lượt ôn mỗi ngày (mặc định 20) |
+| `vstep` | `{ attempts: [{ examId, level, at, scores{4 kỹ năng}, average, band, durationSeconds }] (≤30), drafts: { "<examId>:<taskId>": "bài viết" } }` |
+| `mistakes` | **Sổ câu sai dùng chung** cho Nghe/Đọc/VSTEP: `{ items: { [key]: { key, source, label, refId, type, prompt, options, answer, answers, explain, response, count, at } } (≤150), attempts: [{ correct, total, percent }] (≤40) }` |
 
 ### 6.4 Firestore & rules
 
@@ -163,7 +171,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `lingua-user-state-<owner>__<key>` | Cache `user_state` (`owner` = uid hoặc `guest`) |
 | `lingua-appearance` | Bảng màu, font, cỡ chữ |
 | `lingua-settings-sections` | Trạng thái mở/đóng các khối Cài đặt |
-| `lingua-ai-provider` | `gemini` \| `groq` |
+| `lingua-ai-provider` | `gemini` \| `groq` \| `deepseek` |
+| `lingua-word-cache` | Đệm kết quả tra từ nhanh (≤400 từ) cho popover bấm-vào-từ |
 | `lingua_api_key_<uid>` / `lingua_api_key_guest` | API key AI (key khách tự chuyển cho tài khoản khi đăng nhập) |
 | `lingua-tutor-chat-<uid|guest>` | 40 tin nhắn gần nhất của gia sư AI |
 | `lingua-practice-topic`, `lingua-google-login-mode`, `lingua-google-auth-log` | Điều hướng nhanh vào phiên học; chế độ đăng nhập Google; log chẩn đoán |
@@ -178,9 +187,14 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `streakService.js` | Chuỗi ngày học (`users/{uid}` hoặc localStorage cho khách) |
 | `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini (fallback 3 model) & Groq; hỗ trợ proxy qua `VITE_AI_PROXY_URL`; các prompt mẫu (`generateSmartVocabularyPrompt`, …) |
 | `dictionaryService.js` | Tra từ **miễn phí** (dictionaryapi.dev + MyMemory), không cần key |
+| `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
 | `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
 | `deepLink.js` | Mở đúng bài sau khi tìm kiếm (`openItem` / `consumePendingItem(tab)`) |
 | `gamification.js` | `computeStats`, `computeXp`, `levelFor`, `achievementsFor` (hàm thuần, có test) |
+| `vstepScoring.js` | Chấm điểm VSTEP thuần: `examQuestions`, `scoreObjectiveSection`, `selfAssessedScore10`, `summariseAttempt`, `examMinutes` (hàm thuần, có test) |
+| `vstepService.js` | Nạp đề VSTEP (lazy qua `registry.js`) + re-export toàn bộ hàm chấm điểm |
+| `vstepAi.js` | Chấm Writing/Nói VSTEP bằng AI theo tiêu chí (Gemini/Groq/DeepSeek) |
+| `vstepDeck.js` | Biến một chủ đề từ vựng VSTEP thành bộ flashcard SRS |
 | `syncStatus.js` | Online/offline, đếm write đang chờ, event `lingua:data-refresh` |
 | `toast.js` | **Hệ thống thông báo duy nhất** (`toast.success/error/info/undo`) |
 | `imageService.js` | Tìm ảnh an toàn cho thẻ (`findVocabularyImageSafely`), whitelist nguồn ảnh |
@@ -189,7 +203,9 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `authService.js`, `googleBrowserAuth.js`, `googleAuthConfig.js` | Đăng nhập Google: popup (web), browser flow + deep link (APK), paste id_token dự phòng |
 | `backupService.js` | Xuất/nhập toàn bộ dữ liệu (file JSON) |
 | `shareDeck.js` | Chia sẻ bộ thẻ qua URL `#deck=<base64url>` |
-| `reminderService.js` | Nhắc học bằng Notification (chỉ khi app đang mở) |
+| `reminderService.js` | Nhắc học bằng Web Notification (chỉ khi app đang mở trên web) |
+| `localNotifications.js` | Nhắc học trên **APK**: lên lịch thông báo hằng ngày của hệ điều hành (`@capacitor/local-notifications`), có `sendNativeTestNotification`; plugin nạp động nên bundle web không phình |
+| `accountAuthService.js` | **Cầu mật khẩu web → APK**: tạo/đổi mật khẩu cho tài khoản Google, gửi email đặt lại mật khẩu (xem §11.1) |
 | `appearanceService.js` | Bảng màu/font/cỡ chữ, đổi CSS variables |
 | `vocabularySync.js` | Merge dữ liệu khách → tài khoản sau khi đăng nhập |
 | `platform.js`, `apiClient.js`, `aiClient.js`, `apiKeyStorage.js` | Tiện ích nền tảng, client dự phòng, đọc/ghi API key |
@@ -200,8 +216,10 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | --- | --- |
 | `useCloudDoc(key, opts)` | Hydrate + debounce-save một `user_state` doc, tự reload theo `lingua:data-refresh` |
 | `useDailyGoal()` | Mục tiêu ôn/ngày (key `goal`), `GOAL_PRESETS`, `setGoal` |
+| `useVstepProgress()` | Lịch sử thi VSTEP + bản nháp Writing (key `vstep`), `recordAttempt`, `bestFor`, `clearHistory` |
 | `useGrammarProgress()` / `useSkillsProgress()` | Tiến độ ngữ pháp / kỹ năng (record + đọc) |
-| `useStudyReminder(streak)` | Cấu hình nhắc học |
+| `useMistakeBank()` | **Sổ câu sai dùng chung** (key `mistakes`): `mistakes` (đã gộp + sắp theo số lần sai), `record(details, source, refId, label)`, `remove`, `clear`, `recordRetry`, `stats.bySource` |
+| `useStudyReminder(streak)` | Cấu hình nhắc học; trên thiết bị tự gọi `syncNativeReminder` để lên lịch thông báo của hệ điều hành |
 | `useSectionState(id, default)` | Trạng thái mở/đóng khối UI (localStorage) |
 | `useTheme()`, `useAppearance()` | Dark mode + tuỳ biến giao diện |
 | `useInstallPrompt()` | Nút "Cài app" (A2HS), nhận biết iOS |
@@ -213,7 +231,10 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | --- | --- |
 | `commonWords.js` + `commonWords/part1-4.js` | 1.000 từ thông dụng (dòng `word\|meaning`), được **lazy import** để không phình bundle chính |
 | `grammarCurriculum.js` | 12 thì × 8 câu hỏi + cheat sheet (`PASS_RATIO = 0.8`) |
-| `grammarTopics.js`, `grammarIndex.js` | 8 cấu trúc B1; gộp thành `grammarAllItems` (20 bài) + `grammarSections` |
+| `grammarTopics.js`, `grammarTopicsB1a.js`, `grammarTopicsB1b.js` | 14 chủ điểm B1/mở rộng (điều kiện, bị động, mệnh đề quan hệ, tường thuật, modal, so sánh, gerund, mạo từ, **giới từ, liên từ & mệnh đề trạng ngữ, used to, câu hỏi đuôi, cấu tạo từ, wish/causative**), mỗi bài 8 câu |
+| `grammarTopicsC1.js` | 4 cấu trúc C1: câu chẻ, đảo ngữ, mệnh đề phân từ, danh hoá & hedging |
+| `grammarConfusingPairs.js` | 16 cặp cấu trúc dễ lẫn kèm cách phân biệt + ví dụ |
+| `grammarIndex.js` | Gộp 30 bài + gắn id câu hỏi (`<lessonId>-q<n>`), 4 nhóm bài, `grammarAllQuestions`, bảng tra nhanh chủ điểm |
 | `skills/listening.js` | 6 bài nghe (transcript từng câu, câu hỏi) |
 | `skills/reading.js` | 6 bài đọc + glossary + câu hỏi |
 | `skills/speaking.js` | 6 chủ đề (warm-up, cue card + bài mẫu, discussion, phrases) |
@@ -221,6 +242,13 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `skills/sentencePractice.js` | 45 bài: 15 điền khuyết (cl), 15 sắp xếp (or), 15 viết lại (rw) |
 | `themeDecks.js` | 7 bộ cụm từ theo chủ đề (`createThemeDeck(id)`) |
 | `starterDeck.js` | Bộ "IELTS Speaking Part 1" 10 từ (bộ mẫu cũ, tự thay bằng bộ 1000 từ) |
+| `vstep/metadata.js` | Metadata 10 đề VSTEP (id, bậc, tiêu đề, tags) — dùng cho danh sách + tìm kiếm (không có API Vite nên test được) |
+| `vstep/registry.js` | Nạp lười nội dung đề (`import.meta.glob`) + `loadExam(id)` |
+| `vstep/bands.js` | Ngưỡng quy đổi điểm → bậc (C1 ≥ 8.5, B2 ≥ 6, B1 ≥ 4) |
+| `vstep/exams/<id>.js` | **10 đề VSTEP** (B1×3, B2×4, C1×3): mỗi đề 35 câu Nghe + 40 câu Đọc + 2 task Viết + 3 phần Nói |
+| `vstep/handbook.js` | Sổ tay: cấu trúc đề, cách tính điểm, mẹo 4 kỹ năng, lộ trình 9 tuần, checklist ngày thi |
+| `vstep/vocabulary/topics.js` | 10 chủ đề × 20 từ (200 từ) dạng `word\|ipa\|nghĩa\|ví dụ` |
+| `vstep/phrases.js` | Mẫu câu Writing (6 nhóm) & Speaking (5 nhóm) + 21 lỗi thường gặp |
 | `navigation.js` | Danh sách tab |
 
 ## 10. Quy ước UI & design system
@@ -237,8 +265,18 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 - **Từ vựng (`VocabularyHub`)**: phiên học tối đa `SESSION_LIMIT = 50` thẻ, danh sách hiện `RENDER_LIMIT = 60` rồi "Xem thêm". Bộ lọc: tất cả/chưa thuộc/đã thuộc + menu SRS (cần ôn hôm nay, interval 1/3/5, **từ hay quên**). 4 chế độ: flashcard 3D, trắc nghiệm, chính tả (TTS), nối từ. Tự tra ảnh khi thư viện ≤ 200 thẻ (tối đa 8 ảnh/lần tải).
 - **FlashcardModal**: lật thẻ 3D, phím `Space` để lật, `1/2/3` để đánh giá, `←/Z` về thẻ trước; thẻ "chưa nhớ" quay lại cuối hàng đợi; nút đánh giá hiện khoảng nghỉ thật.
-- **Ngữ pháp**: 20 bài, mỗi bài có cấu trúc/dấu hiệu/ví dụ/lỗi thường gặp; kiểm tra cuối bài đạt ≥ 80% mới tính hoàn thành và cộng chuỗi ngày.
+- **Ngữ pháp**: **30 bài** — 12 thì, 14 chủ điểm B1/mở rộng, 4 cấu trúc C1; mỗi bài có cấu trúc/cách dùng/dấu hiệu/ví dụ/lỗi thường gặp, 8 câu hỏi gồm 4 dạng (`choice`, `fill` điền từ, `error` sửa lỗi, `transform` viết lại câu), luyện nhanh (đáp án ngay, **ưu tiên câu từng sai**) và kiểm tra cuối bài (đạt ≥ 80%).
+  - **Sổ câu sai**: câu làm sai được lưu tự động vào `user_state` key `grammar` (kèm số lần sai); có nút luyện lại, xoá từng câu, và **chuyển thành bộ flashcard** (`Ngữ pháp · câu hay sai`) để ôn bằng SRS.
+  - **Thi tổng hợp**: 30 câu trộn mọi chủ điểm, 20 phút, đạt ≥ 70%, lưu lịch sử thi.
+  - **Tra cứu nhanh**: bảng 12 thì, bảng 18 chủ điểm, và bảng 16 **cặp cấu trúc dễ lẫn**; nút **“Giải thích bằng AI”** cho từng câu sai (cần API key hoặc proxy).
+- **VSTEP (`/vstep`)**: tab riêng gồm 4 phần xem: **Bộ đề** (10 đề, lọc theo bậc), **Sổ tay VSTEP**, **Từ vựng** (10 chủ đề, tạo bộ flashcard bằng 1 nút), **Mẫu câu**, **Lịch sử thi**.
+  - *Thi thật*: đi một chiều như thi thật (Nghe 40′ → Đọc 60′ → Viết 60′ → Nói 12′), mỗi kỹ năng có đồng hồ riêng, hết giờ tự chuyển phần, không xem đáp án trước khi nộp; băng nghe là TTS đọc transcript và **giới hạn 2 lần nghe** mỗi phần.
+  - *Luyện*: không đồng hồ, được xem đáp án từng kỹ năng (nút "Xem đáp án phần này").
+  - Kết quả: điểm 0–10 từng kỹ năng (Nghe/Đọc tự chấm; Viết/Nói chấm bằng AI hoặc tự chấm checklist), điểm trung bình → bậc B1/B2/C1, xem lại từng câu kèm giải thích và transcript, lưu vào lịch sử thi.
+  - Nút chấm AI dùng provider đang chọn trong Cài đặt (Gemini/Groq/**DeepSeek**) và cần API key (hoặc proxy).
 - **Kỹ năng**: Nghe (TTS 0.8x/1x/1.2x + chép chính tả), Đọc (glossary + câu hỏi), Nói (ghi âm + **chấm điểm phát âm** bằng Web Speech API: % khớp, từ chưa rõ, tốc độ nói), Viết, Luyện câu (3 dạng), Thi thử B1 (28 câu: 12 ngữ pháp + 8 từ vựng + 4 đọc + 4 nghe, 30 phút, ước lượng band).
+- **Bấm-vào-từ để tra nghĩa (`TappableText`)**: mọi từ tiếng Anh trong bài đọc Skills, bài đọc VSTEP và bảng từ khoá đều bấm được → popover hiện IPA, nghĩa tiếng Việt, định nghĩa, ví dụ, từ đồng nghĩa + nút **Nghe** và **Thêm vào bộ thẻ** (tự tạo bộ `Từ vựng tra nhanh`, hoặc chọn bộ khác trong danh sách). Kết quả tra được đệm ở `lingua-word-cache` nên bấm lại là hiện ngay; mất mạng thì báo lỗi thân thiện và không cho lưu thẻ rỗng. `GlossaryList` (bảng từ khoá) có nút nghe + nút lưu thẻ cho từng từ.
+- **Sổ câu sai dùng chung + “Hôm nay học gì?”** (tab Tiến độ): `MistakeBankCard` gộp câu sai **Ngữ pháp + Nghe + Đọc + VSTEP** (ưu tiên câu sai nhiều lần), cho **luyện lại tối đa 20 câu** ngay tại chỗ (đáp án hiện sau mỗi câu, ghi tiếp vào đúng sổ) và **tạo bộ flashcard** `Sổ câu sai · Nghe/Đọc/VSTEP` để ôn bằng SRS. `TodayPlanCard` gợi ý việc cần làm hôm nay (thẻ đến hạn, thẻ mới, từ hay quên, câu sai, kỹ năng VSTEP yếu nhất, mục tiêu, chuỗi ngày) — mỗi dòng có nút nhảy thẳng tới đúng khu vực qua prop `onNavigate` (App truyền `selectTab` vào module).
 - **Tiến độ**: XP = lượt ôn ×2 + đúng ×3 + phiên ×8 + thẻ đã thuộc ×2 + bài ngữ pháp ×30 + bài nghe/đọc ×15 + câu đúng ×1 + thi thử ×60; 11 cấp (`LEVEL_STEPS`); 16 huy hiệu. `ProgressHub` đọc toàn bộ thẻ của người dùng (như `VocabularyHub`).
 - **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ.
 - **Chia sẻ/sao lưu**: `shareDeck` tạo link `#deck=…` (khách mở link thấy hộp thoại nhập bộ); `backupService` xuất/nhập JSON toàn bộ dữ liệu.
@@ -246,7 +284,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 12. AI: provider, key, proxy
 
-- Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`) hoặc `groq` (`llama-3.3-70b-versatile`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
+- Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`), `groq` (`llama-3.3-70b-versatile`) hoặc `deepseek` (`deepseek-chat`, API tương thích OpenAI: `https://api.deepseek.com/chat/completions`, key dạng `sk-...`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
 - Không có key: **tra từ vẫn dùng được** (từ điển miễn phí); các tính năng khác báo lỗi thân thiện và nhắc mở Cài đặt.
 - Proxy tuỳ chọn (người dùng không cần key): deploy `functions/index.js` (Cloud Function v2, rate-limit theo IP) rồi build với `VITE_AI_PROXY_URL=https://<region>-<project>.cloudfunctions.net/aiProxy npm run build`. Khi có biến này, `requestAi` gọi proxy và bỏ qua key client.
 - Prompt trả JSON (Gemini `responseMimeType`, Groq `response_format`) và parse bằng `parseAiJson` — luôn bọc `try/catch` và hiển thị lỗi qua `toast`.
@@ -268,6 +306,9 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 - `tests/gamification.test.js` — stats, XP, cấp, huy hiệu.
 - `tests/speechScore.test.js` — so khớp câu, điểm, tốc độ nói.
 - `tests/dictionaryService.test.js` — tra từ miễn phí với `fetch` được mock.
+- `tests/vstepScoring.test.js` — quy đổi điểm/bậc, chấm Nghe–Đọc, tự chấm Viết.
+- `tests/vstepExams.test.js` — QA cả 10 đề VSTEP: metadata khớp nội dung, đúng 8/12/15 và 10/10/10/10 câu, id không trùng, đáp án nằm trong options, transcript/bài mẫu đầy đủ (đây là "hàng rào" chặn đề lỗi trước khi lên web).
+- `tests/grammarData.test.js` — QA 30 bài ngữ pháp: id/order duy nhất, 8 câu/bài, đáp án nằm trong options, đáp án viết tay viết thường, dạng `error`/`transform` có `hint`, bảng cặp dễ lẫn và bảng tra nhanh đầy đủ.
 - Viết test mới: tạo `tests/<ten>.test.js` dùng `node:test` + `node:assert/strict`, **import kèm đuôi `.js`** (Node ESM yêu cầu), và chỉ test module không phụ thuộc DOM/Firebase. `npm test` chạy `node --test "tests/*.test.js"`. Muốn test module mới thì module đó (và các import của nó) phải dùng đuôi `.js` hoặc không import gì.
 
 ## 15. Deploy
@@ -288,14 +329,29 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 8. **Bottom nav mobile**: 8 tab nên phải cuộn ngang (`min-w-[62px]`), không dùng `justify-around`.
 9. **In báo cáo**: nhớ class `.no-print` cho chrome (Sidebar/Topbar/MobileHeader/BottomNav đã gắn sẵn).
 10. **`node --test tests` (thư mục trần) không chạy được** — phải dùng glob `"tests/*.test.js"`.
+11. **ESLint 10 (flat config) bật rule mới khá gắt**: `preserve-caught-error` (throw trong `catch` phải kèm `{ cause: error }`) và `no-useless-assignment`; ngoài ra `react-hooks/rules-of-hooks` coi **mọi hàm bắt đầu bằng `use`** là hook — đừng đặt tên helper kiểu `useNativeGoogle()` (đã đổi thành `nativeGoogleRequested()`). Sửa lỗi thật thay vì tắt rule; warning thì để lại (CI chỉ fail khi có error).
+12. **Tailwind không sinh class động**: không viết `` `bg-${tone}/15` `` — phải dùng class tĩnh truyền qua prop (xem `TodayPlanCard`).
+13. **`useCloudDoc` ghi có debounce** (mặc định ~900ms): sau khi lưu xong, dữ liệu vào localStorage/Firestore trễ 1–3 giây — đừng kết luận "không lưu được" khi kiểm tra ngay lập tức.
+14. **Thông báo khác nhau theo nền tảng**: web = `Notification` (chỉ khi app mở), APK = `@capacitor/local-notifications` (lịch của hệ điều hành, chỉ chạy sau `npx cap sync android`).
 
 ## 17. Chưa làm (roadmap)
 
-- Tài khoản: quên mật khẩu, xác thực email, xoá tài khoản, đăng nhập Facebook/Apple.
+- Tài khoản: xác thực email, xoá tài khoản, đăng nhập Facebook/Apple. (Đã có: quên mật khẩu, tạo/đổi mật khẩu để đăng nhập trên APK.)
 - Xã hội: thư viện bộ từ cộng đồng, xếp hạng bạn bè, chế độ lớp học/giáo viên (cần backend + rules mới).
-- Push notification khi app đóng (FCM), thông báo theo lịch của hệ điều hành.
+- Push notification từ server (FCM) khi app đóng. (Đã có: thông báo theo lịch của hệ điều hành trên APK.)
 - Đa ngôn ngữ giao diện (i18n) và học ngôn ngữ khác ngoài tiếng Anh.
 - Sửa hàng loạt nâng cao (gắn tag, đổi bộ), tìm ảnh thủ công cho thư viện lớn.
+- Bấm-vào-từ cho phần Nghe (transcript) và Writing.
+
+## 17.1 Đăng nhập trên APK (cầu mật khẩu web → app)
+
+Firebase **không** cho xuất session/refresh token ra client, nên không thể “copy key” từ web sang APK; muốn đăng nhập bằng mã một lần thì phải có Cloud Function + Admin SDK (`createCustomToken`). Cách đang dùng (không cần backend):
+
+1. Trên **bản web**, đăng nhập Google → Cài đặt → **“Đăng nhập trên app bằng mật khẩu”** (`AppLoginPanel`): tạo mật khẩu cho đúng email tài khoản (dùng `linkWithCredential` để thêm provider `password` vào tài khoản Google hiện có) rồi sao chép email.
+2. Mở **APK** → Đăng nhập → nhập email + mật khẩu đó (đăng nhập email/password của Firebase; dữ liệu vẫn là cùng một tài khoản nên đồng bộ nguyên vẹn).
+3. Quên mật khẩu: `AuthPage` có nút **“Quên mật khẩu?”** gửi email đặt lại qua Firebase; hoặc đổi mật khẩu trong `AppLoginPanel` (yêu cầu nhập mật khẩu hiện tại — `reauthenticateWithCredential`).
+
+Luồng Google trực tiếp trên APK vẫn có (mở Chrome + deep link `com.lingua.studyhub://auth`), nhưng phụ thuộc OAuth client/SHA-1 nên cầu mật khẩu là đường dự phòng chắc chắn nhất.
 
 ## 18. Checklist khi thêm tính năng
 
@@ -304,6 +360,6 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 3. Ghi/đọc dữ liệu **chỉ** qua `dataService`/`userDocService` — không gọi Firestore trực tiếp từ component.
 4. Trạng thái UI dùng hook có sẵn (`useSectionState`, `useDebounce`, `useDailyGoal`…).
 5. Thông báo qua `toast`; thao tác xoá phải là xoá mềm + `toast.undo`.
-6. Thêm nội dung học thì đặt trong `src/data/…` và (nếu cần tìm kiếm) bổ sung vào `searchIndex.js`.
+6. Thêm nội dung học thì đặt trong `src/data/…` và (nếu cần tìm kiếm) bổ sung vào `searchIndex.js`. Riêng đề VSTEP: xem `src/data/vstep/exams/b1-01.js` làm mẫu, thêm metadata vào `registry.js`/`metadata.js`, rồi chạy `node scripts/check-vstep.mjs` trước khi build.
 7. Cập nhật icon bottom nav nếu là tab mới; thêm mục vào `SearchPalette`/`ShortcutsHelpModal` nếu có phím tắt hoặc lệnh mới.
 8. Chạy `npm test` (nếu sửa logic thuần) và `npm run build`; smoke-test nhanh trên `npm run dev`.
