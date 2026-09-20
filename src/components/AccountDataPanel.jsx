@@ -214,11 +214,11 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
         </p>
         {widgetSummary ? (
           <div className="mt-2 rounded-xl border border-ink/[0.08] bg-ink/[0.03] p-3 dark:border-white/[0.08] dark:bg-white/[0.05]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink/50 dark:text-white/50">{widgetSummary.title}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink/55 dark:text-white/55">{widgetSummary.title}</p>
             <p className="mt-1 font-display text-base font-bold text-sage">{widgetSummary.primary}</p>
             <p className="mt-0.5 text-xs text-ink/80 dark:text-white/80">{widgetSummary.secondary}</p>
-            <p className="text-xs text-ink/60 dark:text-white/60">{widgetSummary.tertiary}</p>
-            <p className="mt-1 text-[10px] text-ink/45 dark:text-white/45">{widgetSummary.footer}</p>
+            <p className="text-xs text-ink/65 dark:text-white/65">{widgetSummary.tertiary}</p>
+            <p className="mt-1 text-[11px] text-ink/50 dark:text-white/50">{widgetSummary.footer}</p>
           </div>
         ) : (
           <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">

@@ -45,7 +45,7 @@ export default function SkillsHub({ onStudyActivity }) {
   return (
     <div className="space-y-4">
       <nav className="panel p-3" aria-label="Kỹ năng luyện tập">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto">
           {TABS.map((item) => {
             const active = item.id === tab
             const Icon = item.icon

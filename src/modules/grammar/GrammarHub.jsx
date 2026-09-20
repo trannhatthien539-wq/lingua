@@ -39,6 +39,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
   const [mistakeQuizOpen, setMistakeQuizOpen] = useState(false)
   const [busy, setBusy] = useState('')
   const lessonAreaRef = useRef(null)
+  const activeLessonRef = useRef(null)
 
   const initialLesson = useMemo(() => {
     const saved = grammarAllItems.find((lesson) => lesson.id === progress.lastLesson)
@@ -47,6 +48,10 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
     return nextIncomplete || saved || grammarAllItems[0]
   }, [progress])
   const [activeId, setActiveId] = useState(initialLesson.id)
+  // Trên điện thoại, danh sách bài là dải cuộn ngang → luôn đưa bài đang học vào tầm nhìn.
+  useEffect(() => {
+    activeLessonRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'center' })
+  }, [activeId])
 
   // Mở đúng bài khi người dùng chọn kết quả từ tìm kiếm toàn cục (Ctrl/⌘+K).
   useEffect(() => {
@@ -238,6 +243,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
         open={cheatOpen}
         onToggle={toggleCheat}
       >
+        <p className="mb-2 text-xs text-ink/55 dark:text-white/55 lg:hidden">Vuốt ngang trong bảng để xem đủ cột.</p>
         <div className="-mx-1 overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
@@ -278,6 +284,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
         open={sheetTopicsOpen}
         onToggle={toggleSheetTopics}
       >
+        <p className="mb-2 text-xs text-ink/55 dark:text-white/55 lg:hidden">Vuốt ngang trong bảng để xem đủ cột.</p>
         <div className="-mx-1 overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
@@ -360,6 +367,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
                         key={item.id}
                         type="button"
                         onClick={() => selectLesson(item.id)}
+                        ref={active ? activeLessonRef : null}
                         aria-current={active ? 'true' : undefined}
                         className={`flex min-h-[44px] min-w-max items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition lg:w-full ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
                       >

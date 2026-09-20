@@ -162,7 +162,7 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
           <p className="text-xs font-bold uppercase tracking-[0.06em] text-ink/60 dark:text-white/60">Từ khoá trong bài</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {lesson.glossary.map((item) => (
-              <button key={item.word} type="button" onClick={() => speakText(item.word)} className="chip bg-sage/15 text-ink dark:text-white" title="Bấm để nghe">
+              <button key={item.word} type="button" onClick={() => speakText(item.word)} className="chip min-h-[36px] bg-sage/15 px-3.5 py-1.5 text-ink dark:text-white" title="Bấm để nghe">
                 <Headphones size={12} className="mr-1" />{item.word} — {item.meaning}
               </button>
             ))}
