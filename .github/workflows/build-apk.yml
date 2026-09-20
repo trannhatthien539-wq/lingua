@@ -209,17 +209,40 @@ jobs:
 
           const manifestOk = xml.includes('LinguaWidgetProvider') && xml.includes('android.app.shortcuts');
 
-          // 3. Đăng ký plugin cục bộ để JS gọi được (registerPlugin trước super.onCreate).
+          // 3. Đăng ký plugin cục bộ để JS gọi được.
+          // Capacitor 6 sinh `public class MainActivity extends BridgeActivity {}` (rỗng, không có onCreate)
+          // nên phải xử lý cả trường hợp đã có onCreate lẫn trường hợp rỗng.
           const mainPath = 'android/app/src/main/java/com/lingua/studyhub/MainActivity.java';
           let main = fs.readFileSync(mainPath, 'utf8');
           if (!main.includes('LinguaWidgetPlugin')) {
-            main = main.replace(
-              'super.onCreate(savedInstanceState);',
-              'registerPlugin(LinguaWidgetPlugin.class);\n        super.onCreate(savedInstanceState);',
-            );
+            if (!main.includes('import android.os.Bundle;')) {
+              main = main.replace(/^(package [^;]+;)/m, '$1\n\nimport android.os.Bundle;');
+            }
+            const body = [
+              'public class MainActivity extends BridgeActivity {',
+              '    @Override',
+              '    public void onCreate(Bundle savedInstanceState) {',
+              '        registerPlugin(LinguaWidgetPlugin.class);',
+              '        super.onCreate(savedInstanceState);',
+              '    }',
+              '}',
+            ].join('\n');
+            if (/super\.onCreate\(savedInstanceState\);/.test(main)) {
+              main = main.replace(
+                'super.onCreate(savedInstanceState);',
+                'registerPlugin(LinguaWidgetPlugin.class);\n        super.onCreate(savedInstanceState);',
+              );
+            } else if (/public class MainActivity extends BridgeActivity\s*\{\s*\}/.test(main)) {
+              main = main.replace(/public class MainActivity extends BridgeActivity\s*\{\s*\}/, body);
+            } else {
+              main = main.replace(
+                /public class MainActivity extends BridgeActivity\s*\{/,
+                `${body.slice(0, body.length - 1)}`,
+              );
+            }
           }
           fs.writeFileSync(mainPath, main);
-          const mainOk = main.includes('LinguaWidgetPlugin');
+          const mainOk = /LinguaWidgetPlugin/.test(main) && /registerPlugin\(LinguaWidgetPlugin\.class\);/.test(main);
 
           console.log(main);
           if (!manifestOk || !mainOk) {

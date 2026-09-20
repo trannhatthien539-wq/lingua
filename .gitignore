@@ -5,3 +5,8 @@ dist
 !.env.example
 .vscode/*
 !.vscode/extensions.json
+
+# Project native được CI sinh ra khi build (xem .github/workflows/build-apk.yml).
+# Mã nguồn widget/shortcut nằm ở native/android-widget/ và được chép vào lúc build.
+android/
+ios/
