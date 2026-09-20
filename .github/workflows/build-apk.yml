@@ -27,7 +27,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Giữ cùng phiên bản Node với deploy.yml cho kết quả build giống nhau.
+          node-version: 24
           cache: npm
 
       - name: Install web dependencies

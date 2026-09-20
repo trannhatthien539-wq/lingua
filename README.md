@@ -36,7 +36,7 @@ Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất l
 | `npm run dev` | Dev server (thêm `-- --force` khi dependency cache lỗi thời) |
 | `npm run build` | Build production ra `dist/` (dùng để **kiểm tra sau mỗi lần sửa**) |
 | `npm run preview` | Xem thử bản build |
-| `npm test` | `node --test "tests/*.test.js"` — 7 file test, 46 test |
+| `npm test` | `node --test "tests/*.test.js"` — 7 file test, 46 test. **Cần Node 22+** (Node cũ hơn không hỗ trợ glob cho `--test`, và `node --test tests` — thư mục trần — cũng lỗi) |
 | `npm run lint` | `eslint .` — cấu hình ở `eslint.config.js` (0 error, warning không chặn CI) |
 | `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
 
@@ -328,7 +328,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 7. **Tailwind + font scale**: cỡ chữ đổi `html{font-size}` nên tránh phần tử có min-width theo `rem` trong hàng ngang (từng gây tràn ở planner).
 8. **Bottom nav mobile**: 8 tab nên phải cuộn ngang (`min-w-[62px]`), không dùng `justify-around`.
 9. **In báo cáo**: nhớ class `.no-print` cho chrome (Sidebar/Topbar/MobileHeader/BottomNav đã gắn sẵn).
-10. **`node --test tests` (thư mục trần) không chạy được** — phải dùng glob `"tests/*.test.js"`.
+10. **`node --test tests` (thư mục trần) không chạy được** — phải dùng glob `"tests/*.test.js"`, và Node phải **≥ 22** để tự mở rộng glob (CI dùng `node-version: 24`).
 11. **ESLint 10 (flat config) bật rule mới khá gắt**: `preserve-caught-error` (throw trong `catch` phải kèm `{ cause: error }`) và `no-useless-assignment`; ngoài ra `react-hooks/rules-of-hooks` coi **mọi hàm bắt đầu bằng `use`** là hook — đừng đặt tên helper kiểu `useNativeGoogle()` (đã đổi thành `nativeGoogleRequested()`). Sửa lỗi thật thay vì tắt rule; warning thì để lại (CI chỉ fail khi có error).
 12. **Tailwind không sinh class động**: không viết `` `bg-${tone}/15` `` — phải dùng class tĩnh truyền qua prop (xem `TodayPlanCard`).
 13. **`useCloudDoc` ghi có debounce** (mặc định ~900ms): sau khi lưu xong, dữ liệu vào localStorage/Firestore trễ 1–3 giây — đừng kết luận "không lưu được" khi kiểm tra ngay lập tức.
