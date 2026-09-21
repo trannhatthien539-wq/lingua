@@ -5,6 +5,7 @@ import { isCapacitor } from './platform.js'
  * Deep link nội bộ của app — dùng cho widget màn hình chính và shortcut khi giữ icon.
  *
  * - `com.lingua.studyhub://tab/vocabulary` → mở tab Từ vựng
+ * - `com.lingua.studyhub://practice` → vào thẳng phiên ôn thẻ đến hạn (nút "Ôn ngay" của widget)
  * - `com.lingua.studyhub://grammar/present-simple` → mở bài ngữ pháp cụ thể (itemId)
  * - `com.lingua.studyhub://auth#id_token=…` → đăng nhập Google, xử lý riêng ở
  *   `googleBrowserAuth.subscribeGoogleReturn` nên ở đây chỉ trả `{ type: 'auth' }` để bỏ qua.
@@ -33,6 +34,9 @@ export const parseAppLink = (url) => {
   const [host, ...segments] = head.split('/').filter(Boolean)
   if (!host) return null
   if (host === 'auth') return { type: 'auth' }
+  if (host === 'practice') {
+    return { type: 'practice', tab: 'vocabulary', path: TAB_PATHS.vocabulary, itemId: null }
+  }
   if (host === 'tab') {
     const tab = String(segments[0] || 'vocabulary').toLowerCase()
     return { type: 'tab', tab, path: TAB_PATHS[tab] || TAB_PATHS.vocabulary, itemId: segments[1] || null }

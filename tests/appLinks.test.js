@@ -18,6 +18,15 @@ test('parseAppLink mặc định về tab Từ vựng khi thiếu tên tab', () 
   assert.equal(parseAppLink(`${APP_URL_SCHEME}://tab/khong-ton-tai`).path, '/vocabulary')
 })
 
+test('parseAppLink đọc link "Ôn ngay" của widget và mở tab Từ vựng', () => {
+  assert.deepEqual(parseAppLink(`${APP_URL_SCHEME}://practice`), {
+    type: 'practice',
+    tab: 'vocabulary',
+    path: '/vocabulary',
+    itemId: null,
+  })
+})
+
 test('parseAppLink đọc link mở đúng một bài (item)', () => {
   assert.deepEqual(parseAppLink(`${APP_URL_SCHEME}://grammar/present-simple`), {
     type: 'item',

@@ -195,8 +195,9 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
 | `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
 | `deepLink.js` | Mở đúng bài sau khi tìm kiếm (`openItem` / `consumePendingItem(tab)`) |
-| `appLinks.js` | Deep link nội bộ từ widget/shortcut: `com.lingua.studyhub://tab/<tab>` → `parseAppLink` + `subscribeAppLinks` (bỏ qua link `auth`) |
-| `widgetBridge.js` | Cầu nối widget màn hình chính: `summarizeCards`, `publishCardStats`, `buildWidgetSummary`, `pushWidgetSummary`, `readWidgetSummary` (web chỉ ghi localStorage để xem trước) |
+| `appLinks.js` | Deep link nội bộ từ widget/shortcut: `com.lingua.studyhub://tab/<tab>`, `…://practice` (vào thẳng phiên ôn thẻ đến hạn) → `parseAppLink` + `subscribeAppLinks` (bỏ qua link `auth`) |
+| `widgetBridge.js` | Cầu nối widget màn hình chính: `summarizeCards`, `publishCardStats`, `buildWidgetSummary`, `pushWidgetSummary`, `readWidgetSummary`, `readWidgetStatus` (web chỉ ghi localStorage để xem trước + chẩn đoán) |
+| `reminderSchedule.js` (utils) | Phần **thuần** của nhắc học: `normalizeTime`, `normalizeReminder`, `isReminderDue`, `nextReminderAt`, `describeNextReminder` — có test `tests/reminderSchedule.test.js` |
 | `gamification.js` | `computeStats`, `computeXp`, `levelFor`, `achievementsFor` (hàm thuần, có test) |
 | `vstepScoring.js` | Chấm điểm VSTEP thuần: `examQuestions`, `scoreObjectiveSection`, `selfAssessedScore10`, `summariseAttempt`, `examMinutes` (hàm thuần, có test) |
 | `vstepService.js` | Nạp đề VSTEP (lazy qua `registry.js`) + re-export toàn bộ hàm chấm điểm |
@@ -210,8 +211,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `authService.js`, `googleBrowserAuth.js`, `googleAuthConfig.js` | Đăng nhập Google: popup (web), browser flow + deep link (APK) |
 | `backupService.js` | Xuất/nhập toàn bộ dữ liệu (file JSON) |
 | `shareDeck.js` | Chia sẻ bộ thẻ qua URL `#deck=<base64url>` |
-| `reminderService.js` | Nhắc học bằng Web Notification (chỉ khi app đang mở trên web) |
-| `localNotifications.js` | Nhắc học trên **APK**: lên lịch thông báo hằng ngày của hệ điều hành (`@capacitor/local-notifications`), có `sendNativeTestNotification`; plugin nạp động nên bundle web không phình |
+| `reminderService.js` | Nhắc học bằng Web Notification (chỉ khi app đang mở trên web); luôn chuẩn hoá qua `utils/reminderSchedule.js`, **không nhảy về mặc định khi đọc lỗi** |
+| `localNotifications.js` | Nhắc học trên **APK**: lên lịch thông báo hằng ngày của hệ điều hành (`@capacitor/local-notifications`), trả về `{status}` để UI biết vì sao không có thông báo, có `readNativeSchedule` + `sendNativeTestNotification`; plugin nạp động nên bundle web không phình |
 | `accountAuthService.js` | Email đặt lại mật khẩu (`sendResetPasswordEmail`) + hàm tạo/đổi mật khẩu cho tài khoản Google (`createPasswordForApp`, `changeAccountPassword`) — **hiện không có UI nào gọi** (đã bỏ phần hướng dẫn đăng nhập APK); có thể bật lại bằng 1 nút trong Cài đặt nếu cần |
 | `appearanceService.js` | Bảng màu/font/cỡ chữ, đổi CSS variables |
 | `vocabularySync.js` | Merge dữ liệu khách → tài khoản sau khi đăng nhập |
@@ -226,8 +227,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `useVstepProgress()` | Lịch sử thi VSTEP + bản nháp Writing (key `vstep`), `recordAttempt`, `bestFor`, `clearHistory` |
 | `useGrammarProgress()` / `useSkillsProgress()` | Tiến độ ngữ pháp / kỹ năng (record + đọc) |
 | `useMistakeBank()` | **Sổ câu sai dùng chung** (key `mistakes`): `mistakes` (đã gộp + sắp theo số lần sai), `record(details, source, refId, label)`, `remove`, `clear`, `recordRetry`, `stats.bySource` |
-| `useWidgetSummary({ streak })` | Đẩy nội dung ra widget màn hình chính (số liệu thẻ lấy từ đệm của `VocabularyHub`, bài ngữ pháp chưa đạt đầu tiên, chuỗi ngày); chống đẩy trùng bằng `summarySignature` |
-| `useStudyReminder(streak)` | Cấu hình nhắc học; trên thiết bị tự gọi `syncNativeReminder` để lên lịch thông báo của hệ điều hành |
+| `useWidgetSummary({ streak, user })` | Đẩy nội dung ra widget màn hình chính (số liệu thẻ lấy từ đệm của `VocabularyHub`, tự tính lại nếu đệm trống/cũ, bài ngữ pháp chưa đạt đầu tiên, chuỗi ngày, mục tiêu ngày); chống đẩy trùng bằng `summarySignature`, đẩy lại khi app quay lại tiền cảnh |
+| `useStudyReminder(streak, user)` | Cấu hình nhắc học: đọc bản trên thiết bị ngay (không nháy mặc định), tải lại khi đổi tài khoản, trên APK tự gọi `syncNativeReminder` (chờ đọc xong cấu hình mới lên lịch) và trả về `native.status` để Cài đặt hiển thị |
 | `useSectionState(id, default)` | Trạng thái mở/đóng khối UI (localStorage) |
 | `useTheme()`, `useAppearance()` | Dark mode + tuỳ biến giao diện |
 | `useInstallPrompt()` | Nút "Cài app" (A2HS), nhận biết iOS |
@@ -289,6 +290,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 - **Bố cục mobile (đã rà lại)**: bottom nav 5 tab + “Thêm”; `main` có `pb-28` để không bị nav che; dải tab của Kỹ năng **xuống dòng** trên điện thoại (trước đây “Luyện câu”/“Thi thử B1” bị khuất); Topbar trên điện thoại ẩn badge đồng bộ + nút phím tắt (đã có ở `MobileHeader`); chip từ khoá bài nghe cao ≥36px; bảng tra cứu ngữ pháp có dòng “Vuốt ngang trong bảng để xem đủ cột”; danh sách bài ngữ pháp tự cuộn tới bài đang học.
 - **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ.
 - **Chia sẻ/sao lưu**: `shareDeck` tạo link `#deck=…` (khách mở link thấy hộp thoại nhập bộ); `backupService` xuất/nhập JSON toàn bộ dữ liệu.
+- **Nhắc học hằng ngày** (Cài đặt → Dữ liệu): chọn **Giờ nhắc** là Lingua **tự bật nhắc học + xin quyền thông báo** luôn (chỉ chọn giờ mà không bật là lỗi cũ hay gặp nhất); dưới ô giờ có dòng cho biết **lần nhắc tới** và **trạng thái lịch của hệ điều hành** (`đã lên lịch` / `Android đang chặn` / `APK chưa kèm plugin`). Trên web, nếu hệ điều hành không lên lịch được thì Lingua vẫn nhắc trong lúc app đang mở. Đổi giờ/bật-tắt sẽ xoá `lastNotifiedDate` để hôm đó được nhắc lại.
 - **Tìm kiếm toàn cục**: `Ctrl/⌘+K` → tìm theo `searchIndex` (bỏ dấu tiếng Việt) → chọn kết quả thì `openItem()` điều hướng + ghi "mục đang chờ"; module đích gọi `consumePendingItem('<tab>')` khi mount (vì module lazy nên có thể mount sau sự kiện).
 
 ## 12. AI: provider, key, proxy
@@ -342,6 +344,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 12. **Tailwind không sinh class động**: không viết `` `bg-${tone}/15` `` — phải dùng class tĩnh truyền qua prop (xem `TodayPlanCard`).
 13. **`useCloudDoc` ghi có debounce** (mặc định ~900ms): sau khi lưu xong, dữ liệu vào localStorage/Firestore trễ 1–3 giây — đừng kết luận "không lưu được" khi kiểm tra ngay lập tức.
 14. **Thông báo khác nhau theo nền tảng**: web = `Notification` (chỉ khi app mở), APK = `@capacitor/local-notifications` (lịch của hệ điều hành, chỉ chạy sau `npx cap sync android`).
+15. **Đừng tin `auth.currentUser` ngay sau khi mở app**: Firebase khôi phục phiên bất đồng bộ, nên `userDocService` chờ `whenAuthSettled()` trước khi đọc/ghi `user_state`. Nếu đọc sớm sẽ dùng nhầm bản của khách → UI hiện giá trị mặc định (từng gây lỗi “giờ nhắc bị reset”) và có thể ghi đè dữ liệu thật.
+16. **Ô nhập `type="time"` của Android trả chuỗi rỗng khi người dùng bấm huỷ**: luôn đi qua `normalizeTime()` trước khi lưu, nếu không ô sẽ hiển thị lại giá trị mặc định như bị reset.
 
 ## 17. Chưa làm (roadmap)
 
@@ -362,15 +366,16 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 17.2 Widget màn hình chính (Android) + shortcut giữ icon
 
-- **Widget 4×2** hiển thị: `Ôn 50 thẻ hôm nay` · `Ngữ pháp: <bài chưa đạt đầu tiên>` · `Chuỗi N ngày · 1000 thẻ đến hạn` · `Cập nhật HH:MM DD/MM`, kèm 2 nút **Ôn từ vựng** / **Học ngữ pháp** mở thẳng tab.
+- **Widget 4×3** hiển thị: `Ôn N thẻ hôm nay` · `Ngữ pháp: <bài chưa đạt đầu tiên>` · `Chuỗi N ngày · Mục tiêu X/Y thẻ · M thẻ đến hạn` · `Cập nhật HH:MM DD/MM`, kèm **thanh tiến độ mục tiêu ngày** (ẩn khi chưa đặt mục tiêu) và **4 nút**: **Ôn ngay** (vào thẳng phiên ôn thẻ đến hạn qua deep link `…://practice`) · **Ngữ pháp** · **Thi thử VSTEP** · **Tiến độ**. Chạm vào thân widget = mở tab Từ vựng.
 - **Shortcut khi giữ icon app** (Android 7.1+): Ôn từ vựng · Học ngữ pháp · Thi thử VSTEP · Tiến độ hôm nay.
 - **Vì sao có thư mục `native/android-widget/`**: Capacitor không hỗ trợ widget, mà repo **không chứa project `android/`** (CI tự `cap add android`). Vì vậy mã native nằm trong repo và bước **“Inject the home-screen widget and app shortcuts”** của `build-apk.yml` sẽ:
   1. chép `java/**` → `android/app/src/main/java/com/lingua/studyhub/`, chép `res/**` → `android/app/src/main/res/`;
   2. vá `AndroidManifest.xml`: thêm `<receiver .LinguaWidgetProvider>` + `<meta-data android.app.shortcuts>` trong `<activity .MainActivity>`;
   3. vá `MainActivity.java`: chèn `registerPlugin(LinguaWidgetPlugin.class);` trước `super.onCreate(…)` (plugin cục bộ, không phải npm plugin);
-  4. kiểm tra file tài nguyên đã có, thiếu thì **fail build** để không xuất APK thiếu widget.
-- **Luồng dữ liệu**: `VocabHub` gọi `publishCardStats(cards)` → localStorage + event `lingua:widget-stats` → `useWidgetSummary` (trong `App`) ghép với tiến độ ngữ pháp + `streak` → `pushWidgetSummary` → plugin `LinguaWidget.save()` ghi SharedPreferences `lingua_widget` → provider vẽ lại **ngay** (không cần chờ 30 phút). Web: plugin không có → chỉ ghi localStorage để Cài đặt → Dữ liệu hiện **xem trước** đúng nội dung widget.
-- **Giới hạn cần biết**: chỉ Android; Android giới hạn widget tự cập nhật ≥ 30 phút (`updatePeriodMillis`) — số liệu chỉ mới ngay khi app ghi; widget chỉ hiển thị + mở app, không học trực tiếp trên widget; muốn thấy widget phải **cài APK mới** rồi thêm widget vào màn hình (giữ chỗ trống → Widgets → Lingua).
+  4. kiểm tra file tài nguyên **và** các `id` view (`lingua_widget_button_practice`… `lingua_widget_progress`) — thiếu thì **fail build** để không xuất APK thiếu widget.
+- **Luồng dữ liệu**: `VocabHub` gọi `publishCardStats(cards)` → localStorage + event `lingua:widget-stats` → `useWidgetSummary` (trong `App`) ghép với tiến độ ngữ pháp + `streak` + mục tiêu ngày (`useDailyGoal`) + số thẻ đã ôn hôm nay (`historyService`) + sổ câu sai → `pushWidgetSummary` → plugin `LinguaWidget.save()` ghi SharedPreferences `lingua_widget` → provider vẽ lại **ngay** (không cần chờ 30 phút). Web: plugin không có → chỉ ghi localStorage để Cài đặt → Dữ liệu hiện **xem trước** đúng nội dung widget.
+- **Không còn hiện “Không còn thẻ đến hạn” khi chưa mở tab Từ vựng**: `useWidgetSummary` kiểm tra bản đệm số liệu; nếu trống hoặc cũ hơn 30 phút thì tự đọc `dataService` để tính lại (chờ 1,5s sau khi mở app, chỉ chạy khi app quay lại tiền cảnh).
+- **Giới hạn cần biết**: chỉ Android; Android giới hạn widget tự cập nhật ≥ 30 phút (`updatePeriodMillis`) — số liệu chỉ mới ngay khi app ghi hoặc khi app quay lại tiền cảnh; muốn thấy widget phải **cài APK mới** rồi thêm widget vào màn hình (giữ chỗ trống → Widgets → Lingua). Cài đặt → Dữ liệu hiện `Đã gửi nội dung ra widget…` hoặc lỗi cụ thể để biết cầu nối JS↔native có chạy không.
 
 ## 18. Checklist khi thêm tính năng
 

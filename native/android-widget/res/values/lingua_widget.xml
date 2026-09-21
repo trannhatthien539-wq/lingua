@@ -3,8 +3,11 @@
     <string name="lingua_widget_description">Lingua: thẻ đến hạn, chuỗi ngày học và chủ điểm ngữ pháp tiếp theo</string>
     <string name="lingua_widget_title">Lingua · hôm nay</string>
     <string name="lingua_widget_hint">Mở app để cập nhật</string>
+    <string name="lingua_widget_practice">Ôn ngay</string>
     <string name="lingua_widget_vocab">Ôn từ vựng</string>
-    <string name="lingua_widget_grammar">Học ngữ pháp</string>
+    <string name="lingua_widget_grammar">Ngữ pháp</string>
+    <string name="lingua_widget_vstep">Thi thử VSTEP</string>
+    <string name="lingua_widget_progress">Tiến độ</string>
     <string name="lingua_shortcut_vocab">Ôn từ vựng</string>
     <string name="lingua_shortcut_grammar">Học ngữ pháp</string>
     <string name="lingua_shortcut_vstep">Thi thử VSTEP</string>

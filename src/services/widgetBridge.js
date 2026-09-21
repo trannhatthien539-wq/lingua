@@ -9,6 +9,7 @@ import { isDue, isLeech } from '../utils/srs.js'
  */
 const STATS_KEY = 'lingua-widget-card-stats'
 const SUMMARY_KEY = 'lingua-widget-summary'
+const STATUS_KEY = 'lingua-widget-status'
 const PLUGIN_NAME = 'LinguaWidget'
 
 /** Bắn ra mỗi khi số liệu thẻ thay đổi, để hook trong App đẩy lại widget. */
@@ -69,37 +70,87 @@ export const WIDGET_SESSION_LIMIT = 50
 
 /**
  * Nội dung widget. Text được soạn ở JS (tiếng Việt) để code native giữ đơn giản.
- * Số thẻ hiển thị tối đa bằng `WIDGET_SESSION_LIMIT` cho đỡ ngợp; tổng số thẻ đến hạn
- * được ghi ở dòng ghi chú khi thư viện còn nhiều thẻ.
+ *
+ * Mục tiêu: mở điện thoại ra là biết **hôm nay cần làm gì** — số thẻ đến hạn, bài ngữ pháp
+ * tiếp theo, chuỗi ngày và tiến độ mục tiêu ngày (thanh tiến độ ở widget).
+ * Số thẻ hiển thị tối đa `WIDGET_SESSION_LIMIT` cho đỡ ngợp; tổng số thẻ đến hạn ghi ở footer.
  * `now` truyền vào để test được.
  */
-export const buildWidgetSummary = ({ cardStats = null, grammarTitle = '', streak = 0, now = new Date() } = {}) => {
+export const buildWidgetSummary = ({
+  cardStats = null,
+  grammarTitle = '',
+  grammarTotal = 0,
+  streak = 0,
+  goalTarget = 0,
+  reviewedToday = 0,
+  mistakes = 0,
+  now = new Date(),
+} = {}) => {
   const stats = cardStats || readCardStats()
   const due = Number(stats?.due) || 0
+  const fresh = Number(stats?.fresh) || 0
   const leech = Number(stats?.leech) || 0
   const days = Number(streak) || 0
+  const target = Number(goalTarget) > 0 ? Math.round(Number(goalTarget)) : 0
+  const reviewed = Math.max(0, Math.round(Number(reviewedToday)) || 0)
   const session = Math.min(due, WIDGET_SESSION_LIMIT)
+  const freshSession = Math.min(fresh, WIDGET_SESSION_LIMIT)
+  const total = Number(grammarTotal) || 0
+
+  const primary =
+    due > 0
+      ? `Ôn ${session} thẻ hôm nay`
+      : freshSession > 0
+        ? `Học ${freshSession} thẻ mới`
+        : 'Không còn thẻ đến hạn 🎉'
+
+  const secondary = grammarTitle
+    ? `Ngữ pháp: ${grammarTitle}`
+    : total > 0
+      ? `Ngữ pháp: xong ${total} bài`
+      : 'Ngữ pháp: mở app để xem bài tiếp theo'
 
   const notes = [days > 0 ? `Chuỗi ${days} ngày` : 'Bắt đầu chuỗi học hôm nay']
-  if (due > WIDGET_SESSION_LIMIT) notes.push(`${due} thẻ đến hạn`)
-  else if (leech > 0) notes.push(`${leech} từ hay quên`)
+  if (target) notes.push(`Mục tiêu ${Math.min(reviewed, target)}/${target} thẻ`)
+  if (leech > 0) notes.push(`${leech} từ hay quên`)
+
+  const footer = [
+    due > WIDGET_SESSION_LIMIT ? `${due} thẻ đến hạn` : '',
+    Number(mistakes) > 0 ? `${Number(mistakes)} câu sai` : '',
+    `Cập nhật ${pad(now.getHours())}:${pad(now.getMinutes())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return {
     title: 'Hôm nay học gì?',
-    primary: due > 0 ? `Ôn ${session} thẻ hôm nay` : 'Không còn thẻ đến hạn 🎉',
-    secondary: grammarTitle ? `Ngữ pháp: ${grammarTitle}` : 'Ngữ pháp: đã học hết 30 bài',
+    primary,
+    secondary,
     tertiary: notes.join(' · '),
-    footer: `Cập nhật ${pad(now.getHours())}:${pad(now.getMinutes())} ${pad(now.getDate())}/${pad(now.getMonth() + 1)}`,
+    footer,
+    progressMax: target,
+    progressValue: target ? Math.min(reviewed, target) : 0,
     due,
+    fresh,
     leech,
     session,
     streak: days,
+    goalTarget: target,
+    reviewedToday: reviewed,
   }
 }
 
 /** Chữ ký để tránh đẩy dữ liệu trùng lên widget. */
 export const summarySignature = (summary = {}) =>
-  [summary.title, summary.primary, summary.secondary, summary.tertiary, summary.footer].join('|')
+  [
+    summary.title,
+    summary.primary,
+    summary.secondary,
+    summary.tertiary,
+    summary.footer,
+    summary.progressMax,
+    summary.progressValue,
+  ].join('|')
 
 export const widgetNativeAvailable = () => {
   if (!isCapacitor()) return false
@@ -118,11 +169,19 @@ const getPlugin = async () => {
   return pluginPromise
 }
 
+/** Trạng thái lần gửi gần nhất ra widget (Cài đặt hiển thị để biết vì sao widget không đổi). */
+export const readWidgetStatus = () => readJson(STATUS_KEY, null)
+
+const recordStatus = (status) => writeJson(STATUS_KEY, { ...status, at: Date.now() })
+
 /** Gửi nội dung ra widget (native) và lưu bản tóm tắt để xem trước trên web. */
 export const pushWidgetSummary = async (summary) => {
   writeJson(SUMMARY_KEY, summary)
   const plugin = await getPlugin()
-  if (!plugin) return false
+  if (!plugin) {
+    recordStatus({ native: false, ok: false, error: 'Chưa có widget của hệ điều hành (chỉ APK Android mới có).' })
+    return false
+  }
   try {
     await plugin.save({
       title: summary.title,
@@ -130,10 +189,14 @@ export const pushWidgetSummary = async (summary) => {
       secondary: summary.secondary,
       tertiary: summary.tertiary,
       footer: summary.footer,
+      progressMax: Number(summary.progressMax) || 0,
+      progressValue: Number(summary.progressValue) || 0,
     })
+    recordStatus({ native: true, ok: true, error: '' })
     return true
   } catch (error) {
     console.warn('Lingua: không cập nhật được widget.', error)
+    recordStatus({ native: true, ok: false, error: error?.message || 'Không gửi được dữ liệu ra widget.' })
     return false
   }
 }

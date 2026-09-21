@@ -25,7 +25,7 @@ import {
 import confetti from "canvas-confetti";
 import { generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../services/aiService";
 import { lookupWordOffline } from "../../services/dictionaryService";
-import { consumePendingItem } from "../../services/deepLink";
+import { consumePendingItem, subscribeOpenItem } from "../../services/deepLink";
 import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { dataService } from "../../services/dataService";
@@ -607,6 +607,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const setNotice = useCallback((message) => { if (message) toast.success(message); }, []);
   const [studyDeckId, setStudyDeckId] = useState(null);
   const [studyMode, setStudyMode] = useState(null);
+  // Yêu cầu "Ôn ngay" (deep link từ widget màn hình chính / shortcut) đang chờ thư viện tải xong.
+  const [practicePending, setPracticePending] = useState(false);
   const [studyCards, setStudyCards] = useState(null);
   const [singleCardId, setSingleCardId] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
@@ -766,17 +768,36 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     return undefined;
   }, [library.cards, library.decks]);
 
-  // Tìm kiếm toàn cục (Ctrl/⌘+K): mở đúng từ/bộ khi người dùng chọn kết quả.
+  // Tìm kiếm toàn cục (Ctrl/⌘+K) và deep link từ widget: mở đúng từ/bộ/phiên ôn.
   useEffect(() => {
-    const pending = consumePendingItem("vocabulary");
-    if (!pending) return;
-    if (pending.type === "word" && pending.itemId) {
-      setSearchQuery(pending.itemId);
-      setActiveFilter("all");
-    } else if (pending.type === "theme" && pending.itemId) {
-      setThemePickerOpen(true);
-    }
+    const handle = (pending) => {
+      if (!pending) return;
+      if (pending.type === "practice") setPracticePending(true);
+      else if (pending.type === "word" && pending.itemId) {
+        setSearchQuery(pending.itemId);
+        setActiveFilter("all");
+      } else if (pending.type === "theme" && pending.itemId) {
+        setThemePickerOpen(true);
+      }
+    };
+    // Module lazy-load nên yêu cầu có thể được gửi TRƯỚC khi mount — đọc phần đang chờ...
+    handle(consumePendingItem("vocabulary"));
+    // ...và nghe tiếp cho trường hợp module đã mount sẵn (app đang mở, bấm widget).
+    return subscribeOpenItem((event) => handle(event.detail));
   }, []);
+
+  // "Ôn ngay": chờ thư viện tải xong rồi mở phiên ôn thẻ đến hạn (nếu hết thẻ thì ôn cả bộ).
+  useEffect(() => {
+    if (!practicePending || libraryLoading) return;
+    setPracticePending(false);
+    const deck = library.decks.find((item) => item.id === selectedDeckId) || library.decks[0];
+    // Mỗi phiên tối đa 50 thẻ, giống nút "Ôn hôm nay" trong thẻ thống kê.
+    const cards = (dueCards.length ? dueCards : deckCards).slice(0, SESSION_LIMIT);
+    if (!deck || !cards.length) return;
+    setStudyCards(cards);
+    setStudyDeckId(deck.id);
+    setStudyMode(null);
+  }, [practicePending, libraryLoading, dueCards, deckCards, library.decks, selectedDeckId]);
 
   const updateLibrary = (changes) =>
     setLibrary((current) => ({ ...current, ...changes }));

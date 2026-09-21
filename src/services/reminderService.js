@@ -1,21 +1,36 @@
-import { loadUserDoc, saveUserDoc, userDocKeys } from "./userDocService";
+import { loadUserDoc, readCachedUserDoc, saveUserDoc, userDocKeys } from "./userDocService";
+import { normalizeReminder } from "../utils/reminderSchedule";
 
 /**
  * Nhắc học hằng ngày bằng Web Notification.
- * Lưu ý: thông báo chỉ hiện khi app còn mở (tab hoặc PWA đang chạy) vì chưa có push server.
+ * Lưu ý: thông báo của web chỉ hiện khi app còn mở (tab hoặc PWA đang chạy) vì chưa có push server.
+ * Trên APK, `services/localNotifications.js` lên lịch thông báo của hệ điều hành.
+ *
+ * Chuẩn hoá giờ / tính thời điểm nhắc nằm ở `src/utils/reminderSchedule.js` (thuần, có test).
  */
-export const defaultReminder = { enabled: false, time: "20:00", lastNotifiedDate: null };
+export * from "../utils/reminderSchedule";
 
-export const loadReminder = async () => ({
-  ...defaultReminder,
-  ...((await loadUserDoc(userDocKeys.reminder))?.payload || {}),
-});
+/**
+ * Đọc cấu hình nhắc học: bản trên đám mây (nếu có) hoặc bản trên thiết bị.
+ *
+ * Không ném lỗi ra ngoài: mất mạng hoặc bị chặn quyền thì giữ bản đã lưu trên thiết bị
+ * (trước đây lỗi đọc bị coi như "chưa có" nên ô Giờ nhắc nhảy về 20:00 như bị reset).
+ */
+export const loadReminder = async () => {
+  try {
+    const doc = await loadUserDoc(userDocKeys.reminder);
+    if (doc?.payload) return normalizeReminder(doc.payload);
+  } catch (error) {
+    console.warn("Lingua: không tải được cấu hình nhắc học từ đám mây, dùng bản trên thiết bị.", error);
+  }
+  return normalizeReminder(readCachedUserDoc(userDocKeys.reminder));
+};
 
-export const saveReminder = (settings) => saveUserDoc(userDocKeys.reminder, settings);
+export const saveReminder = (settings) => saveUserDoc(userDocKeys.reminder, normalizeReminder(settings));
 
 export const reminderChangedEvent = "lingua:reminder-changed";
 export const notifyReminderChanged = (settings) => {
-  window.dispatchEvent(new CustomEvent(reminderChangedEvent, { detail: settings }));
+  window.dispatchEvent(new CustomEvent(reminderChangedEvent, { detail: normalizeReminder(settings) }));
 };
 
 export const notificationSupported = () => typeof window !== "undefined" && "Notification" in window;
@@ -52,24 +67,3 @@ export const showStudyNotification = async (title, body) => {
   }
 };
 
-export const todayKey = (date = new Date()) => {
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
-};
-
-export const minutesNow = (date = new Date()) => date.getHours() * 60 + date.getMinutes();
-
-export const minutesOf = (time = "20:00") => {
-  const [hours, minutes] = String(time).split(":").map(Number);
-  return (Number.isFinite(hours) ? hours : 20) * 60 + (Number.isFinite(minutes) ? minutes : 0);
-};
-
-export const isReminderDue = (settings, now = new Date()) =>
-  Boolean(settings?.enabled) &&
-  settings.lastNotifiedDate !== todayKey(now) &&
-  minutesNow(now) >= minutesOf(settings.time);
-
-export const reminderBody = (streak) =>
-  streak?.currentStreak
-    ? `Bạn đang giữ chuỗi ${streak.currentStreak} ngày học. Ôn vài từ để không đứt chuỗi nhé!`
-    : "Học vài từ hôm nay để bắt đầu chuỗi ngày học của bạn nhé!";

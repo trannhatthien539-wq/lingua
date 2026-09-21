@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "./firebase";
+import { auth, db, onAuthStateChanged } from "./firebase";
 import { markSynced, trackPendingWrite } from "./syncStatus";
 
 /**
@@ -37,8 +37,37 @@ const writeLocalUserDoc = (key, envelope, uid) => {
 
 const updatedAtOf = (envelope) => Number(envelope?.updatedAt) || 0;
 
+let authSettlePromise = null;
+
+/**
+ * Firebase khôi phục phiên đăng nhập KHÔNG đồng bộ: ngay sau khi mở app `auth.currentUser`
+ * còn `null` dù người dùng đã đăng nhập. Nếu đọc/ghi ngay lúc đó thì sẽ dùng nhầm bản của
+ * khách (mất dữ liệu và UI hiện giá trị mặc định) — đây chính là lỗi "giờ nhắc bị reset".
+ *
+ * Chờ 1 nhịp `onAuthStateChanged` (tối đa `timeout`) rồi mới xác định chủ sở hữu.
+ */
+export const whenAuthSettled = (timeout = 4000) => {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (!authSettlePromise) {
+    authSettlePromise = new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(auth.currentUser), timeout);
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(auth.currentUser);
+      });
+    });
+  }
+  return authSettlePromise;
+};
+
+const currentUser = async () => auth.currentUser || (await whenAuthSettled());
+
+/** Đọc nhanh bản trên thiết bị của chủ sở hữu hiện tại (không chờ mạng). */
+export const readCachedUserDoc = (key) => readLocalUserDoc(key, auth.currentUser?.uid)?.payload ?? null;
+
 export const loadUserDoc = async (key) => {
-  const user = auth.currentUser;
+  const user = await currentUser();
   const local = readLocalUserDoc(key, user?.uid);
   if (!user) return local;
 
@@ -55,7 +84,7 @@ export const loadUserDoc = async (key) => {
 };
 
 export const saveUserDoc = async (key, payload) => {
-  const user = auth.currentUser;
+  const user = await currentUser();
   const normalized = normalizePayload(payload);
   const serialized = JSON.stringify(normalized);
   if (serialized.length > MAX_PAYLOAD_BYTES) {
@@ -78,7 +107,7 @@ export const saveUserDoc = async (key, payload) => {
 
 /** Đẩy dữ liệu khách đang có trên thiết bị lên tài khoản vừa đăng nhập (nếu tài khoản chưa có). */
 export const syncGuestUserDocs = async (keys = []) => {
-  const user = auth.currentUser;
+  const user = await currentUser();
   if (!user) return [];
   const synced = [];
   for (const key of keys) {

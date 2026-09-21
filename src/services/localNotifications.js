@@ -7,8 +7,10 @@
  * Plugin chỉ được nạp động (dynamic import) nên bundle web không phình thêm.
  */
 import { isCapacitor } from "./platform";
+import { formatTime, timeParts } from "../utils/reminderSchedule";
 
 const NOTIFICATION_ID = 1001;
+const TEST_NOTIFICATION_ID = 1002;
 const CHANNEL_ID = "lingua-reminder";
 
 const loadPlugin = async () => {
@@ -26,16 +28,6 @@ export const nativeNotificationsAvailable = () => {
   if (!isCapacitor()) return false;
   // Chỉ dùng khi plugin thực sự có trên thiết bị (đề phòng APK cũ chưa `cap sync`).
   return window.Capacitor?.isPluginAvailable?.("LocalNotifications") ?? true;
-};
-
-const parseTime = (time = "20:00") => {
-  const [hour, minute] = String(time).split(":");
-  const hours = Number(hour);
-  const minutes = Number(minute);
-  return {
-    hour: Number.isFinite(hours) ? Math.min(23, Math.max(0, hours)) : 20,
-    minute: Number.isFinite(minutes) ? Math.min(59, Math.max(0, minutes)) : 0,
-  };
 };
 
 export const requestNativePermission = async () => {
@@ -56,38 +48,52 @@ const buildBody = (streak) =>
     ? `Bạn đang có chuỗi ${streak.currentStreak} ngày. Vào học 15 phút để giữ chuỗi nhé!`
     : "Vào học 15 phút để bắt đầu chuỗi ngày học của bạn!";
 
+const ensureChannel = async (plugin) => {
+  // Android 8+ cần channel để thông báo hiện đúng kiểu.
+  if (!plugin.createChannel) return;
+  try {
+    await plugin.createChannel({
+      id: CHANNEL_ID,
+      name: "Nhắc học",
+      description: "Thông báo nhắc học hằng ngày của Lingua",
+      importance: 4,
+      visibility: 1,
+    });
+  } catch (error) {
+    console.warn("Lingua: không tạo được kênh thông báo.", error);
+  }
+};
+
 /**
  * Đồng bộ lịch nhắc học với thiết bị: bật thì lên lịch hằng ngày, tắt thì huỷ.
- * Trả về `'scheduled' | 'cancelled' | 'unsupported' | 'denied'`.
+ * Trả về `{ status, time }` với `status` là
+ * `'scheduled' | 'cancelled' | 'unsupported' | 'denied' | 'error'`.
+ *
+ * Không bao giờ ném lỗi — Cài đặt hiển thị đúng `status` để biết vì sao không có thông báo.
  */
 export const syncNativeReminder = async (settings, streak) => {
   const plugin = await loadPlugin();
-  if (!plugin) return "unsupported";
+  if (!plugin) return { status: "unsupported", time: null };
 
-  try {
-    await plugin.cancel({ notifications: [{ id: NOTIFICATION_ID }] });
-  } catch {
-    // Chưa có lịch nào thì bỏ qua.
+  if (!settings?.enabled) {
+    try {
+      await plugin.cancel({ notifications: [{ id: NOTIFICATION_ID }] });
+    } catch {
+      // Chưa có lịch nào thì bỏ qua.
+    }
+    return { status: "cancelled", time: null };
   }
 
-  if (!settings?.enabled) return "cancelled";
-
+  const time = formatTime(settings.time);
   const permission = await requestNativePermission();
-  if (permission !== "granted") return "denied";
+  if (permission !== "granted") return { status: "denied", time };
 
-  const { hour, minute } = parseTime(settings.time);
+  const { hour, minute } = timeParts(settings.time);
 
   try {
-    // Android 8+ cần channel để thông báo hiện đúng kiểu.
-    if (plugin.createChannel) {
-      await plugin.createChannel({
-        id: CHANNEL_ID,
-        name: "Nhắc học",
-        description: "Thông báo nhắc học hằng ngày của Lingua",
-        importance: 4,
-        visibility: 1,
-      });
-    }
+    await ensureChannel(plugin);
+    // Huỷ lịch cũ trước khi đặt lịch mới (cùng id nên lịch mới sẽ thay lịch cũ).
+    await plugin.cancel({ notifications: [{ id: NOTIFICATION_ID }] }).catch(() => {});
     await plugin.schedule({
       notifications: [
         {
@@ -99,10 +105,24 @@ export const syncNativeReminder = async (settings, streak) => {
         },
       ],
     });
-    return "scheduled";
+    return { status: "scheduled", time };
   } catch (error) {
     console.warn("Không lên lịch được thông báo nhắc học.", error);
-    return "unsupported";
+    return { status: "error", time };
+  }
+};
+
+/** Đọc lịch thông báo mà hệ điều hành đang giữ (dùng cho phần chẩn đoán trong Cài đặt). */
+export const readNativeSchedule = async () => {
+  const plugin = await loadPlugin();
+  if (!plugin?.getPending) return null;
+  try {
+    const pending = await plugin.getPending();
+    const list = Array.isArray(pending?.notifications) ? pending.notifications : [];
+    const reminder = list.find((item) => item?.id === NOTIFICATION_ID) || null;
+    return { count: list.length, scheduled: Boolean(reminder), at: reminder?.schedule?.at || null };
+  } catch {
+    return null;
   }
 };
 
@@ -113,10 +133,11 @@ export const sendNativeTestNotification = async (streak) => {
   const permission = await requestNativePermission();
   if (permission !== "granted") return false;
   try {
+    await ensureChannel(plugin);
     await plugin.schedule({
       notifications: [
         {
-          id: NOTIFICATION_ID + 1,
+          id: TEST_NOTIFICATION_ID,
           title: "Đến giờ học rồi! 📚",
           body: buildBody(streak),
           channelId: CHANNEL_ID,

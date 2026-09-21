@@ -255,10 +255,33 @@ jobs:
             'android/app/src/main/res/layout/lingua_widget.xml',
             'android/app/src/main/res/xml/lingua_widget_info.xml',
             'android/app/src/main/res/xml/shortcuts.xml',
+            'android/app/src/main/res/values/lingua_widget.xml',
+            'android/app/src/main/res/drawable/lingua_widget_button.xml',
+            'android/app/src/main/res/drawable/lingua_widget_button_ghost.xml',
           ];
           const missing = required.filter((file) => !fs.existsSync(file));
           if (missing.length) {
             console.error('Thiếu file tài nguyên:', missing.join(', '));
+            process.exit(1);
+          }
+
+          // 5. Widget phải có đủ 4 nút + thanh tiến độ (bản cũ chỉ có 2 nút).
+          const layout = fs.readFileSync('android/app/src/main/res/layout/lingua_widget.xml', 'utf8');
+          const strings = fs.readFileSync('android/app/src/main/res/values/lingua_widget.xml', 'utf8');
+          const needs = [
+            'lingua_widget_button_practice',
+            'lingua_widget_button_grammar',
+            'lingua_widget_button_vstep',
+            'lingua_widget_button_progress',
+            'lingua_widget_progress',
+          ];
+          const layoutMissing = needs.filter((id) => !layout.includes(id));
+          if (layoutMissing.length) {
+            console.error('Widget thiếu view:', layoutMissing.join(', '));
+            process.exit(1);
+          }
+          if (!strings.includes('lingua_widget_vstep')) {
+            console.error('Thiếu chuỗi cho widget trong res/values/lingua_widget.xml');
             process.exit(1);
           }
           NODE
