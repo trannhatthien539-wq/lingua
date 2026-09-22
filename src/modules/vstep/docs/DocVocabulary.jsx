@@ -37,8 +37,8 @@ export default function DocVocabulary() {
     <div className="space-y-4">
       <section className="panel p-5">
         <p className="eyebrow flex items-center gap-2"><BookOpen size={14} />Từ vựng theo chủ đề</p>
-        <p className="mt-2 text-sm leading-6 text-ink/70 dark:text-white/70">
-          {vocabularyItems.length} từ ở {vocabularyTopics.length} chủ đề. Tạo bộ flashcard để học bằng lặp lại ngắt quãng (SRS) ngay trong tab Từ vựng.
+        <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">
+          {vocabularyItems.length} từ · {vocabularyTopics.length} chủ đề. Tạo bộ flashcard để ôn bằng SRS trong tab Từ vựng.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {LEVELS.map((item) => (

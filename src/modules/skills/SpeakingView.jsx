@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleStop, Mic, Quote, Volume2 } from 'lucide-react'
+import { ArrowLeft, CircleStop, Mic, Quote, Volume2 } from 'lucide-react'
+import SkillLessonList from '../../components/learning/SkillLessonList'
 import { speakingTopics } from '../../data/skills/speaking'
 import { speakText, stopSpeech } from '../../utils/speech'
 import { createRecognizer, isSpeechRecognitionSupported, scoreLabel, scorePronunciation, speedLabel } from '../../utils/speechScore'
@@ -8,6 +9,7 @@ const formatSeconds = (value) => `${String(Math.floor(value / 60)).padStart(2, '
 
 /** Luyện nói B1: Part 1, cue card Part 2 có bài mẫu, thảo luận Part 3 và ghi âm để tự nghe lại. */
 export default function SpeakingView({ focusId }) {
+  const [view, setView] = useState('list')
   const [topicId, setTopicId] = useState(speakingTopics[0].id)
   const [openSample, setOpenSample] = useState(null)
   const [recording, setRecording] = useState(false)
@@ -50,7 +52,10 @@ export default function SpeakingView({ focusId }) {
   }, [topic.id])
 
   useEffect(() => {
-    if (focusId && speakingTopics.some((item) => item.id === focusId)) setTopicId(focusId)
+    if (focusId && speakingTopics.some((item) => item.id === focusId)) {
+      setTopicId(focusId)
+      setView('lesson')
+    }
   }, [focusId])
 
   useEffect(() => {
@@ -152,27 +157,40 @@ export default function SpeakingView({ focusId }) {
     setSpeechScore(scorePronunciation(transcript, practice.text, seconds))
   }
 
+  const topicIndex = Math.max(0, speakingTopics.findIndex((item) => item.id === topic.id))
+
+  // Chỉ hiện danh sách chủ đề; nội dung luyện nói mở ra khi bấm vào một thẻ.
+  if (view === 'list') {
+    return (
+      <SkillLessonList
+        icon={Mic}
+        color="#14d4f4"
+        actionLabel="Luyện nói"
+        items={speakingTopics.map((item, index) => ({
+          id: item.id,
+          index: index + 1,
+          title: item.title,
+          tag: item.topic,
+          meta: `Part 1: ${item.warmUp.length} câu · Part 2: cue card · Part 3: ${item.discussion.length} câu`,
+          chip: `${item.phrases?.length || 0} cụm từ`,
+        }))}
+        onOpen={(id) => {
+          setTopicId(id)
+          setView('lesson')
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <nav className="panel p-3" aria-label="Danh sách chủ đề nói">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {speakingTopics.map((item) => {
-            const active = item.id === topic.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTopicId(item.id)}
-                aria-current={active ? 'true' : undefined}
-                className={`flex min-h-[44px] min-w-max flex-col items-start rounded-xl px-3 py-2 text-left text-sm transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
-              >
-                <span className="font-bold">{item.title}</span>
-                <span className={`text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.topic}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setView('list')} className="btn-ghost px-3">
+          <ArrowLeft size={16} />Danh sách chủ đề
+        </button>
+        <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Chủ đề {topicIndex + 1}/{speakingTopics.length}</span>
+      </div>
 
       <section className="panel p-4 sm:p-5">
         <p className="eyebrow">Ghi âm luyện nói</p>

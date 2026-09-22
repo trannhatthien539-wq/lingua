@@ -183,6 +183,69 @@ Tuan`,
       { phrase: 'Yours faithfully', meaning: 'kính thư (khi không biết tên người nhận)' },
     ],
   },
+  {
+    id: 'vstep-task1-letter',
+    type: 'email',
+    title: 'VSTEP · Task 1 – Thư hỏi thông tin khoá học',
+    situation: 'Bạn muốn tham gia một khoá học tiếng Anh buổi tối và đã thấy quảng cáo của một trung tâm anh ngữ gần nhà.',
+    task: 'Viết lá thư (khoảng 120 từ) cho trung tâm theo dạng VSTEP Writing Task 1: nói bạn quan tâm đến khoá học buổi tối, hỏi học phí có bao gồm giáo trình không, hỏi ngày khai giảng và sĩ số mỗi lớp, và hỏi bạn cần làm gì để đăng ký.',
+    minWords: 120,
+    checklist: [
+      { label: 'Có lời chào và lời kết đúng thư trang trọng', hint: 'Dear Sir or Madam, … / Yours faithfully,' },
+      { label: 'Nêu lý do viết thư ngay đầu thư', hint: 'I am writing to ask for some information about the evening English course.' },
+      { label: 'Hỏi về học phí', hint: 'Could you tell me how much the course costs?' },
+      { label: 'Hỏi về ngày khai giảng và sĩ số lớp', hint: 'I would also like to know when the next class begins and how many students there are in a group.' },
+      { label: 'Hỏi cách đăng ký', hint: 'What should I do to register?' },
+      { label: 'Dùng ít nhất 2 câu hỏi gián tiếp', hint: 'Could you tell me… / I would like to know… / Do you know if…' },
+    ],
+    model: `Dear Sir or Madam,
+
+I am writing to ask for some information about the evening English course that I saw on your website.
+
+I finished my English course at university two years ago, and I would like to improve my speaking before I take the VSTEP exam in September.
+
+Could you tell me how much the course costs and whether the fee includes the course book? I would also like to know when the next class begins and how many students there are in a group. Finally, could you tell me if I need to take a placement test, and what I should do to register?
+
+I would be grateful if you could send me these details. I am available on 0912 345 678 if it is easier to call.
+
+Yours faithfully,
+Nguyen Minh Anh`,
+    phrases: [
+      { phrase: 'I am writing to ask for some information about…', meaning: 'tôi viết thư để hỏi thông tin về…' },
+      { phrase: 'Could you tell me how much the course costs?', meaning: 'ông/bà có thể cho tôi biết học phí không?' },
+      { phrase: 'I would also like to know…', meaning: 'tôi cũng muốn biết…' },
+      { phrase: 'I would be grateful if you could send me these details', meaning: 'tôi rất biết ơn nếu ông/bà gửi cho tôi những thông tin này' },
+    ],
+  },
+  {
+    id: 'vstep-task2-essay',
+    type: 'opinion',
+    title: 'VSTEP · Task 2 – Bài luận: học đại học hay học nghề?',
+    situation: 'Nhiều học sinh lớp 12 ở Việt Nam phân vân giữa việc thi vào đại học và học một nghề sau khi tốt nghiệp.',
+    task: 'Viết bài luận (khoảng 250 từ) theo dạng VSTEP Writing Task 2: nêu ý kiến của bạn về việc nên học đại học hay học nghề, đưa ít nhất hai lý do kèm ví dụ, xét một ý kiến trái chiều và kết luận.',
+    minWords: 250,
+    checklist: [
+      { label: 'Mở bài nêu rõ quan điểm', hint: 'In my opinion, the choice should depend on the student’s abilities.' },
+      { label: 'Có 2 đoạn thân bài, mỗi đoạn một lý do', hint: 'First, … Second, …' },
+      { label: 'Mỗi lý do có ví dụ hoặc số liệu', hint: 'A trained mechanic can start earning within two years.' },
+      { label: 'Có ít nhất một câu xét ý kiến trái chiều', hint: 'Of course, some people argue that a degree is still the safest route.' },
+      { label: 'Dùng từ nối học thuật', hint: 'Moreover, Nevertheless, In contrast, For these reasons' },
+      { label: 'Kết luận khẳng định lại quan điểm', hint: 'For these reasons, I firmly believe that…' },
+    ],
+    model: `Every year, thousands of Vietnamese students have to choose between entering a university and learning a trade. Many families treat this as an easy decision, because a degree has long been seen as the only respectable path to success. In my opinion, however, the choice should depend on the student’s abilities, and vocational training deserves far more respect than it receives today.
+
+First, a vocational qualification often leads to work more quickly, and this matters enormously for families with limited income. University courses usually last four years, and graduates may then spend another year looking for a suitable job. A trained mechanic, chef or nurse, in contrast, can start earning within two years and can continue studying later if they wish. In Vietnam, many employers in manufacturing and tourism complain that they cannot find enough skilled workers, even while thousands of graduates are unemployed. This suggests that the labour market, not tradition, should guide the decision.
+
+Of course, some people argue that a degree is still the safest route. Certain professions, such as medicine and law, are impossible to enter without a university education, and graduates often earn more over a lifetime. Nevertheless, a degree is not a guarantee. Many students choose subjects because their friends do, then graduate with heavy debts and no clear direction. If the same four years were spent learning a skill and gaining real experience, the results might be far better.
+
+For these reasons, I firmly believe that universities and vocational schools should be seen as equal options. Governments should invest in high-quality training centres, and schools should give students honest information about salaries and job prospects in both paths. The best choice is the one that matches the student, not the one that sounds more impressive.`,
+    phrases: [
+      { phrase: 'the choice should depend on the student’s abilities', meaning: 'lựa chọn nên dựa trên năng lực của học sinh' },
+      { phrase: 'a vocational qualification leads to work more quickly', meaning: 'bằng nghề giúp có việc làm nhanh hơn' },
+      { phrase: 'a degree is not a guarantee', meaning: 'bằng đại học không phải là sự bảo đảm' },
+      { phrase: 'invest in high-quality training centres', meaning: 'đầu tư vào các trung tâm đào tạo chất lượng cao' },
+    ],
+  },
 ]
 
 export const writingById = (id) => writingTasks.find((task) => task.id === id) || writingTasks[0]

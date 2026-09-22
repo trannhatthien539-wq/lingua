@@ -54,10 +54,7 @@ export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
               <GraduationCap size={18} className="text-sage" />
               {QUESTION_COUNT} câu · {QUESTION_COUNT ? TIME_LIMIT / 60 : 0} phút
             </h3>
-            <p className="mt-1.5 text-sm leading-6 text-ink/70 dark:text-white/70">
-              Trộn câu hỏi từ 12 thì, cấu trúc B1 và cấu trúc C1 (chọn đáp án, điền từ, sửa lỗi, viết lại câu).
-              Đạt từ {Math.round(PASS_RATIO_EXAM * 100)}% là nắm chắc kiến thức nền.
-            </p>
+            <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">Trộn 12 thì, cấu trúc B1 và C1 · đạt {Math.round(PASS_RATIO_EXAM * 100)}% là nắm chắc.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">

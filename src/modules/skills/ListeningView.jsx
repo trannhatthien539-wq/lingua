@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Headphones, ListMusic, Pause, Play, RotateCcw, Volume2 } from 'lucide-react'
+import { ArrowLeft, Headphones, ListMusic, Pause, Play, RotateCcw, Volume2 } from 'lucide-react'
 import QuestionSet from '../grammar/GrammarQuiz'
+import SkillLessonList from '../../components/learning/SkillLessonList'
 import { listeningLessons } from '../../data/skills/listening'
 import { speakText, stopSpeech } from '../../utils/speech'
 
@@ -12,6 +13,7 @@ const RATES = [
 
 /** Luyện nghe: phát hội thoại bằng giọng tiếng Anh của thiết bị, chép chính tả, làm câu hỏi. */
 export default function ListeningView({ progress, onResult, onLines, focusId }) {
+  const [view, setView] = useState('list')
   const [lessonId, setLessonId] = useState(listeningLessons[0].id)
   const [playing, setPlaying] = useState(false)
   const [currentLine, setCurrentLine] = useState(-1)
@@ -24,7 +26,10 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
 
   // Mở đúng bài khi đến từ tìm kiếm toàn cục.
   useEffect(() => {
-    if (focusId && listeningLessons.some((item) => item.id === focusId)) setLessonId(focusId)
+    if (focusId && listeningLessons.some((item) => item.id === focusId)) {
+      setLessonId(focusId)
+      setView('lesson')
+    }
   }, [focusId])
 
   const stop = () => {
@@ -84,28 +89,43 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
   }
 
   const fullText = lesson.transcript.map((item) => item.line).join(' ')
+  const lessonIndex = Math.max(0, listeningLessons.findIndex((item) => item.id === lesson.id))
+
+  const openLesson = (id) => {
+    setLessonId(id)
+    setView('lesson')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Chỉ hiện danh sách bài; nội dung bài mở ra khi người học bấm vào một thẻ.
+  if (view === 'list') {
+    return (
+      <SkillLessonList
+        icon={Headphones}
+        color="#14d4f4"
+        actionLabel="Luyện nghe"
+        items={listeningLessons.map((item, index) => ({
+          id: item.id,
+          index: index + 1,
+          title: item.title,
+          level: item.level,
+          tag: item.topic,
+          meta: `~${item.seconds} giây · ${item.transcript.length} dòng · ${item.questions.length} câu hỏi`,
+          result: progress?.listening?.[item.id],
+        }))}
+        onOpen={openLesson}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">
-      <nav className="panel p-3" aria-label="Danh sách bài nghe">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {listeningLessons.map((item) => {
-            const active = item.id === lesson.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setLessonId(item.id)}
-                aria-current={active ? 'true' : undefined}
-                className={`flex min-h-[44px] min-w-max flex-col items-start rounded-xl px-3 py-2 text-left text-sm transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
-              >
-                <span className="font-bold">{item.title}</span>
-                <span className={`text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.level} · {item.topic}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setView('list')} className="btn-ghost px-3">
+          <ArrowLeft size={16} />Danh sách bài
+        </button>
+        <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Bài {lessonIndex + 1}/{listeningLessons.length}</span>
+      </div>
 
       <section className="panel p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">

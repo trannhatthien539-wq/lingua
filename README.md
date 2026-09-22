@@ -59,13 +59,13 @@ flowchart TD
 
 **Cách App.jsx hoạt động**
 
-1. `navigationItems` (`src/data/navigation.js`) khai báo tab: `id, label, shortLabel, description, icon`.
-2. `modules` map tab → component lazy; `tabPaths` map tab → URL (`/vocabulary`, `/grammar`, …); path không hợp lệ bị điều hướng về `/vocabulary`.
+1. `navigationItems` (`src/data/navigation.js`) khai báo tab: `id, label, shortLabel, description, icon, color`. `color` là màu nhận diện của tab, dùng cho **icon nhiều màu kiểu Duolingo** (`src/components/ui/NavIcon.jsx` — ô bo tròn nền đặc + glyph trắng, tự đổi glyph sang màu tối nếu nền sáng). Tailwind không sinh class động nên màu truyền bằng style inline.
+2. `modules` map tab → component lazy; `tabPaths` map tab → URL (`/home`, `/vocabulary`, …); path không hợp lệ bị điều hướng về `/home` (trang chủ).
 3. Mỗi module nhận props chung: `onStudyActivity` (ghi streak + lịch sử), `streak`, `user`, `apiKey`, `setApiKey`, `onGoogleLogin`, `onSignOut`.
 4. Tab `settings` render thêm các panel: `AccountPanel` → `AppearancePanel` → `InstallAppPanel` → `AccountDataPanel` → `ApiSettings`.
-5. `onAuthStateChanged` → nạp streak + API key (ưu tiên key của tài khoản) + `syncGuestData()` (đẩy dữ liệu khách lên cloud, tăng `dataVersion` để remount module).
+5. **Chờ `whenAuthSettled()` rồi mới render app** (splash “Đang tải…” một nhịp) → module mount lần duy nhất với đúng chủ sở hữu dữ liệu. `onAuthStateChanged` chỉ nạp streak + API key; đổi tài khoản (đăng nhập/đăng xuất) mới bắn `refreshRequestedEvent` để các module **nạp lại dữ liệu TẠI CHỖ**, không remount (trước đây `key` chứa `user.uid` + `dataVersion` làm trang “tải lại” 2 lần ngay khi vừa mở app). `syncGuestData()` cũng bắn sự kiện này thay vì tăng biến đếm để remount.
 
-**Thêm một tab mới (đúng 4 bước)**: tạo `src/modules/<domain>/<Name>Hub.jsx` → thêm item vào `src/data/navigation.js` → thêm `lazy()` + entry trong `modules`/`tabPaths` ở `App.jsx` → (tuỳ chọn) thêm icon vào `iconById` của `src/components/MobileBottomNav.jsx`.
+**Thêm một tab mới (đúng 4 bước)**: tạo `src/modules/<domain>/<Name>Hub.jsx` → thêm item vào `src/data/navigation.js` (nhớ `icon` + `color`) → thêm `lazy()` + entry trong `modules`/`tabPaths` ở `App.jsx` → nếu muốn hiện ở bottom nav thì thêm id vào `PRIMARY_TABS` của `src/components/MobileBottomNav.jsx` (không cần khai báo icon riêng nữa).
 
 ## 4. Cây thư mục
 
@@ -77,12 +77,13 @@ src/
 ├─ components/             # UI dùng chung
 │  ├─ layout/              # Sidebar, Topbar
 │  ├─ learning/            # FlashcardModal, QuizView, SpellerView, MatchingView, StudyHubModal, StudySummary, ImportExportModal
-│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StatCard, StudyHistoryChart, SyncStatusBadge, Toaster
+│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StatCard, StudyHistoryChart, SyncStatusBadge, Toaster, NavIcon
 │  ├─ Auth/AuthPage.jsx    # đăng nhập/đăng ký (Email + Google) và chế độ khách
 │  ├─ AiTutorPanel.jsx     # chat gia sư AI
 │  ├─ SearchPalette.jsx    # tìm kiếm toàn cục (Ctrl/⌘+K)
 │  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, StudyAnalyticsWidget, MobileHeader, MobileBottomNav
 ├─ modules/                # 1 folder = 1 tab
+│  ├─ home/HomeHub.jsx                  # trang chủ: lời chào, chuỗi ngày, mục tiêu, khu vực học, tổng quan tiến độ
 │  ├─ learning/VocabularyHub.jsx        # tab Từ vựng (file lớn nhất, ~1.4k dòng)
 │  ├─ learning/GrammarAndVocabulary.jsx # WritingChecker (tab Writing)
 │  ├─ grammar/                          # GrammarHub, GrammarLesson, GrammarQuiz (QuestionSet dùng lại cho nghe/đọc/thi thử)
@@ -107,14 +108,15 @@ native/android-widget/     # mã native cho widget màn hình chính + shortcut 
 
 Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `scripts/` (script QA nội dung), `tests/`, `.github/workflows/` (deploy + build APK).
 
-**File chết (đã bị thay thế, xoá được)**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`.
+**File chết (đã bị thay thế, xoá được)**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`; `src/components/StudyAnalyticsWidget.jsx` (tab Từ vựng không còn dùng — thay bằng header gọn + chip số liệu trong chi tiết bộ).
 
 ## 5. Điều hướng & các tab
 
 | Tab id | URL | Module | Nội dung chính |
 | --- | --- | --- | --- |
-| `vocabulary` | `/vocabulary` | `VocabularyHub` | Bộ thẻ, SRS, 4 chế độ học, thùng rác, sửa hàng loạt, thêm từ (AI/từ điển miễn phí), import/export |
-| `grammar` | `/grammar` | `GrammarHub` | 30 bài (12 thì + cấu trúc B1 + mở rộng + C1), sổ câu sai, thi tổng hợp, bảng tra nhanh, cặp dễ lẫn |
+| `home` | `/home` | `HomeHub` | **Trang chủ**: lời chào + chuỗi ngày + cấp độ + vòng mục tiêu ngày, lưới “Khu vực học” (icon nhiều màu), gợi ý “Hôm nay học gì” và bảng tổng quan tiến độ |
+| `vocabulary` | `/vocabulary` | `VocabularyHub` | Danh sách bộ thẻ dạng thẻ → chi tiết bộ; SRS, 4 chế độ học, thùng rác, sửa hàng loạt, thêm từ (AI/từ điển miễn phí), import/export |
+| `grammar` | `/grammar` | `GrammarHub` | 30 bài (12 thì + cấu trúc B1 + mở rộng + C1) dạng thẻ bài học, sổ câu sai, thi tổng hợp, cặp dễ lẫn |
 | `skills` | `/skills` | `SkillsHub` | 6 sub-tab: Nghe, Đọc, Nói (chấm phát âm), Viết, Luyện câu, Thi thử B1 |
 | `vstep` | `/vstep` | `VstepHub` | **Kho đề VSTEP** (10 đề B1/B2/C1) + sổ tay, từ vựng, mẫu câu, lịch sử thi |
 | `writing` | `/writing` | `WritingChecker` | Chấm chữa bài viết bằng AI |
@@ -243,11 +245,11 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `grammarTopics.js`, `grammarTopicsB1a.js`, `grammarTopicsB1b.js` | 14 chủ điểm B1/mở rộng (điều kiện, bị động, mệnh đề quan hệ, tường thuật, modal, so sánh, gerund, mạo từ, **giới từ, liên từ & mệnh đề trạng ngữ, used to, câu hỏi đuôi, cấu tạo từ, wish/causative**), mỗi bài 8 câu |
 | `grammarTopicsC1.js` | 4 cấu trúc C1: câu chẻ, đảo ngữ, mệnh đề phân từ, danh hoá & hedging |
 | `grammarConfusingPairs.js` | 16 cặp cấu trúc dễ lẫn kèm cách phân biệt + ví dụ |
-| `grammarIndex.js` | Gộp 30 bài + gắn id câu hỏi (`<lessonId>-q<n>`), 4 nhóm bài, `grammarAllQuestions`, bảng tra nhanh chủ điểm |
-| `skills/listening.js` | 6 bài nghe (transcript từng câu, câu hỏi) |
-| `skills/reading.js` | 6 bài đọc + glossary + câu hỏi |
-| `skills/speaking.js` | 6 chủ đề (warm-up, cue card + bài mẫu, discussion, phrases) |
-| `skills/writing.js` | 6 đề viết (email/đoạn văn) + checklist |
+| `grammarIndex.js` | Gộp 30 bài + gắn id câu hỏi (`<lessonId>-q<n>`), 4 nhóm bài, `grammarAllQuestions` |
+| `skills/listening.js` | 8 bài nghe (transcript từng câu, glossary, câu hỏi) — 2 bài cuối theo dạng VSTEP (Part 1 thông báo, Part 3 bài giảng) |
+| `skills/reading.js` | 8 bài đọc + glossary + câu hỏi — 2 bài cuối theo dạng VSTEP (đọc thông báo, đọc học thuật) |
+| `skills/speaking.js` | 8 chủ đề (warm-up, cue card + bài mẫu, discussion, phrases) — 2 chủ đề cuối theo dạng VSTEP (Part 1&3, Part 2 chọn giải pháp) |
+| `skills/writing.js` | 8 đề viết (email/đoạn văn) + checklist — 2 đề cuối theo dạng VSTEP (Task 1 thư ~120 từ, Task 2 bài luận 250+ từ) |
 | `skills/sentencePractice.js` | 45 bài: 15 điền khuyết (cl), 15 sắp xếp (or), 15 viết lại (rw) |
 | `themeDecks.js` | 7 bộ cụm từ theo chủ đề (`createThemeDeck(id)`) |
 | `starterDeck.js` | Bộ "IELTS Speaking Part 1" 10 từ (bộ mẫu cũ, tự thay bằng bộ 1000 từ) |
@@ -272,23 +274,26 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 11. Tính năng theo module (hành vi cụ thể)
 
-- **Từ vựng (`VocabularyHub`)**: phiên học tối đa `SESSION_LIMIT = 50` thẻ, danh sách hiện `RENDER_LIMIT = 60` rồi "Xem thêm". Bộ lọc: tất cả/chưa thuộc/đã thuộc + menu SRS (cần ôn hôm nay, interval 1/3/5, **từ hay quên**). 4 chế độ: flashcard 3D, trắc nghiệm, chính tả (TTS), nối từ. Tự tra ảnh khi thư viện ≤ 200 thẻ (tối đa 8 ảnh/lần tải).
+- **Trang chủ (`HomeHub`, `/home`)**: mở app là vào đây. Gồm (1) hero xanh kiểu Duolingo: lời chào theo giờ, chuỗi ngày, cấp độ + XP, thanh **mục tiêu hôm nay** và 2 nút “Học ngay”/“Thi thử VSTEP”; (2) lưới **Khu vực học** — Từ vựng, Ngữ pháp, Kỹ năng, VSTEP, Writing, Tiến độ (mỗi thẻ có icon nhiều màu + viền dưới theo màu tab, bấm là `onNavigate`); (3) `TodayPlanCard` (“Hôm nay học gì”); (4) **bảng tổng quan tiến độ** 6 ô (cấp/XP, chuỗi ngày, từ vựng đã thuộc, bài ngữ pháp, đề VSTEP, huy hiệu) + biểu đồ 14 ngày, nút sang tab Tiến độ. Số liệu lấy từ `summarize()` (gamification) với thẻ đọc qua `dataService` — giống `ProgressHub` nhưng chỉ đọc.
+- **Từ vựng (`VocabularyHub`)**: **hai màn hình giống tab Ngữ pháp** — (1) *danh sách bộ thẻ*: header gọn (icon + thanh tiến độ `đã thuộc/tổng` + nút “Ôn n từ đến hạn”/“Học ngay”, “Thêm từ”, và dải ghost `Bộ theo chủ đề · Nhập · Xuất · Thùng rác`) rồi lưới thẻ bộ thẻ (icon màu, số từ, chip `%`/“Chưa học”, thanh tiến độ, nút “Ôn n từ” + “Xem n từ”) cùng ô nét đứt “Tạo bộ mới”; (2) *chi tiết một bộ*: nút “← Danh sách bộ”, tiêu đề + chip số liệu (`đã thuộc/tổng`, `n đến hạn ôn`, `n chưa thuộc`, tag), nút “Bắt đầu học ngay” + menu (đổi tên/chia sẻ/dọn trùng/xoá…) và danh sách từ. State `view: 'list' | 'deck'`; số liệu tính 1 lượt trong `useMemo` (`libraryStats`, `deckStats`) nên không còn lọc lại 1000 thẻ cho từng bộ.
+- Chi tiết học: phiên học tối đa `SESSION_LIMIT = 50` thẻ, danh sách hiện `RENDER_LIMIT = 60` rồi "Xem thêm". Bộ lọc: tất cả/chưa thuộc/đã thuộc + menu SRS (cần ôn hôm nay, interval 1/3/5, **từ hay quên**). 4 chế độ: flashcard 3D, trắc nghiệm, chính tả (TTS), nối từ. Tự tra ảnh khi thư viện ≤ 200 thẻ (tối đa 8 ảnh/lần tải).
 - **FlashcardModal**: lật thẻ 3D, phím `Space` để lật, `1/2/3` để đánh giá, `←/Z` về thẻ trước; thẻ "chưa nhớ" quay lại cuối hàng đợi; nút đánh giá hiện khoảng nghỉ thật.
 - **Ngữ pháp**: **30 bài** — 12 thì, 14 chủ điểm B1/mở rộng, 4 cấu trúc C1; mỗi bài có cấu trúc/cách dùng/dấu hiệu/ví dụ/lỗi thường gặp, 8 câu hỏi gồm 4 dạng (`choice`, `fill` điền từ, `error` sửa lỗi, `transform` viết lại câu), luyện nhanh (đáp án ngay, **ưu tiên câu từng sai**) và kiểm tra cuối bài (đạt ≥ 80%).
   - **Sổ câu sai**: câu làm sai được lưu tự động vào `user_state` key `grammar` (kèm số lần sai); có nút luyện lại, xoá từng câu, và **chuyển thành bộ flashcard** (`Ngữ pháp · câu hay sai`) để ôn bằng SRS.
   - **Thi tổng hợp**: 30 câu trộn mọi chủ điểm, 20 phút, đạt ≥ 70%, lưu lịch sử thi.
-  - **Tra cứu nhanh**: bảng 12 thì, bảng 18 chủ điểm, và bảng 16 **cặp cấu trúc dễ lẫn**; nút **“Giải thích bằng AI”** cho từng câu sai (cần API key hoặc proxy).
+  - **Danh sách bài**: 30 bài hiện thành từng thẻ (như danh sách đề VSTEP) chia 4 nhóm, có số câu + trạng thái “Chưa học / Đạt x/y”; bấm thẻ mới mở nội dung bài, đạt bài kiểm tra cuối bài là **đánh dấu hoàn thành** (có thông báo).
+  - **Tra cứu nhanh**: 16 **cặp cấu trúc dễ lẫn**; nút **“Giải thích bằng AI”** cho từng câu sai (cần API key hoặc proxy). (Đã bỏ 2 bảng tra cứu nhanh 12 thì/chủ điểm cho gọn.)
 - **VSTEP (`/vstep`)**: tab riêng gồm 4 phần xem: **Bộ đề** (10 đề, lọc theo bậc), **Sổ tay VSTEP**, **Từ vựng** (10 chủ đề, tạo bộ flashcard bằng 1 nút), **Mẫu câu**, **Lịch sử thi**.
   - *Thi thật*: đi một chiều như thi thật (Nghe 40′ → Đọc 60′ → Viết 60′ → Nói 12′), mỗi kỹ năng có đồng hồ riêng, hết giờ tự chuyển phần, không xem đáp án trước khi nộp; băng nghe là TTS đọc transcript và **giới hạn 2 lần nghe** mỗi phần.
   - *Luyện*: không đồng hồ, được xem đáp án từng kỹ năng (nút "Xem đáp án phần này").
   - Kết quả: điểm 0–10 từng kỹ năng (Nghe/Đọc tự chấm; Viết/Nói chấm bằng AI hoặc tự chấm checklist), điểm trung bình → bậc B1/B2/C1, xem lại từng câu kèm giải thích và transcript, lưu vào lịch sử thi.
   - Nút chấm AI dùng provider đang chọn trong Cài đặt (Gemini/Groq/**DeepSeek**) và cần API key (hoặc proxy).
-- **Kỹ năng**: Nghe (TTS 0.8x/1x/1.2x + chép chính tả), Đọc (glossary + câu hỏi), Nói (ghi âm + **chấm điểm phát âm** bằng Web Speech API: % khớp, từ chưa rõ, tốc độ nói), Viết, Luyện câu (3 dạng), Thi thử B1 (28 câu: 12 ngữ pháp + 8 từ vựng + 4 đọc + 4 nghe, 30 phút, ước lượng band).
+- **Kỹ năng**: **mỗi kỹ năng 8 bài**, hiện dạng **danh sách thẻ bài học** (`SkillLessonList`) → bấm mới mở nội dung, có nút “← Danh sách bài” (giống tab Ngữ pháp/Từ vựng). Trong đó **4 bài cuối là dạng đề VSTEP**: Nghe Part 1 (thông báo công cộng) + Part 3 (bài giảng), Đọc thông báo/quảng cáo + Đọc học thuật, Nói Part 1&3 và Part 2 (chọn giải pháp), Viết Task 1 (thư ~120 từ) + Task 2 (bài luận 250+ từ). Ngoài ra: Nghe (TTS 0.8x/1x/1.2x + chép chính tả), Đọc (glossary + câu hỏi), Nói (ghi âm + **chấm điểm phát âm** bằng Web Speech API: % khớp, từ chưa rõ, tốc độ nói), Viết, Luyện câu (3 dạng), Thi thử B1 (28 câu: 12 ngữ pháp + 8 từ vựng + 4 đọc + 4 nghe, 30 phút, ước lượng band).
 - **Bấm-vào-từ để tra nghĩa (`TappableText`)**: mọi từ tiếng Anh trong bài đọc Skills, bài đọc VSTEP và bảng từ khoá đều bấm được → popover hiện IPA, nghĩa tiếng Việt, định nghĩa, ví dụ, từ đồng nghĩa + nút **Nghe** và **Thêm vào bộ thẻ** (tự tạo bộ `Từ vựng tra nhanh`, hoặc chọn bộ khác trong danh sách). Kết quả tra được đệm ở `lingua-word-cache` nên bấm lại là hiện ngay; mất mạng thì báo lỗi thân thiện và không cho lưu thẻ rỗng. `GlossaryList` (bảng từ khoá) có nút nghe + nút lưu thẻ cho từng từ.
 - **Sổ câu sai dùng chung + “Hôm nay học gì?”** (tab Tiến độ): `MistakeBankCard` gộp câu sai **Ngữ pháp + Nghe + Đọc + VSTEP** (ưu tiên câu sai nhiều lần), cho **luyện lại tối đa 20 câu** ngay tại chỗ (đáp án hiện sau mỗi câu, ghi tiếp vào đúng sổ) và **tạo bộ flashcard** `Sổ câu sai · Nghe/Đọc/VSTEP` để ôn bằng SRS. `TodayPlanCard` gợi ý việc cần làm hôm nay (thẻ đến hạn, thẻ mới, từ hay quên, câu sai, kỹ năng VSTEP yếu nhất, mục tiêu, chuỗi ngày) — mỗi dòng có nút nhảy thẳng tới đúng khu vực qua prop `onNavigate` (App truyền `selectTab` vào module).
 - **Tiến độ**: XP = lượt ôn ×2 + đúng ×3 + phiên ×8 + thẻ đã thuộc ×2 + bài ngữ pháp ×30 + bài nghe/đọc ×15 + câu đúng ×1 + thi thử ×60; 11 cấp (`LEVEL_STEPS`); 16 huy hiệu. `ProgressHub` đọc toàn bộ thẻ của người dùng (như `VocabularyHub`).
-- **Bố cục mobile (đã rà lại)**: bottom nav 5 tab + “Thêm”; `main` có `pb-28` để không bị nav che; dải tab của Kỹ năng **xuống dòng** trên điện thoại (trước đây “Luyện câu”/“Thi thử B1” bị khuất); Topbar trên điện thoại ẩn badge đồng bộ + nút phím tắt (đã có ở `MobileHeader`); chip từ khoá bài nghe cao ≥36px; bảng tra cứu ngữ pháp có dòng “Vuốt ngang trong bảng để xem đủ cột”; danh sách bài ngữ pháp tự cuộn tới bài đang học.
-- **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ.
+- **Bố cục mobile (đã rà lại)**: bottom nav 5 tab + “Thêm”; `main` có `pb-28` để không bị nav che; dải tab của Kỹ năng **xuống dòng** trên điện thoại (trước đây “Luyện câu”/“Thi thử B1” bị khuất); Topbar trên điện thoại ẩn badge đồng bộ + nút phím tắt (đã có ở `MobileHeader`); chip từ khoá bài nghe cao ≥36px.
+- **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ. **Mở bằng nút nổi màu xanh ở góc phải dưới — có ở MỌI tab** (mobile `bottom-24`, desktop `bottom-6`), thay cho nút “+ Thêm từ” cũ ở tab Từ vựng (việc thêm từ nay nằm trong màn hình chi tiết bộ + sheet “Thêm từ mới”).
 - **Chia sẻ/sao lưu**: `shareDeck` tạo link `#deck=…` (khách mở link thấy hộp thoại nhập bộ); `backupService` xuất/nhập JSON toàn bộ dữ liệu.
 - **Nhắc học hằng ngày** (Cài đặt → Dữ liệu): chọn **Giờ nhắc** là Lingua **tự bật nhắc học + xin quyền thông báo** luôn (chỉ chọn giờ mà không bật là lỗi cũ hay gặp nhất); dưới ô giờ có dòng cho biết **lần nhắc tới** và **trạng thái lịch của hệ điều hành** (`đã lên lịch` / `Android đang chặn` / `APK chưa kèm plugin`). Trên web, nếu hệ điều hành không lên lịch được thì Lingua vẫn nhắc trong lúc app đang mở. Đổi giờ/bật-tắt sẽ xoá `lastNotifiedDate` để hôm đó được nhắc lại.
 - **Tìm kiếm toàn cục**: `Ctrl/⌘+K` → tìm theo `searchIndex` (bỏ dấu tiếng Việt) → chọn kết quả thì `openItem()` điều hướng + ghi "mục đang chờ"; module đích gọi `consumePendingItem('<tab>')` khi mount (vì module lazy nên có thể mount sau sự kiện).
@@ -337,7 +342,10 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 5. **Module lazy + sự kiện**: không dispatch sự kiện rồi hy vọng module chưa mount nhận được — dùng cơ chế "pending item" trong `deepLink.js`.
 6. **React Flow**: `nodeTypes`/`defaultEdgeOptions` phải là hằng ngoài component; ẩn handle thì phải `pointer-events-none`.
 7. **Tailwind + font scale**: cỡ chữ đổi `html{font-size}` nên tránh phần tử có min-width theo `rem` trong hàng ngang (từng gây tràn ở planner).
-8. **Bottom nav mobile**: **5 tab chính + nút “Thêm”** (bảng trượt lên chứa Writing/Todo/Sơ đồ/Cài đặt). Trước đây hiện cả 9 tab nên 3 tab cuối bị khuất, phải vuốt ngang mới thấy (không ai thấy). Nếu thêm tab mới: thêm vào `navigationItems` + `iconById`; tab nào không nằm trong `PRIMARY_TABS` sẽ tự vào bảng “Thêm”. Nhớ `main` phải giữ `pb-28` (nav cao ~76px).
+8. **Bottom nav mobile**: **5 tab chính + nút “Thêm”** (bảng trượt lên chứa Writing/Tiến độ/Todo/Sơ đồ/Cài đặt). Trước đây hiện cả 9 tab nên 3 tab cuối bị khuất, phải vuốt ngang mới thấy (không ai thấy). Nếu thêm tab mới: thêm vào `navigationItems` (+ `color`); tab nào không nằm trong `PRIMARY_TABS` sẽ tự vào bảng “Thêm”. Nhớ `main` phải giữ `pb-28` (nav cao ~80px).
+9. **Giao diện điều hướng kiểu Duolingo** (Sep 2026): nhãn tab **IN HOA đậm**, mỗi tab có một ô icon bo tròn **nền đặc theo màu nhận diện** (`item.color`) với glyph trắng + bóng dưới, tab đang chọn có **nền xanh nhạt `#ddf4ff` + viền `#84d8ff` + chữ `#1899d6`** (dark mode dùng tint xanh trên nền tối). Sidebar: logo xanh `#58cc02`, dải tab dọc, thẻ chuỗi ngày có icon lửa cam `#ff9600`; bottom nav dùng cùng bộ icon, tab đang chọn có viền pill xanh. Bảng màu sống động này cố định (không theo `--accent` của Cài đặt → Giao diện).
+10. **Chữ gọn, ít dài dòng** (Sep 2026, yêu cầu “gọn gàng dễ nhìn”): phần đầu mỗi tab chỉ còn **eyebrow + tiêu đề 1 dòng + tối đa 1 dòng mô tả** — VSTEP thay đoạn văn 4 dòng bằng 4 ô tóm tắt kỹ năng (`SKILL_SUMMARY`) + hàng chip tab chỉnh sửa nhỏ hơn, Kỹ năng/Thi thử B1/Thi tổng hợp ngữ pháp/Tiến độ/Từ vựng VSTEP/Từ vựng (Việc hôm nay) đều rút còn một dòng. Khi thêm UI mới: **đừng** viết đoạn mô tả dài ở header, hãy đưa thông tin vào chip/ô số liệu.
+11. **Một kiểu bố cục cho mọi tab “có nội dung con”** (Sep 2026): **danh sách dạng thẻ → màn hình chi tiết có nút “← Danh sách …”** (Ngữ pháp: 30 bài; Từ vựng: các bộ thẻ; Kỹ năng: 8 bài cho mỗi kỹ năng qua `src/components/learning/SkillLessonList.jsx`). Danh sách dùng `grid gap-3 lg:grid-cols-2`, mỗi thẻ `panel` + `border-b-4` màu nhận diện + chip trạng thái + 1–2 nút, kèm dòng “x/y đã hoàn thành” theo nhóm và một ô nét đứt để tạo mới. Chi tiết **không** lặp lại phần thống kê đã có ở danh sách. Thẻ bài kỹ năng truyền `items` đã chuẩn hoá (`{id,index,title,level,tag,meta,summary,result,chip}`) nên thêm kỹ năng mới chỉ cần map dữ liệu, không viết lại UI.
 9. **In báo cáo**: nhớ class `.no-print` cho chrome (Sidebar/Topbar/MobileHeader/BottomNav đã gắn sẵn).
 10. **`node --test tests` (thư mục trần) không chạy được** — phải dùng glob `"tests/*.test.js"`, và Node phải **≥ 22** để tự mở rộng glob (CI dùng `node-version: 24`).
 11. **ESLint 10 (flat config) bật rule mới khá gắt**: `preserve-caught-error` (throw trong `catch` phải kèm `{ cause: error }`) và `no-useless-assignment`; ngoài ra `react-hooks/rules-of-hooks` coi **mọi hàm bắt đầu bằng `use`** là hook — đừng đặt tên helper kiểu `useNativeGoogle()` (đã đổi thành `nativeGoogleRequested()`). Sửa lỗi thật thay vì tắt rule; warning thì để lại (CI chỉ fail khi có error).
@@ -345,6 +353,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 13. **`useCloudDoc` ghi có debounce** (mặc định ~900ms): sau khi lưu xong, dữ liệu vào localStorage/Firestore trễ 1–3 giây — đừng kết luận "không lưu được" khi kiểm tra ngay lập tức.
 14. **Thông báo khác nhau theo nền tảng**: web = `Notification` (chỉ khi app mở), APK = `@capacitor/local-notifications` (lịch của hệ điều hành, chỉ chạy sau `npx cap sync android`).
 15. **Đừng tin `auth.currentUser` ngay sau khi mở app**: Firebase khôi phục phiên bất đồng bộ, nên `userDocService` chờ `whenAuthSettled()` trước khi đọc/ghi `user_state`. Nếu đọc sớm sẽ dùng nhầm bản của khách → UI hiện giá trị mặc định (từng gây lỗi “giờ nhắc bị reset”) và có thể ghi đè dữ liệu thật.
+16. **Đừng remount module theo `user.uid`/biến đếm dữ liệu**: `key={\`${activeTab}-${user?.uid}-${dataVersion}\`}` từng làm điện thoại “tải lại trang” 2 lần khi vừa mở app (một lần khi Firebase khôi phục phiên, một lần khi đồng bộ dữ liệu khách xong). Cách đúng: chờ `whenAuthSettled()` trước lần render đầu, còn đổi dữ liệu thì bắn `refreshRequestedEvent` (mọi hook `useCloudDoc` + VocabularyHub/ProgressHub/HomeHub/mindmap/reminder đều nghe sự kiện này). Nhớ rà lại: bất cứ nơi nào đang `dispatchEvent(new Event(refreshRequestedEvent))` thì module phải tự nạp lại dữ liệu, không được dựa vào remount.
 16. **Ô nhập `type="time"` của Android trả chuỗi rỗng khi người dùng bấm huỷ**: luôn đi qua `normalizeTime()` trước khi lưu, nếu không ô sẽ hiển thị lại giá trị mặc định như bị reset.
 
 ## 17. Chưa làm (roadmap)

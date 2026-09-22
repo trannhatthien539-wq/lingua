@@ -15,10 +15,18 @@ import { toast } from "../../services/toast";
 
 const VIEWS = [
   { id: "exams", label: "Bộ đề", icon: GraduationCap },
-  { id: "handbook", label: "Sổ tay VSTEP", icon: BookOpen },
+  { id: "handbook", label: "Sổ tay", icon: BookOpen },
   { id: "vocabulary", label: "Từ vựng", icon: Target },
   { id: "phrases", label: "Mẫu câu", icon: Sparkles },
-  { id: "history", label: "Lịch sử thi", icon: History },
+  { id: "history", label: "Lịch sử", icon: History },
+];
+
+/** Tóm tắt cấu trúc đề — thay cho đoạn văn mô tả dài. */
+const SKILL_SUMMARY = [
+  { label: "Nghe", detail: "35 câu · 40′" },
+  { label: "Đọc", detail: "40 câu · 60′" },
+  { label: "Viết", detail: "2 task · 60′" },
+  { label: "Nói", detail: "3 phần · 12′" },
 ];
 
 /** Tab VSTEP: danh sách đề, thi thật 4 kỹ năng, sổ tay/từ vựng/mẫu câu và lịch sử thi. */
@@ -114,15 +122,12 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
 
   return (
     <div className="space-y-5">
-      <section className="panel p-5 print-report">
+      <section className="panel p-4 sm:p-5 print-report">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="eyebrow">VSTEP · B1 – B2 – C1</p>
-            <h2 className="mt-1 font-display text-xl font-bold">Thi thử như thi thật, đủ 4 kỹ năng</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70 dark:text-white/70">
-              Mỗi đề gồm Nghe (35 câu · 40 phút), Đọc (40 câu · 60 phút), Viết (2 task · 60 phút) và Nói (3 phần · 12 phút).
-              Bài thi đi một chiều, có đồng hồ từng kỹ năng và không xem đáp án trước khi nộp.
-            </p>
+            <h2 className="mt-1 font-display text-xl font-bold">Thi thử 4 kỹ năng</h2>
+            <p className="mt-1 text-xs text-ink/60 dark:text-white/60">Đi một chiều như thi thật · không xem đáp án trước khi nộp</p>
           </div>
           {attempts.length > 0 && (
             <div className="rounded-xl bg-ink/[0.04] p-3 text-right dark:bg-white/[0.06]">
@@ -132,16 +137,24 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
             </div>
           )}
         </div>
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SKILL_SUMMARY.map((item) => (
+            <li key={item.label} className="panel-flat px-3 py-2">
+              <p className="text-xs font-bold">{item.label}</p>
+              <p className="text-xs text-ink/60 dark:text-white/60">{item.detail}</p>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {VIEWS.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setView(item.id)}
               aria-pressed={view === item.id}
-              className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${view === item.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${view === item.id ? "bg-lime text-ink" : "text-ink/65 hover:bg-ink/[0.05] dark:text-white/65 dark:hover:bg-white/[0.08]"}`}
             >
-              <item.icon size={15} />{item.label}
+              <item.icon size={14} />{item.label}
             </button>
           ))}
         </div>
@@ -162,7 +175,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
               </button>
             ))}
             <span className="ml-auto text-xs font-semibold text-ink/60 dark:text-white/60">
-              {examsByLevel(level).length} đề · mỗi đề 75 câu Nghe + Đọc, 2 task Viết, 3 phần Nói
+              {examsByLevel(level).length} đề · 75 câu Nghe + Đọc, 2 Viết, 3 Nói
             </span>
           </div>
 
@@ -177,7 +190,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                       <p className="eyebrow">{meta.level} · {meta.tags.join(" · ")}</p>
                       <h3 className="mt-1 font-display text-base font-bold">{meta.title}</h3>
                       <p className="mt-1 text-xs text-ink/60 dark:text-white/60">
-                        35 câu Nghe + 40 câu Đọc · 2 task Viết · 3 phần Nói · tổng 172 phút
+                        35 Nghe · 40 Đọc · 2 Viết · 3 Nói · 172 phút
                       </p>
                     </div>
                     <div className="text-right">

@@ -85,10 +85,7 @@ export default function MockTestView({ history, onFinish }) {
         <h2 className="mt-1 flex items-center gap-2 font-display text-xl font-bold">
           <GraduationCap size={20} className="text-sage" /> Bài thi thử B1
         </h2>
-        <p className="mt-2 text-sm leading-6 text-ink/70 dark:text-white/70">
-          Bài thi trộn 4 phần: ngữ pháp, từ vựng, đọc hiểu và nghe hiểu. Sau khi nộp, hệ thống ước lượng trình độ của bạn —
-          đây là ước lượng để học, không phải điểm thi chính thức.
-        </p>
+        <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">Trộn ngữ pháp, từ vựng, đọc hiểu và nghe hiểu. Kết quả chỉ là ước lượng để học.</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {[
             { icon: ListChecks, text: `${GRAMMAR_COUNT + VOCAB_COUNT} câu ngữ pháp & từ vựng` },

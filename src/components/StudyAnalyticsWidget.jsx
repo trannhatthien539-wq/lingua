@@ -20,10 +20,10 @@ export default function StudyAnalyticsWidget({ cards = [], streak, dueCount = 0,
       <section className="panel p-5">
         <p className="eyebrow">Việc hôm nay</p>
         <h2 className="mt-2 font-display text-xl font-bold">
-          {firstSession ? `Học ${firstSession} từ trong “${deckTitle}”` : 'Chọn một bộ thẻ để bắt đầu'}
+          {firstSession ? `Học ${firstSession} từ hôm nay` : 'Chọn một bộ thẻ để bắt đầu'}
         </h2>
-        <p className="mt-1.5 text-sm leading-6 text-ink/70 dark:text-white/70">
-          Khoảng 5 phút. Trả lời đúng, Lingua sẽ giãn lịch ôn ra 5 ngày.
+        <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">
+          {deckTitle ? `Bộ “${deckTitle}” · khoảng 5 phút.` : 'Khoảng 5 phút mỗi ngày là đủ giữ nhịp.'}
         </p>
         <button onClick={onStartToday} disabled={!cards.length} className="btn-primary mt-4 w-full sm:w-auto">
           Bắt đầu học

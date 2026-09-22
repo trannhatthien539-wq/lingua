@@ -169,6 +169,63 @@ The most successful approach seems to combine both. A group of learners meets on
       { type: 'choice', prompt: 'What helps learners finish a course?', options: ['Watching more videos', 'A small group with weekly meetings and deadlines', 'Paying a higher price', 'Studying alone at night'], answer: 'A small group with weekly meetings and deadlines', explain: 'Đoạn cuối.' },
     ],
   },
+  {
+    id: 'vstep-notices',
+    level: 'B1',
+    title: 'VSTEP · Đọc quảng cáo & thông báo',
+    topic: 'VSTEP · Đọc thông báo',
+    minutes: 6,
+    text: `A/ Bright Path Language Centre – Summer English courses
+Bright Path is taking students for its summer courses at three levels: beginner, intermediate and advanced. Classes are small, with a maximum of eight students, and every course includes two hours of speaking practice a week. Courses start on 5 June and last eight weeks, on weekday evenings from 6.30 to 8.30 p.m. The fee is 2,400,000 dong, including materials. Students who register before 25 May get a 15 per cent discount.
+
+B/ Northside Library – New opening hours from 1 July
+From 1 July, Northside Library will open from 9 a.m. to 8 p.m. on weekdays and from 10 a.m. to 5 p.m. at weekends. Members may borrow up to five books for three weeks, and books returned late cost 5,000 dong per day. The library is closed on public holidays. During exam weeks in December and May, the reading room on the second floor stays open until 10 p.m.
+
+C/ Sunrise Travel – Weekend trip to Cat Ba Island
+Sunrise Travel runs a two-day trip to Cat Ba Island every weekend in summer. The bus leaves Hanoi at 6 a.m. on Saturday and returns at about 8 p.m. on Sunday. The price is 1,850,000 dong per person, including the bus, one night in a hotel, breakfast and a boat trip, but not other meals. Groups of four or more pay 1,600,000 dong each. To book, call before Thursday, as places are limited to thirty people.`,
+    glossary: [
+      { word: 'placement test', meaning: 'bài kiểm tra xếp lớp' },
+      { word: 'fee', meaning: 'học phí, lệ phí' },
+      { word: 'discount', meaning: 'giảm giá' },
+      { word: 'borrow', meaning: 'mượn' },
+      { word: 'limited', meaning: 'có giới hạn' },
+    ],
+    questions: [
+      { type: 'choice', prompt: 'How many students are there in a Bright Path class at most?', options: ['Four', 'Six', 'Eight', 'Fifteen'], answer: 'Eight', explain: '“a maximum of eight students”.' },
+      { type: 'choice', prompt: 'What do students who register before 25 May get?', options: ['A free placement test', 'A 15 per cent discount', 'Free course materials', 'An extra speaking class'], answer: 'A 15 per cent discount', explain: '“Students who register before 25 May get a 15 per cent discount.”' },
+      { type: 'choice', prompt: 'On which days does Northside Library open at 10 a.m.?', options: ['Weekdays', 'At weekends', 'Only on public holidays', 'Every day'], answer: 'At weekends', explain: '“from 10 a.m. to 5 p.m. at weekends”.' },
+      { type: 'choice', prompt: 'How much do groups of four or more pay for the Cat Ba trip?', options: ['1,600,000 dong each', '1,850,000 dong each', '2,400,000 dong each', '8,000,000 dong in total'], answer: '1,600,000 dong each', explain: '“Groups of four or more pay 1,600,000 dong each.”' },
+    ],
+  },
+  {
+    id: 'vstep-academic',
+    level: 'B2',
+    title: 'VSTEP · Đọc học thuật – Đô thị và sức khoẻ',
+    topic: 'VSTEP · Đọc học thuật',
+    minutes: 8,
+    text: `For more than a century, public health experts have argued that the shape of a city is one of the strongest influences on the health of the people who live in it. In the nineteenth century, cholera outbreaks in European cities led engineers to build sewers and clean water systems, and death rates fell faster than any medicine of the time could have achieved. The lesson was clear: where people live, work and move matters as much as what doctors do.
+
+Modern research supports this idea. A long-term study of 400,000 adults in twelve countries found that people living in neighbourhoods with wide pavements, parks and frequent bus services walked about 45 minutes more each week than those in car-dependent suburbs. Over ten years, this group had a 12 per cent lower risk of heart disease. The authors did not claim that design alone prevents illness; they argued, rather, that it quietly makes healthy behaviour the easier choice.
+
+Not everyone agrees that planning deserves so much credit. Some economists point out that healthier, wealthier people tend to move to greener districts in the first place, so the relationship may be partly explained by income rather than by architecture. Others warn that improving a single neighbourhood can push rents up and force the original residents out, so that the health benefits go mainly to newcomers.
+
+A more balanced position is that design and income work together and should be addressed together. The most convincing policy recommendation to come out of this research is simple and cheap: cities should require new housing developments to include safe walking routes, a park within a ten-minute walk, and a bus stop within five minutes. Such rules cost far less than treating the diseases that inactivity causes, and they benefit every resident, not only those who can afford to move.`,
+    glossary: [
+      { word: 'outbreak', meaning: 'sự bùng phát (dịch bệnh)' },
+      { word: 'pavement', meaning: 'vỉa hè' },
+      { word: 'car-dependent', meaning: 'phụ thuộc vào ô tô' },
+      { word: 'rent', meaning: 'tiền thuê nhà' },
+      { word: 'inactivity', meaning: 'sự thiếu vận động' },
+    ],
+    questions: [
+      { type: 'choice', prompt: 'What is the main idea of the passage?', options: ['City design has a strong influence on public health', 'Engineers are more useful than doctors', 'Heart disease is caused only by income', 'Parks are too expensive for city governments'], answer: 'City design has a strong influence on public health', explain: 'Câu mở đầu nêu ý chính: hình dạng đô thị ảnh hưởng mạnh đến sức khoẻ người dân.' },
+      { type: 'choice', prompt: 'What did the study of 400,000 adults find?', options: ['People in walkable areas walked about 45 minutes more a week', 'People in suburbs lived twelve years longer', 'Green districts had no effect on health', 'Income had no influence on health'], answer: 'People in walkable areas walked about 45 minutes more a week', explain: 'Đoạn 2: “walked about 45 minutes more each week”.' },
+      { type: 'choice', prompt: 'Why do some economists doubt the findings?', options: ['They think healthier people choose to live in greener districts', 'They believe pavements cost too much', 'They think walking causes injuries', 'They say doctors already prevent heart disease'], answer: 'They think healthier people choose to live in greener districts', explain: '“healthier, wealthier people tend to move to greener districts in the first place”.' },
+      { type: 'choice', prompt: 'What can be inferred about rising rents?', options: ['They can push poorer residents out of improved areas', 'They always reduce air pollution', 'They help cities build more parks', 'They make bus services cheaper'], answer: 'They can push poorer residents out of improved areas', explain: 'Đoạn 3 nói việc cải tạo có thể đẩy giá thuê lên và đẩy cư dân cũ ra ngoài.' },
+      { type: 'choice', prompt: 'In paragraph 3, the word “credit” is closest in meaning to…', options: ['praise or recognition', 'money borrowed from a bank', 'a set of rules', 'a piece of research'], answer: 'praise or recognition', explain: '“deserves so much credit” = đáng được ghi nhận, ca ngợi.' },
+      { type: 'choice', prompt: 'What is the author’s attitude to the policy recommendation?', options: ['Supportive, because it is cheap and helps everyone', 'Doubtful, because cities cannot afford it', 'Angry that the research was ignored', 'Neutral, with no opinion of their own'], answer: 'Supportive, because it is cheap and helps everyone', explain: 'Đoạn cuối gọi đề xuất là “convincing”, “simple and cheap” và có lợi cho mọi cư dân.' },
+    ],
+  },
 ]
 
 export const readingById = (id) => readingPassages.find((passage) => passage.id === id) || readingPassages[0]

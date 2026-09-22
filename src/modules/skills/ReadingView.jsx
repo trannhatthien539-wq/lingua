@@ -1,44 +1,66 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BookMarked, Clock3 } from 'lucide-react'
+import { ArrowLeft, BookMarked, BookOpen, Clock3 } from 'lucide-react'
 import QuestionSet from '../grammar/GrammarQuiz'
+import SkillLessonList from '../../components/learning/SkillLessonList'
 import { readingPassages } from '../../data/skills/reading'
 import TappableText, { GlossaryList } from '../../components/ui/TappableText'
 
 /** Luyện đọc B1: đoạn văn theo chủ đề, từ khoá, câu hỏi đọc hiểu. */
 export default function ReadingView({ progress, onResult, focusId }) {
+  const [view, setView] = useState('list')
   const [passageId, setPassageId] = useState(readingPassages[0].id)
   const [showGlossary, setShowGlossary] = useState(true)
 
   // Mở đúng bài khi đến từ tìm kiếm toàn cục.
   useEffect(() => {
-    if (focusId && readingPassages.some((passage) => passage.id === focusId)) setPassageId(focusId)
+    if (focusId && readingPassages.some((passage) => passage.id === focusId)) {
+      setPassageId(focusId)
+      setView('lesson')
+    }
   }, [focusId])
 
   const passage = readingPassages.find((item) => item.id === passageId) || readingPassages[0]
   const best = progress?.reading?.[passage.id]
   const paragraphs = useMemo(() => passage.text.split('\n').filter(Boolean), [passage])
+  const passageIndex = Math.max(0, readingPassages.findIndex((item) => item.id === passage.id))
+
+  const openLesson = (id) => {
+    setPassageId(id)
+    setShowGlossary(true)
+    setView('lesson')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Chỉ hiện danh sách bài; nội dung bài đọc mở ra khi bấm vào một thẻ.
+  if (view === 'list') {
+    return (
+      <SkillLessonList
+        icon={BookOpen}
+        color="#14d4f4"
+        actionLabel="Đọc bài"
+        items={readingPassages.map((item, index) => ({
+          id: item.id,
+          index: index + 1,
+          title: item.title,
+          level: item.level,
+          tag: item.topic,
+          meta: `~${item.minutes} phút · ${item.text.trim().split(/\s+/).length} từ · ${item.questions.length} câu hỏi`,
+          summary: item.text.split('\n')[0],
+          result: progress?.reading?.[item.id],
+        }))}
+        onOpen={openLesson}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">
-      <nav className="panel p-3" aria-label="Danh sách bài đọc">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {readingPassages.map((item) => {
-            const active = item.id === passage.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => { setPassageId(item.id); setShowGlossary(true) }}
-                aria-current={active ? 'true' : undefined}
-                className={`flex min-h-[44px] min-w-max flex-col items-start rounded-xl px-3 py-2 text-left text-sm transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
-              >
-                <span className="max-w-[220px] truncate font-bold">{item.title}</span>
-                <span className={`text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.level} · {item.topic}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setView('list')} className="btn-ghost px-3">
+          <ArrowLeft size={16} />Danh sách bài
+        </button>
+        <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Bài {passageIndex + 1}/{readingPassages.length}</span>
+      </div>
 
       <section className="panel p-4 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -115,7 +115,7 @@ export default function ProgressHub({ user, streak, onNavigate }) {
       <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Tiến độ &amp; thành tích</p>
-          <h2 className="mt-1 font-display text-xl font-bold">Toàn bộ hành trình học của bạn</h2>
+          <h2 className="mt-1 font-display text-xl font-bold">Toàn cảnh tiến độ</h2>
         </div>
         <button onClick={() => window.print()} className="btn-secondary px-4 no-print">
           <Download size={16} />Xuất báo cáo

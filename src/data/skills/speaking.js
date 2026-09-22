@@ -149,6 +149,56 @@ export const speakingTopics = [
       { phrase: 'leave some free time in a plan', meaning: 'để dư thời gian trong kế hoạch' },
     ],
   },
+  {
+    id: 'vstep-part1-part3-family',
+    title: 'VSTEP · Part 1 & 3 – Gia đình & cuộc sống',
+    topic: 'VSTEP · Nói',
+    warmUp: [
+      { q: 'Can you tell me a little about your family?', sample: 'Yes, there are five people in my family: my parents, my older sister, my younger brother and me. We live in a small house on the edge of the city. My parents both work, so we usually eat together in the evening.' },
+      { q: 'How much time do you spend with your family every day?', sample: 'Not very much on weekdays, maybe two hours in the evening. At the weekend we are together much more, and we often visit my grandparents.' },
+      { q: 'Who does most of the housework in your home?', sample: 'My mother does most of the cooking, but we all help with the cleaning. My brother and I take turns washing the dishes, and my father goes shopping on Saturdays.' },
+    ],
+    cue: {
+      task: 'Describe a member of your family who has influenced you.',
+      bullets: ['Who this person is', 'How often you see them', 'What they are like', 'Why they have influenced you'],
+      model: `There are five people in my family, but the person who has influenced me most is my grandmother. She is seventy-six and she lives in the same house as us, so I see her every day. My grandmother left school at fourteen and worked in a small shop for forty years, but she still reads two newspapers a day. She is patient and extremely practical: when I panic about an exam, she simply asks me what I will do in the next hour. She has influenced me in two ways. First, she taught me to keep learning even when the conditions are not perfect. Second, she showed me that calm is a skill you can practise. Whenever I have a difficult decision, I try to think about what she would say, and I usually slow down instead of rushing.`,
+    },
+    discussion: [
+      { q: 'Do you think family life in Vietnam has changed in the last twenty years?', sample: 'Yes, I think it has changed a lot. Families are smaller than before, and more people move to big cities for work, so grandparents are not always nearby. On the other hand, parents and children now talk about careers and feelings much more openly than they used to.' },
+      { q: 'Which is more important for children: family or school?', sample: 'Both matter, but I would say the family comes first, at least in the early years. Children learn how to speak, share and manage their feelings at home, long before they go to school. School then adds knowledge and friends, but it cannot replace what a family gives.' },
+    ],
+    phrases: [
+      { phrase: 'there are five people in my family', meaning: 'gia đình tôi có năm người' },
+      { phrase: 'the person who has influenced me most is…', meaning: 'người ảnh hưởng đến tôi nhiều nhất là…' },
+      { phrase: 'She taught me to keep learning', meaning: 'bà đã dạy tôi phải tiếp tục học hỏi' },
+      { phrase: 'I usually slow down instead of rushing', meaning: 'tôi thường chậm lại thay vì vội vàng' },
+    ],
+  },
+  {
+    id: 'vstep-solution-tourism',
+    title: 'VSTEP · Part 2 – Chọn giải pháp (Du lịch)',
+    topic: 'VSTEP · Nói',
+    warmUp: [
+      { q: 'Do you enjoy travelling?', sample: 'Yes, I do, especially short trips to the mountains. I like places where I can walk slowly and take photographs.' },
+      { q: 'What do you usually do before a trip?', sample: 'I read about the place and check the weather. I also book the bus a few days early, because tickets sell out quickly.' },
+      { q: 'Would you like to work in tourism one day?', sample: 'Maybe, but not as a hotel manager. I would prefer to be a guide, because I enjoy explaining things to visitors.' },
+    ],
+    cue: {
+      task: 'Tình huống: Một thị trấn nhỏ cạnh vườn quốc gia đón quá nhiều khách du lịch vào mùa hè, gây tắc đường và nhiều rác thải. Hội đồng địa phương cần chọn một giải pháp. Bạn chọn phương án nào?',
+      bullets: ['Phương án A: Giới hạn số khách mỗi ngày và bán vé vào vườn quốc gia đắt hơn', 'Phương án B: Phát triển du lịch cộng đồng – chỉ đón nhóm nhỏ, thuê hướng dẫn viên địa phương và chia lợi nhuận cho dân', 'Phương án C: Không thay đổi gì, chỉ mở rộng bãi đỗ xe và thuê thêm nhân viên dọn rác', 'Giải thích vì sao bạn chọn phương án đó'],
+      model: `I would choose option B, developing community tourism. My first reason is that it deals with the cause rather than the symptoms. If visitors come in small groups with local guides, the town can control how many people arrive without turning the park into an expensive place that only rich tourists can visit. Money then stays in the town, so families have an interest in keeping the forest and the river clean. Option A would reduce the number of visitors, but it would also keep ordinary Vietnamese families out, and the money would go to the ticket office rather than to local people. Option C is the weakest choice: more car parks and more cleaners only encourage the problem to grow. I also think option B is more realistic, because local guides already know the area, so training them costs less than building new infrastructure. For these reasons, I believe community tourism is the best solution for the town.`,
+    },
+    discussion: [
+      { q: 'What are the benefits of tourism for a small town?', sample: 'It creates jobs in hotels, restaurants and transport, and it can pay for better roads and facilities. Local people also learn about other cultures. However, the work is often seasonal, so the town needs other jobs in the low season.' },
+      { q: 'Should local people have a say in how tourism is managed?', sample: 'Definitely. They live there all year, while tourists only stay a few days, so they understand what the town can and cannot support. If they are not involved, decisions are usually made for visitors rather than for residents.' },
+    ],
+    phrases: [
+      { phrase: 'I would choose option B because…', meaning: 'tôi sẽ chọn phương án B vì…' },
+      { phrase: 'it deals with the cause rather than the symptoms', meaning: 'nó giải quyết nguyên nhân chứ không chỉ hậu quả' },
+      { phrase: 'The main drawback of option A is…', meaning: 'hạn chế chính của phương án A là…' },
+      { phrase: 'local people have a say', meaning: 'người dân địa phương có tiếng nói' },
+    ],
+  },
 ]
 
 export const speakingById = (id) => speakingTopics.find((topic) => topic.id === id) || speakingTopics[0]

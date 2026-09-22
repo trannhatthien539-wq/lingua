@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Check,
   ChevronDown,
-  ChevronRight,
   LoaderCircle,
   MoreVertical,
   Pencil,
@@ -42,9 +41,9 @@ import QuizView from "../../components/learning/QuizView";
 import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
+import NavIcon from "../../components/ui/NavIcon";
 import SafeImage from "../../components/ui/SafeImage";
 import { dateKey, isDue, isLeech, schedulePayload } from "../../utils/srs";
-import StudyAnalyticsWidget from "../../components/StudyAnalyticsWidget";
 import { createStarterDeck } from "../../data/starterDeck";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
 
@@ -613,6 +612,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [singleCardId, setSingleCardId] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const [libraryLoading, setLibraryLoading] = useState(true);
+  // 'list' = danh sách bộ thẻ (giống danh sách bài ở tab Ngữ pháp), 'deck' = đang xem một bộ.
+  const [view, setView] = useState("list");
   const [speakingWord, setSpeakingWord] = useState("");
   const [dataModal, setDataModal] = useState(null);
   const [sharedDeck, setSharedDeck] = useState(() => readSharedDeckFromUrl());
@@ -658,6 +659,30 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     unlearned: deckCards.filter((card) => card.status !== "mastered").length,
     mastered: deckCards.filter((card) => card.status === "mastered").length,
   }), [deckCards]);
+  // Số liệu cả thư viện + từng bộ, tính trong một lượt duyệt (thư viện mặc định có 1000 thẻ).
+  const { libraryStats, deckStats } = useMemo(() => {
+    const byDeck = new Map();
+    let mastered = 0;
+    let due = 0;
+    library.cards.forEach((card) => {
+      const entry = byDeck.get(card.deckId) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
+      entry.total += 1;
+      entry.cards.push(card);
+      if (card.status === "mastered") {
+        entry.mastered += 1;
+        mastered += 1;
+      }
+      if (isDue(card, today)) {
+        entry.due += 1;
+        entry.dueCards.push(card);
+        due += 1;
+      }
+      byDeck.set(card.deckId, entry);
+    });
+    return { libraryStats: { total: library.cards.length, mastered, due }, deckStats: byDeck };
+  }, [library.cards, today]);
+  const masteredPercent = libraryStats.total ? Math.round((libraryStats.mastered / libraryStats.total) * 100) : 0;
+  const activeDeckIndex = Math.max(0, library.decks.findIndex((deck) => deck.id === selectedDeck?.id));
   const searchTerm = debouncedSearch.trim().toLowerCase();
   const filteredCards = useMemo(() => {
     const intervalMatch = String(activeFilter).match(/^interval-(\d+)$/);
@@ -763,6 +788,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       setSelectedDeckId(matchingDeck.id);
       setStudyDeckId(matchingDeck.id);
       setStudyMode("flashcard");
+      setView("deck");
     }
     localStorage.removeItem("lingua-practice-topic");
     return undefined;
@@ -776,6 +802,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       else if (pending.type === "word" && pending.itemId) {
         setSearchQuery(pending.itemId);
         setActiveFilter("all");
+        setView("deck");
       } else if (pending.type === "theme" && pending.itemId) {
         setThemePickerOpen(true);
       }
@@ -810,6 +837,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     updateLibrary({ decks: [...library.decks, normalizedDeck] });
     setSelectedDeckId(normalizedDeck.id);
     setDeckInput("");
+    setNotice(`Đã tạo bộ “${title}”. Thêm từ cho bộ mới nhé.`);
   };
   const renameDeck = async (deck) => {
     const title = window.prompt("Tên mới của bộ thẻ:", deck.title)?.trim();
@@ -1210,11 +1238,37 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     }
   };
 
-  const openStudy = (cards) => {
+  const openStudy = (cards, deckId = selectedDeck?.id) => {
     // Mỗi phiên chỉ lấy tối đa 50 thẻ để phiên học không kéo dài vô tận với bộ 1000 từ.
+    if (!deckId || !cards.length) return;
     setStudyCards(cards.slice(0, SESSION_LIMIT));
-    setStudyDeckId(selectedDeck.id);
+    setStudyDeckId(deckId);
     setStudyMode(null);
+  };
+
+  /** Mở danh sách từ của một bộ — giống bấm vào một thẻ bài học ở tab Ngữ pháp. */
+  const openDeck = (deckId) => {
+    setSelectedDeckId(deckId);
+    setView("deck");
+    setSearchQuery("");
+    setActiveFilter("all");
+    exitSelectMode();
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 60);
+  };
+
+  /** Về danh sách bộ thẻ. */
+  const backToLibrary = () => {
+    setView("list");
+    exitSelectMode();
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 60);
+  };
+
+  /** Phiên ôn gộp cả thư viện: ưu tiên thẻ đến hạn, hết thì học thẻ chưa thuộc. */
+  const startLibraryStudy = () => {
+    const entry = library.cards.filter((card) => isDue(card, today));
+    const cards = entry.length ? entry : library.cards;
+    if (!cards.length) return;
+    openStudy(cards, cards[0].deckId);
   };
 
   if (libraryLoading) {
@@ -1247,53 +1301,17 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   return (
     <div className="space-y-6">
-      <StudyAnalyticsWidget cards={deckCards} streak={streak} dueCount={sessionCount(dueCards)} deckTitle={selectedDeck?.title || ''} onStartToday={() => openStudy(dueCards.length ? dueCards : deckCards)} />
-      <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
-        <aside className="panel h-fit overflow-hidden p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="eyebrow">Thư viện</p>
-              <div className="flex items-center gap-1"><h2 className="mt-1 font-display font-bold">Bộ chủ đề</h2><button onClick={() => setDataModal("export")} className="icon-btn h-10 w-10" aria-label="Xuất dữ liệu" title="Xuất dữ liệu"><Download size={16} /></button><button onClick={() => setDataModal("import")} className="icon-btn h-10 w-10" aria-label="Nhập dữ liệu" title="Nhập dữ liệu"><FileUp size={16} /></button></div>
-            </div>
-            <span className="text-xs text-ink/40 dark:text-white/40">
-              {library.decks.length} bộ
+      {view === "deck" ? (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onClick={backToLibrary} className="btn-ghost px-3">
+              <ArrowLeft size={16} />Danh sách bộ
+            </button>
+            <span className="text-xs font-semibold text-ink/55 dark:text-white/55">
+              Bộ {activeDeckIndex + 1}/{library.decks.length} · {deckCards.length} từ
             </span>
           </div>
-          <form onSubmit={addDeck} className="mt-5 flex gap-2">
-            <input
-              value={deckInput}
-              onChange={(event) => setDeckInput(event.target.value)}
-              placeholder="Tên bộ mới..."
-              className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-2.5 text-sm outline-none dark:border-white/10"
-            />
-            <button
-              className="btn-primary h-11 w-11 shrink-0 p-0"
-              aria-label="Tạo bộ mới"
-            >
-              <Plus size={17} />
-            </button>
-          </form>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-1.5">
-            {library.decks.map((deck) => (
-              <button
-                key={deck.id}
-                onClick={() => setSelectedDeckId(deck.id)}
-                aria-current={selectedDeck?.id === deck.id ? "true" : undefined}
-                className={`flex min-h-[44px] min-w-[190px] items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition xl:w-full ${selectedDeck?.id === deck.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
-              >
-                <BookOpen size={17} className="shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">{deck.title}</span>
-                  <span className="text-xs text-ink/60 dark:text-white/50">
-                    {library.cards.filter((card) => card.deckId === deck.id).length} từ
-                  </span>
-                </span>
-                <ChevronRight size={15} className="shrink-0 opacity-50" />
-              </button>
-            ))}
-          </div>
-        </aside>
-        <main className="min-w-0 space-y-5">
+          <main className="min-w-0 space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="eyebrow">Chi tiết bộ</p>
@@ -1301,6 +1319,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 {selectedDeck?.title}
               </h2>
               <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">{statusCounts.mastered}/{statusCounts.all} đã thuộc</span>
+                {dueCards.length > 0 && <span className="chip bg-warnbg text-warn">{dueCards.length} đến hạn ôn</span>}
+                <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{statusCounts.unlearned} chưa thuộc</span>
                 {(selectedDeck?.tags || []).map((tag) => (
                   <span
                     key={tag}
@@ -1431,13 +1452,100 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             )}
           </section>
-        </main>
-      </div>
+          </main>
+        </>
+      ) : (
+        <>
+          <section className="panel p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <NavIcon icon={BookOpen} color="#1cb0f6" />
+              <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
+                  <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${masteredPercent}%` }} />
+                </div>
+                <span className="metric shrink-0 text-sm">{libraryStats.mastered}/{libraryStats.total} từ đã thuộc</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={startLibraryStudy} disabled={!libraryStats.total} className="btn-primary px-4 disabled:cursor-not-allowed">
+                  <Sparkles size={16} />
+                  {libraryStats.due ? `Ôn ${Math.min(libraryStats.due, SESSION_LIMIT)} từ đến hạn` : "Học ngay"}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setThemePickerOpen(true)} className="btn-ghost px-3 text-xs"><BookOpen size={15} />Bộ theo chủ đề</button>
+              <button type="button" onClick={() => setDataModal("import")} className="btn-ghost px-3 text-xs"><FileUp size={15} />Nhập</button>
+              <button type="button" onClick={() => setDataModal("export")} className="btn-ghost px-3 text-xs"><Download size={15} />Xuất</button>
+              <button type="button" onClick={openTrash} className="btn-ghost px-3 text-xs"><ArchiveRestore size={15} />Thùng rác</button>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-display text-lg font-bold">Bộ thẻ của bạn</h3>
+              <span className="text-xs font-semibold text-ink/55 dark:text-white/55">{library.decks.length} bộ · {libraryStats.total} từ</span>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {library.decks.map((deck) => {
+                const entry = deckStats.get(deck.id) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
+                const percent = entry.total ? Math.round((entry.mastered / entry.total) * 100) : 0;
+                return (
+                  <article key={deck.id} className="panel flex flex-col border-b-4 p-4" style={{ borderBottomColor: "#1cb0f6" }}>
+                    <div className="flex items-start gap-3">
+                      <NavIcon icon={BookOpen} color="#1cb0f6" size="md" />
+                      <div className="min-w-0 flex-1">
+                        <p className="eyebrow">{entry.total} từ{deck.level ? ` · ${deck.level}` : ""}</p>
+                        <h4 className="mt-1 font-display text-base font-bold">{deck.title}</h4>
+                      </div>
+                      {entry.mastered ? (
+                        <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">
+                          <Check size={13} className="mr-1" />{percent}%
+                        </span>
+                      ) : (
+                        <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">Chưa học</span>
+                      )}
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
+                      <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${percent}%` }} />
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+                      <button
+                        type="button"
+                        onClick={() => openStudy(entry.dueCards.length ? entry.dueCards : entry.cards, deck.id)}
+                        disabled={!entry.total}
+                        className="btn-primary px-4 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles size={16} />{entry.due ? `Ôn ${Math.min(entry.due, SESSION_LIMIT)} từ` : "Học ngay"}
+                      </button>
+                      <button type="button" onClick={() => openDeck(deck.id)} className="btn-secondary px-4">
+                        <BookOpen size={16} />Xem {entry.total} từ
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+              <form onSubmit={addDeck} className="panel flex flex-col justify-center gap-3 border-2 border-dashed border-ink/15 p-4 dark:border-white/15">
+                <p className="flex items-center gap-2 text-sm font-bold"><Plus size={16} />Tạo bộ mới</p>
+                <div className="flex gap-2">
+                  <input
+                    value={deckInput}
+                    onChange={(event) => setDeckInput(event.target.value)}
+                    placeholder="Tên bộ mới..."
+                    className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-2.5 text-sm outline-none dark:border-white/10"
+                  />
+                  <button className="btn-primary h-11 w-11 shrink-0 p-0" aria-label="Tạo bộ mới">
+                    <Plus size={17} />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </>
+      )}
       {themePickerOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-lg p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Bộ từ theo chủ đề</p><h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ</h2></div><button onClick={() => setThemePickerOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Học cụm từ (collocation, phrasal verb) giúp bạn dùng từ đúng ngữ cảnh — đây là phần hay mất điểm ở trình độ B1.</p><ul className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto">{themeDecks.map((deck) => <li key={deck.id}><button onClick={() => addThemeDeck(deck.id)} disabled={loading === `theme-${deck.id}`} className="flex w-full items-center gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><BookOpen size={17} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="mt-0.5 block truncate text-xs text-ink/60 dark:text-white/60">{deck.description}</span></span><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{loading === `theme-${deck.id}` ? 'Đang thêm…' : deck.level}</span></button></li>)}</ul></section></div>}
       {trashOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Thùng rác</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ &amp; từ đã xoá</h2></div><button onClick={() => setTrashOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Mọi thứ bạn xoá được giữ ở đây để khôi phục. “Dọn thùng rác” sẽ xoá vĩnh viễn.</p>{trashBusy && <p className="mt-4 flex items-center gap-2 text-xs text-ink/60 dark:text-white/60"><LoaderCircle size={14} className="animate-spin" />Đang xử lý…</p>}<div className="mt-4 space-y-2">{trashItems.decks.map((deck) => <div key={deck.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><BookOpen size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="text-xs text-ink/50 dark:text-white/50">Bộ thẻ</span></span><button disabled={trashBusy} onClick={() => restoreTrashedDeck(deck)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{trashItems.cards.map((card) => <div key={card.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><RotateCcw size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{card.word}</span><span className="block truncate text-xs text-ink/50 dark:text-white/50">{card.meaning}</span></span><button disabled={trashBusy} onClick={() => restoreTrashedCard(card)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{!trashBusy && !trashItems.decks.length && !trashItems.cards.length && <p className="rounded-xl bg-ink/[0.04] p-4 text-center text-sm text-ink/50 dark:bg-white/[0.06] dark:text-white/50">Thùng rác đang trống.</p>}</div><div className="mt-5 flex justify-end gap-2"><button onClick={() => setTrashOpen(false)} className="btn-secondary px-4">Đóng</button><button disabled={trashBusy || (!trashItems.decks.length && !trashItems.cards.length)} onClick={emptyTrash} className="btn-ghost px-4 text-danger dark:text-dangerfgdark"><Trash2 size={16} />Dọn thùng rác</button></div></section></div>}
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
       {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}
-      <button onClick={() => { setAddTab("manual"); openManualModal(); }} className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-lime px-5 text-sm font-bold text-ink shadow-soft transition hover:-translate-y-0.5 sm:hidden" aria-label="Thêm từ mới"><Plus size={19} />Thêm từ</button>
       {manualModalOpen && <AddWordsSheet tab={addTab} onTabChange={setAddTab} draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} topic={topic} onTopicChange={setTopic} level={level} onLevelChange={setLevel} amount={amount} onAmountChange={setAmount} onGenerate={generateVocabulary} lookupResult={lookupResult} onLookupWord={lookupWord} onSaveLookup={saveLookupResult} manualWord={manualWord} onManualWordChange={setManualWord} lookupLoading={loading === "lookup" || loading === "lookup-save"} onClose={() => setManualModalOpen(false)} />}
     </div>
   );

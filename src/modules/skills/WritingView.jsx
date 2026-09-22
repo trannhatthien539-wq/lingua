@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Eraser, PenLine, Quote, Volume2 } from 'lucide-react'
+import { ArrowLeft, Check, Eraser, PenLine, Quote, Volume2 } from 'lucide-react'
+import SkillLessonList from '../../components/learning/SkillLessonList'
 import { writingTasks } from '../../data/skills/writing'
 import { speakText } from '../../utils/speech'
 
 const draftKey = (id) => `lingua-writing-draft-${id}`
 const countWords = (value) => (value.trim() ? value.trim().split(/\s+/).length : 0)
 
+const TYPE_LABELS = { email: 'Email', opinion: 'Nêu ý kiến', describe: 'Mô tả' }
+
 /** Luyện viết B1: đề bài, checklist tự chấm, bài mẫu và đếm số từ. */
 export default function WritingView() {
+  const [view, setView] = useState('list')
   const [taskId, setTaskId] = useState(writingTasks[0].id)
   const [draft, setDraft] = useState('')
   const [showModel, setShowModel] = useState(false)
@@ -37,28 +41,41 @@ export default function WritingView() {
   }, [draft, task.id])
 
   const doneChecks = task.checklist.filter((item) => checked[item.label]).length
+  const taskIndex = Math.max(0, writingTasks.findIndex((item) => item.id === task.id))
+
+  // Chỉ hiện danh sách đề bài; nội dung viết mở ra khi bấm vào một thẻ.
+  if (view === 'list') {
+    return (
+      <SkillLessonList
+        icon={PenLine}
+        color="#14d4f4"
+        actionLabel="Luyện viết"
+        items={writingTasks.map((item, index) => ({
+          id: item.id,
+          index: index + 1,
+          title: item.title,
+          tag: TYPE_LABELS[item.type] || item.type,
+          meta: `Tối thiểu ${item.minWords} từ · ${item.checklist.length} mục tự chấm`,
+          summary: item.situation,
+          chip: localStorage.getItem(draftKey(item.id)) ? 'Có bản nháp' : 'Chưa viết',
+        }))}
+        onOpen={(id) => {
+          setTaskId(id)
+          setView('lesson')
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}
+      />
+    )
+  }
 
   return (
     <div className="space-y-4">
-      <nav className="panel p-3" aria-label="Danh sách bài viết">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {writingTasks.map((item) => {
-            const active = item.id === task.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTaskId(item.id)}
-                aria-current={active ? 'true' : undefined}
-                className={`flex min-h-[44px] min-w-max flex-col items-start rounded-xl px-3 py-2 text-left text-sm transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
-              >
-                <span className="max-w-[230px] truncate font-bold">{item.title}</span>
-                <span className={`text-xs ${active ? 'text-ink/70' : 'text-ink/60 dark:text-white/60'}`}>{item.type} · {item.minWords}+ từ</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setView('list')} className="btn-ghost px-3">
+          <ArrowLeft size={16} />Danh sách đề bài
+        </button>
+        <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Đề {taskIndex + 1}/{writingTasks.length}</span>
+      </div>
 
       <section className="panel p-4 sm:p-5">
         <p className="eyebrow">Đề bài · {task.type}</p>

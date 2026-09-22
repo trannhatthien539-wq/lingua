@@ -8,8 +8,9 @@ import SentenceView from './SentenceView'
 import MockTestView from './MockTestView'
 import useSkillsProgress from '../../hooks/useSkillsProgress'
 import useMistakeBank from '../../hooks/useMistakeBank'
-import useSectionState from '../../hooks/useSectionState'
 import { consumePendingItem } from '../../services/deepLink'
+import { listeningLessons } from '../../data/skills/listening'
+import { readingPassages } from '../../data/skills/reading'
 
 const TABS = [
   { id: 'listening', label: 'Nghe', icon: Headphones },
@@ -24,7 +25,6 @@ const TABS = [
 export default function SkillsHub({ onStudyActivity }) {
   const [tab, setTab] = useState('listening')
   const [focusId, setFocusId] = useState(null)
-  const [openIntro, toggleIntro] = useSectionState('skills-intro', true)
   const { progress, recordSection, recordMock, recordSentence } = useSkillsProgress()
   const { record: recordMistakes } = useMistakeBank()
 
@@ -45,7 +45,7 @@ export default function SkillsHub({ onStudyActivity }) {
   return (
     <div className="space-y-4">
       <nav className="panel p-3" aria-label="Kỹ năng luyện tập">
-        <div className="flex flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto">
+        <div className="flex flex-wrap gap-1.5 pb-0.5 sm:flex-nowrap sm:overflow-x-auto">
           {TABS.map((item) => {
             const active = item.id === tab
             const Icon = item.icon
@@ -55,44 +55,37 @@ export default function SkillsHub({ onStudyActivity }) {
                 type="button"
                 onClick={() => setTab(item.id)}
                 aria-pressed={active}
-                className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
+                className={`flex min-h-[40px] min-w-max items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
               >
-                <Icon size={16} />{item.label}
+                <Icon size={15} />{item.label}
               </button>
             )
           })}
         </div>
       </nav>
 
-      {openIntro && (
-        <section className="panel p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="eyebrow">Luyện kỹ năng</p>
-              <h2 className="mt-1 font-display text-xl font-bold">Đủ 4 kỹ năng để đạt B1</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70 dark:text-white/70">
-                Nghe – Đọc – Nói – Viết theo chủ đề B1, thêm phần luyện ở cấp câu (điền khuyết, sắp xếp, viết lại)
-                và bài thi thử có đồng hồ để kiểm tra trình độ.
-              </p>
-            </div>
-            <button type="button" onClick={toggleIntro} className="btn-ghost px-3">Ẩn</button>
+      <section className="panel p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-base font-bold">Luyện 4 kỹ năng · B1</h2>
+            <p className="mt-0.5 text-xs text-ink/60 dark:text-white/60">Nghe · Đọc · Nói · Viết theo chủ đề B1, kèm luyện câu và thi thử có đồng hồ.</p>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <div className="panel-flat p-3">
-              <p className="text-xs text-ink/60 dark:text-white/60">Bài nghe đã làm</p>
-              <p className="metric mt-1 text-lg">{listeningDone}/6</p>
-            </div>
-            <div className="panel-flat p-3">
-              <p className="text-xs text-ink/60 dark:text-white/60">Bài đọc đã làm</p>
-              <p className="metric mt-1 text-lg">{readingDone}/6</p>
-            </div>
-            <div className="panel-flat p-3">
-              <p className="text-xs text-ink/60 dark:text-white/60">Đúng khi luyện câu</p>
-              <p className="metric mt-1 text-lg">{sentenceAccuracy}%</p>
-            </div>
-          </div>
-        </section>
-      )}
+          <ul className="grid w-full grid-cols-3 gap-2 sm:w-auto">
+            <li className="panel-flat px-3 py-2">
+              <p className="text-xs text-ink/60 dark:text-white/60">Bài nghe</p>
+              <p className="metric text-base">{listeningDone}/{listeningLessons.length}</p>
+            </li>
+            <li className="panel-flat px-3 py-2">
+              <p className="text-xs text-ink/60 dark:text-white/60">Bài đọc</p>
+              <p className="metric text-base">{readingDone}/{readingPassages.length}</p>
+            </li>
+            <li className="panel-flat px-3 py-2">
+              <p className="text-xs text-ink/60 dark:text-white/60">Luyện câu</p>
+              <p className="metric text-base">{sentenceAccuracy}%</p>
+            </li>
+          </ul>
+        </div>
+      </section>
 
       {tab === 'listening' && (
         <ListeningView
