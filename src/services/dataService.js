@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDocsFromServer,
   query,
   updateDoc,
   where,
@@ -12,6 +13,8 @@ import {
 import { auth, db } from "./firebase";
 import { isSafeImageSource } from "./imageService";
 import { trackPendingWrite } from "./syncStatus";
+import { chunkForFirestore } from "./firestoreBatch";
+import { buildTrashView } from "./vocabularyTrash";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -130,12 +133,11 @@ const cardPayload = (card) => ({
   deletedAt: card.deletedAt,
 });
 
-// Firestore giới hạn 500 thao tác mỗi batch.
-const BATCH_SIZE = 400;
-
-const getUserDocuments = async (collectionName) => {
+// Firestore giới hạn 500 thao tác mỗi batch; helper dùng biên 400.
+const getUserDocuments = async (collectionName, { serverOnly = false } = {}) => {
   const user = requireUser();
-  const snapshot = await getDocs(query(collection(db, collectionName), where("userId", "==", user.uid)));
+  const documentsQuery = query(collection(db, collectionName), where("userId", "==", user.uid));
+  const snapshot = serverOnly ? await getDocsFromServer(documentsQuery) : await getDocs(documentsQuery);
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 };
 
@@ -186,9 +188,13 @@ const dataMethods = {
       });
       return;
     }
-    await deleteDoc(doc(db, "study_decks", id));
     const cards = await getDocs(query(collection(db, "vocabulary_cards"), where("userId", "==", requireUser().uid), where("deckId", "==", id)));
-    await Promise.all(cards.docs.map((card) => deleteDoc(card.ref)));
+    for (const cardChunk of chunkForFirestore(cards.docs)) {
+      const batch = writeBatch(db);
+      cardChunk.forEach((card) => batch.delete(card.ref));
+      await batch.commit();
+    }
+    await deleteDoc(doc(db, "study_decks", id));
   },
 
   async getCards(deckId) {
@@ -229,8 +235,7 @@ const dataMethods = {
       return normalized;
     }
     const saved = [];
-    for (let index = 0; index < normalized.length; index += BATCH_SIZE) {
-      const chunk = normalized.slice(index, index + BATCH_SIZE);
+    for (const chunk of chunkForFirestore(normalized)) {
       const batch = writeBatch(db);
       chunk.forEach((card) => {
         const ref = doc(collection(db, "vocabulary_cards"));
@@ -268,9 +273,9 @@ const dataMethods = {
       });
       return uniqueIds.length;
     }
-    for (let index = 0; index < uniqueIds.length; index += BATCH_SIZE) {
+    for (const idChunk of chunkForFirestore(uniqueIds)) {
       const batch = writeBatch(db);
-      uniqueIds.slice(index, index + BATCH_SIZE).forEach((id) => {
+      idChunk.forEach((id) => {
         batch.update(doc(db, "vocabulary_cards", id), normalizedChanges);
       });
       await batch.commit();
@@ -289,7 +294,8 @@ const dataMethods = {
 
   /**
    * Thùng rác: xoá mềm để người dùng còn khôi phục.
-   * `deletedAt` là chuỗi ISO; bộ thẻ và các thẻ con được đánh dấu cùng lúc.
+   * `deletedAt` là chuỗi ISO; bộ mới chỉ đánh dấu deck để xử lý bộ 1.000 từ chỉ với một write.
+   * Vẫn hỗ trợ dữ liệu cũ đã đánh dấu cả deck và các thẻ con.
    */
   async trashDeck(id) {
     const deletedAt = new Date().toISOString();
@@ -298,22 +304,12 @@ const dataMethods = {
       writeLocal({
         ...library,
         decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt } : deck)),
-        cards: library.cards.map((card) => (card.deckId === id ? { ...card, deletedAt } : card)),
       });
       return deletedAt;
     }
-    const user = requireUser();
+    // Chỉ đánh dấu deck là đủ để ẩn deck và toàn bộ thẻ con. Tránh 1.000 update khi
+    // xoá bộ 1.000 từ; các thẻ con vẫn được giữ nguyên để khôi phục nhanh và an toàn.
     await updateDoc(doc(db, "study_decks", id), { deletedAt });
-    const cards = await getDocs(query(
-      collection(db, "vocabulary_cards"),
-      where("userId", "==", user.uid),
-      where("deckId", "==", id),
-    ));
-    for (let index = 0; index < cards.docs.length; index += BATCH_SIZE) {
-      const batch = writeBatch(db);
-      cards.docs.slice(index, index + BATCH_SIZE).forEach((card) => batch.update(card.ref, { deletedAt }));
-      await batch.commit();
-    }
     return deletedAt;
   },
 
@@ -323,62 +319,72 @@ const dataMethods = {
       writeLocal({
         ...library,
         decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt: null } : deck)),
-        cards: library.cards.map((card) => (card.deckId === id ? { ...card, deletedAt: null } : card)),
+        // Dữ liệu guest tạo bởi phiên bản cũ có thể đã đánh dấu thẻ con.
+        cards: library.cards.map((card) => (card.deckId === id && card.deletedAt ? { ...card, deletedAt: null } : card)),
       });
       return;
     }
     const user = requireUser();
-    await updateDoc(doc(db, "study_decks", id), { deletedAt: null });
     const cards = await getDocs(query(
       collection(db, "vocabulary_cards"),
       where("userId", "==", user.uid),
       where("deckId", "==", id),
     ));
-    for (let index = 0; index < cards.docs.length; index += BATCH_SIZE) {
+    // Bộ mới chỉ xoá ở cấp deck. Vẫn quét tài liệu con để khôi phục dữ liệu tạo bởi
+    // phiên bản cũ (trước đây từng ghi deletedAt lên từng thẻ), nhưng chỉ update card thực sự bị xoá.
+    for (const cardChunk of chunkForFirestore(cards.docs)) {
+      const legacyDeletedCards = cardChunk.filter((card) => Boolean(card.data()?.deletedAt));
+      if (!legacyDeletedCards.length) continue;
       const batch = writeBatch(db);
-      cards.docs.slice(index, index + BATCH_SIZE).forEach((card) => batch.update(card.ref, { deletedAt: null }));
+      legacyDeletedCards.forEach((card) => batch.update(card.ref, { deletedAt: null }));
       await batch.commit();
     }
+    // Chỉ mở deck sau khi mọi batch dữ liệu cũ đã phục hồi thành công.
+    await updateDoc(doc(db, "study_decks", id), { deletedAt: null });
+  },
+
+  async trashCards(ids) {
+    const uniqueIds = [...new Set(ids)].filter(Boolean);
+    if (!uniqueIds.length) return 0;
+    const deletedAt = new Date().toISOString();
+    await dataMethods.updateCards(uniqueIds, { deletedAt });
+    return uniqueIds.length;
+  },
+
+  async restoreCards(ids) {
+    const uniqueIds = [...new Set(ids)].filter(Boolean);
+    if (!uniqueIds.length) return 0;
+    await dataMethods.updateCards(uniqueIds, { deletedAt: null });
+    return uniqueIds.length;
   },
 
   async trashCard(id) {
-    const deletedAt = new Date().toISOString();
-    if (!currentUser()) {
-      const library = readLocal();
-      writeLocal({ ...library, cards: library.cards.map((card) => (card.id === id ? { ...card, deletedAt } : card)) });
-      return deletedAt;
-    }
-    await updateDoc(doc(db, "vocabulary_cards", id), { deletedAt });
-    return deletedAt;
+    return dataMethods.trashCards([id]);
   },
 
   async restoreCard(id) {
-    if (!currentUser()) {
-      const library = readLocal();
-      writeLocal({ ...library, cards: library.cards.map((card) => (card.id === id ? { ...card, deletedAt: null } : card)) });
-      return;
-    }
-    await updateDoc(doc(db, "vocabulary_cards", id), { deletedAt: null });
+    return dataMethods.restoreCards([id]);
   },
 
   /** Danh sách đang nằm trong thùng rác (bộ thẻ + thẻ lẻ). */
   async getTrashed() {
     if (!currentUser()) {
       const library = readLocal();
-      const trashedDeckIds = new Set(library.decks.filter((deck) => deck.deletedAt).map((deck) => deck.id));
-      return {
-        decks: library.decks.filter((deck) => deck.deletedAt).map(normalizeDeck),
-        cards: library.cards
-          .filter((card) => card.deletedAt && !trashedDeckIds.has(card.deckId))
-          .map(normalizeCard),
-      };
+      return buildTrashView(
+        library.decks.map(normalizeDeck),
+        library.cards.map(normalizeCard),
+      );
     }
-    const decks = (await getUserDocuments("study_decks")).filter((deck) => deck.deletedAt).map(normalizeDeck);
-    const deckIds = new Set(decks.map((deck) => deck.id));
-    const cards = (await getUserDocuments("vocabulary_cards"))
-      .map((item) => normalizeCard({ id: item.id, ...item.data() }))
-      .filter((card) => card.deletedAt && !deckIds.has(card.deckId));
-    return { decks, cards };
+    // Đọc server trực tiếp: nếu vừa chia 1.000 thẻ thành nhiều batch, không được
+    // trả cache cũ và báo nhầm cho người dùng rằng thùng rác đã đồng bộ.
+    const [decks, cards] = await Promise.all([
+      getUserDocuments("study_decks", { serverOnly: true }),
+      getUserDocuments("vocabulary_cards", { serverOnly: true }),
+    ]);
+    return buildTrashView(
+      decks.map(normalizeDeck),
+      cards.map((item) => normalizeCard({ id: item.id, ...item })),
+    );
   },
 
   /** Xoá vĩnh viễn mọi thứ trong thùng rác (dùng khi người dùng bấm "Dọn thùng rác"). */
@@ -392,8 +398,8 @@ const dataMethods = {
       });
       return;
     }
-    const decks = await getUserDocuments("study_decks");
-    const cards = await getUserDocuments("vocabulary_cards");
+    const decks = await getUserDocuments("study_decks", { serverOnly: true });
+    const cards = await getUserDocuments("vocabulary_cards", { serverOnly: true });
     const trashedDeckIds = new Set(decks.filter((deck) => deck.deletedAt).map((deck) => deck.id));
     const targets = [
       ...decks.filter((deck) => deck.deletedAt).map((deck) => ["study_decks", deck.id]),
@@ -401,9 +407,9 @@ const dataMethods = {
         .filter((card) => card.deletedAt || trashedDeckIds.has(card.deckId))
         .map((card) => ["vocabulary_cards", card.id]),
     ];
-    for (let index = 0; index < targets.length; index += BATCH_SIZE) {
+    for (const targetChunk of chunkForFirestore(targets)) {
       const batch = writeBatch(db);
-      targets.slice(index, index + BATCH_SIZE).forEach(([collectionName, id]) => {
+      targetChunk.forEach(([collectionName, id]) => {
         batch.delete(doc(db, collectionName, id));
       });
       await batch.commit();
@@ -420,7 +426,7 @@ const withFriendlyDataError = async (operation, args) => {
   }
 };
 
-const READ_METHODS = new Set(["getDecks", "getCards"]);
+const READ_METHODS = new Set(["getDecks", "getCards", "getTrashed"]);
 
 export const dataService = Object.fromEntries(
   Object.entries(dataMethods).map(([name, operation]) => [
