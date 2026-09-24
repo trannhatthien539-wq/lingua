@@ -137,48 +137,40 @@ export default function HomeHub({ user, streak, onNavigate }) {
 
   return (
     <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-3xl border-2 border-[#4cb102] bg-gradient-to-br from-[#58cc02] to-[#43a302] p-5 text-white shadow-soft sm:p-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+      <section className="relative overflow-hidden rounded-2xl border-2 border-[#4cb102] bg-gradient-to-br from-[#58cc02] to-[#43a302] p-4 text-white shadow-soft sm:rounded-3xl sm:p-6">
+        <div className="flex flex-col gap-3 sm:gap-6 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/85">{greetingByHour()}{displayName ? `, ${displayName}` : ''} 👋</p>
-            <h2 className="mt-1.5 font-display text-2xl font-bold sm:text-3xl">Hôm nay học gì?</h2>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
-                <Flame size={16} className="text-[#ffd900]" />{stats.streak.current > 0 ? `Streaks: ${stats.streak.current} ngày liên tiếp` : "Streaks: Chưa bắt đầu"}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
-                <Star size={16} className="text-[#ffd900]" />Cấp {level.level} · {level.title}
-              </span>
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-white/85 sm:text-xs sm:tracking-[0.14em]">{greetingByHour()}{displayName ? `, ${displayName}` : ''} 👋</p>
+            <h2 className="mt-1 font-display text-xl font-bold leading-tight sm:mt-1.5 sm:text-3xl">Hôm nay học gì?</h2>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:flex-wrap">
+              <span className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-1.5 text-[11px] font-bold sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm"><Flame size={14} className="shrink-0 text-[#ffd900] sm:h-4 sm:w-4" /><span className="truncate">{stats.streak.current > 0 ? `Streaks: ${stats.streak.current} ngày` : 'Streaks: Chưa bắt đầu'}</span></span>
+              <span className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-1.5 text-[11px] font-bold sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm"><Star size={14} className="shrink-0 text-[#ffd900] sm:h-4 sm:w-4" /><span className="truncate">Cấp {level.level} · {level.title}</span></span>
             </div>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/85">
+            <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/85 sm:mt-3 sm:line-clamp-none sm:text-sm sm:leading-6">
               {goalPercent >= 100
                 ? "Bạn đã đạt mục tiêu hôm nay 🎉 Học thêm chút nữa nếu còn thời gian nhé."
                 : `Còn ${Math.max(0, target - goalToday)} lượt ôn nữa để hoàn thành mục tiêu hôm nay.`}
             </p>
-            <div className="mt-5 max-w-xl">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-[0.06em] text-white/90">
-                <span className="inline-flex items-center gap-1.5"><Target size={14} />Mục tiêu hôm nay</span>
-                <span>{goalToday}/{target} lượt ôn</span>
+            <div className="mt-3 max-w-xl sm:mt-5">
+              <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.04em] text-white/90 sm:text-xs sm:tracking-[0.06em]">
+                <span className="inline-flex min-w-0 items-center gap-1"><Target size={13} />Mục tiêu hôm nay</span>
+                <span className="shrink-0">{goalToday}/{target} lượt ôn</span>
               </div>
-              <div className="mt-2 h-3 overflow-hidden rounded-full bg-black/25">
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/25 sm:mt-2 sm:h-3">
                 <div className="h-full rounded-full bg-white transition-all" style={{ width: `${goalPercent}%` }} />
               </div>
             </div>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:flex sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => onNavigate?.("vocabulary")}
-                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-white px-5 text-sm font-black uppercase tracking-[0.06em] text-[#3f9c02] shadow-[0_4px_0_0_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5"
-              >
-                <PlayCircle size={18} />Học ngay
-              </button>
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-[11px] font-black uppercase tracking-[0.03em] text-[#3f9c02] shadow-[0_4px_0_0_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 sm:min-h-[48px] sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm sm:tracking-[0.06em]"
+              ><PlayCircle size={17} />Học ngay</button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("vstep")}
-                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl border-2 border-white/60 px-5 text-sm font-bold uppercase tracking-[0.06em] text-white transition hover:bg-white/10"
-              >
-                <Award size={18} />Thi thử VSTEP
-              </button>
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border-2 border-white/60 px-2 text-[11px] font-bold uppercase tracking-[0.03em] text-white transition hover:bg-white/10 sm:min-h-[48px] sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm sm:tracking-[0.06em]"
+              ><Award size={17} />Thi VSTEP</button>
             </div>
           </div>
           {/* Minh hoạ bên phải: ẩn trên điện thoại để banner gọn, hiện từ md trở lên */}

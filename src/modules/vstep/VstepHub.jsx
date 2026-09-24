@@ -140,7 +140,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
         <ModuleTabs items={VIEWS} value={view} onChange={setView} ariaLabel="Chọn nội dung VSTEP" />
       </ModuleHero>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="hidden grid-cols-2 gap-2 sm:grid sm:grid-cols-4">
         {SKILL_SUMMARY.map((item) => <div key={item.label} className="rounded-xl border border-ink/[0.08] bg-white px-3 py-2 shadow-sm dark:border-white/[0.08] dark:bg-dark1"><p className="text-xs font-bold">{item.label}</p><p className="text-xs text-ink/50 dark:text-white/50">{item.detail}</p></div>)}
       </div>
 
@@ -158,7 +158,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                 {item === "all" ? "Tất cả bậc" : item}
               </button>
             ))}
-            <span className="ml-auto text-xs font-semibold text-ink/60 dark:text-white/60">
+            <span className="text-xs font-semibold text-ink/60 sm:ml-auto dark:text-white/60">
               {examsByLevel(level).length} đề · 75 câu Nghe + Đọc, 2 Viết, 3 Nói
             </span>
           </div>
