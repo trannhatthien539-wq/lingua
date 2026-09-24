@@ -13,3 +13,28 @@ export function chunkForFirestore(items, batchSize = FIRESTORE_BATCH_SIZE) {
   }
   return chunks;
 }
+
+/** Chạy ghi theo batch và rollback các phần đã commit nếu một batch sau lỗi. */
+export async function runInBatches(items, { batchSize = FIRESTORE_BATCH_SIZE, commit, rollback } = {}) {
+  if (typeof commit !== "function") throw new TypeError("Thiếu hàm commit batch.");
+  const committed = [];
+  const attempted = [];
+  try {
+    for (const chunk of chunkForFirestore(items, batchSize)) {
+      attempted.push(...chunk);
+      await commit(chunk);
+      committed.push(...chunk);
+    }
+    return committed;
+  } catch (error) {
+    // Batch đang commit có thể đã đến server dù response bị mất; xoá cả batch đó để tránh sót dữ liệu.
+    if (rollback && attempted.length) {
+      try {
+        await rollback(attempted);
+      } catch {
+        // Giữ lỗi gốc để UI báo đúng nguyên nhân batch thất bại.
+      }
+    }
+    throw error;
+  }
+}

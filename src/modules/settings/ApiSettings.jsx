@@ -3,7 +3,7 @@ import { Check, CheckCircle2, KeyRound, Save } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
 import { getApiKeyStorageKey, PROVIDER_STORAGE, readApiKeyForUser } from '../../services/apiKeyStorage'
-import { canUseAi, hasAiProxy } from '../../services/aiService'
+import { hasAiProxy } from '../../services/aiService'
 
 export default function ApiSettings({ user, apiKey, setApiKey }) {
   const [open, toggleSection] = useSectionState('api', false)
@@ -14,9 +14,7 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
   useEffect(() => () => window.clearTimeout(savedTimerRef.current), [])
   // Bản build có `VITE_AI_PROXY_URL`: AI chạy qua máy chủ riêng, người dùng không cần API key.
   const proxied = hasAiProxy()
-  // Chưa có key cá nhân nhưng bundle kèm key Gemini dự phòng (env) → AI vẫn dùng được.
-  const usingFallback = !proxied && !apiKey?.trim() && canUseAi(apiKey, provider)
-  const connected = proxied || Boolean(apiKey?.trim()) || usingFallback
+  const connected = proxied || Boolean(apiKey?.trim());
 
   useEffect(() => {
     setApiKey(readApiKeyForUser(user))
@@ -44,7 +42,7 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
       description="Sinh từ vựng, chấm chữa và gợi ý mindmap"
       badge={
         <span className={`chip ${connected ? 'bg-okbg text-ok dark:bg-okdark dark:text-okfgdark' : 'bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60'}`}>
-          {proxied && !apiKey?.trim() ? 'Máy chủ proxy' : usingFallback ? 'Key dự phòng' : connected ? 'Đã cấu hình' : 'Chưa kết nối'}
+          {proxied && !apiKey?.trim() ? 'Máy chủ proxy' : connected ? 'Đã cấu hình' : 'Chưa kết nối'}
         </span>
       }
       open={open}
@@ -54,11 +52,6 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
         {proxied && (
           <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
             Bản này dùng máy chủ AI proxy riêng — mọi tính năng AI hoạt động mà không cần nhập API key.
-          </p>
-        )}
-        {usingFallback && (
-          <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
-            Bundle kèm key Gemini dự phòng — AI chạy ngay cả khi bạn chưa nhập key, tự chuyển key khác khi bị limit.
           </p>
         )}
         <label className="block">

@@ -6,7 +6,7 @@
 ## 0. TL;DR cho AI
 
 - **Là gì**: PWA học tiếng Anh all-in-one — từ vựng SRS, ngữ pháp, 4 kỹ năng, luyện câu, thi thử B1, writing AI, planner, mindmap, tiến độ/gamification, gia sư AI.
-- **Stack**: React 18 (StrictMode) + Vite + Tailwind 3 + Firebase (Auth + Firestore, offline cache) + react-router 7 + Capacitor (APK Android). Không backend riêng (trừ Cloud Function tuỳ chọn ở `functions/`).
+- **Stack**: React 19 (StrictMode) + Vite + Tailwind 3 + Firebase (Auth + Firestore, offline cache) + react-router 7 + Capacitor (APK Android). Không backend riêng (trừ Cloud Function tuỳ chọn ở `functions/`).
 - **Composition root**: `src/App.jsx` — giữ tab hiện tại, lazy-load module theo registry, đồng bộ dữ liệu khách → tài khoản, quản lý đăng nhập/streak/search/tutor.
 - **"Nguồn sự thật" cần nhớ**: điều hướng `src/data/navigation.js` · dữ liệu `src/services/dataService.js` · lịch ôn `src/utils/srs.js` · state theo tài khoản `src/services/userDocService.js` (`user_state`) · design system `src/index.css`.
 - **Chạy**: `npm install` → `npm run dev` (nếu thấy lỗi React lạ, chạy `npm run dev -- --force`) · build `npm run build` · test `npm test` (scripts trong `package.json`).
@@ -36,7 +36,7 @@ Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất l
 | `npm run dev` | Dev server (thêm `-- --force` khi dependency cache lỗi thời) |
 | `npm run build` | Build production ra `dist/` (dùng để **kiểm tra sau mỗi lần sửa**) |
 | `npm run preview` | Xem thử bản build |
-| `npm test` | `node --test "tests/*.test.js"` — 12 file test, 82 test. **Cần Node 22+** (Node cũ hơn không hỗ trợ glob cho `--test`, và `node --test tests` — thư mục trần — cũng lỗi) |
+| `npm test` | `node --test "tests/*.test.js"` — kiểm thử hàm thuần và dịch vụ thuần: SRS, VSTEP, ngữ pháp, từ điển, batch/rollback, UTF-8. **Cần Node 22+** |
 | `npm run lint` | `eslint . --max-warnings 0` — cấu hình ở `eslint.config.js`; **0 error & 0 warning** (warning cũng chặn CI) |
 | `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
 | `npm run size` | `node scripts/check-bundle.mjs` — chạy sau `npm run build`: in các chunk lớn nhất và **fail nếu vượt ngân sách byte** (chống bundle phình lại) |
@@ -189,11 +189,11 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 | File | Trách nhiệm |
 | --- | --- |
-| `dataService.js` | **Lớp dữ liệu duy nhất** cho deck/thẻ: khách = localStorage, đăng nhập = Firestore. Có `addCards` (batch 400), `updateCards` (sửa hàng loạt), `trash*/restore*/getTrashed/purgeTrash` (xoá mềm), `deleteDeck/deleteCard` (xoá cứng, dùng nội bộ). Luôn lọc `undefined` trước khi ghi Firestore |
-| `userDocService.js` | State theo tài khoản (`user_state`), `syncGuestUserDocs`, `createDebouncedSync` |
+| `dataService.js` | **Lớp dữ liệu duy nhất** cho deck/thẻ: khách = localStorage, đăng nhập = Firestore. Có `addCards` (batch 400 + rollback), `createDeckWithCards`, `updateCards` (sửa hàng loạt), `trash*/restore*/getTrashed/purgeTrash` (xoá mềm), `deleteDeck/deleteCard` (xoá cứng, dùng nội bộ). Luôn lọc `undefined` trước khi ghi Firestore |
+| `userDocService.js` | State theo tài khoản (`user_state`), kiểm tra payload theo byte UTF-8, `syncGuestUserDocs`, `createDebouncedSync` có `attach/dispose` |
 | `historyService.js` | Lịch sử học theo ngày + event `lingua:history-changed` |
 | `streakService.js` | Chuỗi ngày học (`users/{uid}` hoặc localStorage cho khách) |
-| `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini (thử lần lượt 3 model), Groq, DeepSeek; **timeout 30 giây** (`AbortController`); hỗ trợ proxy qua `VITE_AI_PROXY_URL` (xem badge ở Cài đặt → API); key dự phòng Gemini `VITE_GEMINI_FALLBACK_KEYS` + helper `canUseAi(apiKey, provider)` (chưa có key vẫn dùng được, bị limit thì tự chuyển key); các prompt mẫu (`generateSmartVocabularyPrompt`, …) |
+| `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini, Groq, DeepSeek; timeout 30 giây; hỗ trợ proxy `VITE_AI_PROXY_URL`. Production chỉ dùng proxy hoặc key cá nhân; không nạp secret từ biến `VITE_*` |
 | `dictionaryService.js` | Tra từ **miễn phí** (dictionaryapi.dev + MyMemory), không cần key |
 | `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
 | `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
@@ -302,8 +302,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 ## 12. AI: provider, key, proxy
 
 - Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`), `groq` (`llama-3.3-70b-versatile`) hoặc `deepseek` (`deepseek-chat`, API tương thích OpenAI: `https://api.deepseek.com/chat/completions`, key dạng `sk-...`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
-- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí); Gemini còn key dự phòng bundle `VITE_GEMINI_FALLBACK_KEYS` nên mọi chức năng AI chạy ngay, key bị rate-limit/sai quyền (400/401/403/429) thì tự chuyển key kế tiếp; Groq/DeepSeek không có key dự phòng → báo lỗi thân thiện và nhắc mở Cài đặt.
-- Proxy tuỳ chọn (người dùng không cần key): deploy `functions/index.js` (Cloud Function v2, rate-limit theo IP) rồi build với `VITE_AI_PROXY_URL=https://<region>-<project>.cloudfunctions.net/aiProxy npm run build`. Khi có biến này, `requestAi` gọi proxy và bỏ qua key client.
+- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí). Các tính năng AI khác yêu cầu key cá nhân hoặc proxy production; tuyệt đối không đặt API key trong biến `VITE_*` vì key sẽ bị nhúng vào bundle công khai.
+- Proxy production (khuyến nghị): deploy `functions/index.js` (Cloud Function v2, Secret Manager, allowlist origin và rate-limit theo IP), đặt secrets `GEMINI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, rồi build với `VITE_AI_PROXY_URL`. Khi có biến này, `requestAi` gọi proxy và bỏ qua key client.
 - Prompt trả JSON (Gemini `responseMimeType`, Groq `response_format`) và parse bằng `parseAiJson` — luôn bọc `try/catch` và hiển thị lỗi qua `toast`.
 
 ## 13. Biến môi trường & cấu hình
@@ -311,8 +311,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | Biến / file | Ý nghĩa |
 | --- | --- |
 | `GITHUB_PAGES` | Build cho GitHub Pages → `base = /lingua/` |
-| `VITE_AI_PROXY_URL` | Bật proxy AI (không cần API key client) |
-| `VITE_GEMINI_FALLBACK_KEYS` | Key Gemini dự phòng (phân cách `,`) — AI chạy khi người dùng chưa nhập key |
+| `VITE_AI_PROXY_URL` | Bật proxy AI (không cần API key client; URL công khai, secret nằm trong Secret Manager) |
 | `VITE_GOOGLE_USE_NATIVE_AUTH=1` | Dùng plugin Google Auth native cho APK (mặc định tắt) |
 | `src/config/googleAuth.js` | Hằng số `GOOGLE_LOGIN_MODE`, override theo thiết bị qua localStorage `lingua-google-login-mode` (Cài đặt → Tài khoản) |
 | `public/sw.js`, `index.html` | Service worker: chỉ đăng ký ngoài `localhost`/`.local` và khi không chạy trong Capacitor; ở localhost sẽ **unregister + xoá cache** |

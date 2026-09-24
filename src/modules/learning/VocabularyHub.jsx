@@ -139,9 +139,7 @@ const seedStarterDeck = () => {
     starterSeedPromise = (async () => {
       const { createCommonWordsDeck } = await import("../../data/commonWords");
       const { deck: draftDeck, cards: draftCards } = createCommonWordsDeck();
-      const created = await dataService.createDeck(draftDeck.title);
-      // Ghi một lần theo batch: nhanh hơn nhiều so với 1000 request riêng lẻ.
-      const cards = await dataService.addCards(draftCards.map((card) => ({ ...card, deckId: created.id })));
+      const { deck: created, cards } = await dataService.createDeckWithCards(draftDeck.title, draftCards);
       if (!cards.length) {
         await dataService.deleteDeck(created.id).catch(() => {});
         starterSeedPromise = null;
@@ -537,16 +535,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         audioUrl: item.audioUrl || "",
       }))
       .filter((card) => card.word);
-    const savedCards = await Promise.all(cards.map((card) => dataService.addCard(card)));
+    const savedCards = await dataService.addCards(cards);
     setLibrary((current) => ({ ...current, cards: [...savedCards, ...current.cards] }));
     return savedCards;
   };
 
   const importDeck = async (title, items) => {
-    const deck = await dataService.createDeck(title);
-    // Thẻ có thể đến từ file/liên kết chia sẻ nên cần bổ sung id duy nhất.
-    const importedCards = items.map((item) => ({ ...item, id: item.id || makeId("card"), deckId: deck.id }));
-    const savedCards = await Promise.all(importedCards.map((card) => dataService.addCard(card)));
+    const { deck, cards: savedCards } = await dataService.createDeckWithCards(title, items);
     const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
     setLibrary((current) => ({ ...current, decks: [...current.decks, normalizedDeck], cards: [...savedCards, ...current.cards] }));
     setSelectedDeckId(normalizedDeck.id);
@@ -693,8 +688,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     if (!created) return;
     setLoading(`theme-${deckId}`);
     try {
-      const targetDeck = await dataService.createDeck(created.deck.title);
-      const savedCards = await dataService.addCards(created.cards.map((card) => ({ ...card, deckId: targetDeck.id })));
+      const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(created.deck.title, created.cards);
       updateLibrary({
         decks: [...library.decks, { ...targetDeck, tags: created.deck.tags, description: created.deck.description }],
         cards: [...savedCards, ...library.cards],
@@ -717,9 +711,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       return setNotice("Bộ IELTS Speaking Part 1 đã có trong thư viện.");
     }    setLoading("add-deck");
     try {
-      const targetDeck = await dataService.createDeck(seed.title);
-      const newCards = seed.cards.map((card) => ({ ...card, deckId: targetDeck.id }));
-      const savedCards = await Promise.all(newCards.map((card) => dataService.addCard(card)));
+      const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(seed.title, seed.cards);
       updateLibrary({ decks: [...library.decks, { ...targetDeck, tags: seed.tags, description: seed.description }], cards: [...savedCards, ...library.cards] });
       setSelectedDeckId(targetDeck.id);
       setNotice(`Đã thêm bộ IELTS Speaking Part 1 với ${savedCards.length} từ.`);

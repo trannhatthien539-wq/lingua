@@ -10,6 +10,7 @@ import { createDebouncedSync, loadUserDoc, userDocKeys } from "./userDocService"
  * `src/utils/history.js` để có test, và khoá ngày lấy từ `src/utils/day.js` (một nguồn duy nhất).
  */
 const syncer = createDebouncedSync(userDocKeys.history, 1500);
+syncer.attach();
 
 export const historyChangedEvent = "lingua:history-changed";
 

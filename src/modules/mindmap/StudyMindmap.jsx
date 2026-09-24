@@ -630,6 +630,10 @@ export default function StudyMindmap({ apiKey }) {
     hydrateFromCloud();
   }, [hydrateFromCloud]);
   useEffect(() => {
+    mindmapSync.attach();
+    return () => mindmapSync.dispose();
+  }, [mindmapSync]);
+  useEffect(() => {
     const handleRefresh = () => hydrateFromCloud();
     window.addEventListener(refreshRequestedEvent, handleRefresh);
     return () => window.removeEventListener(refreshRequestedEvent, handleRefresh);

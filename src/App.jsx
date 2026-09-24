@@ -6,7 +6,7 @@ import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
 import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled } from './services/authService'
 import { subscribeGoogleReturn } from './services/googleBrowserAuth'
-import { readApiKeyForUser } from './services/apiKeyStorage'
+import { getApiKeyStorageKey, readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
 import { openItem } from './services/deepLink'
@@ -177,6 +177,9 @@ export default function App() {
     }
   }, [])
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname])
+  useEffect(() => {
     if (user && isLoginRoute) navigate(tabPaths.home, { replace: true })
   }, [isLoginRoute, navigate, user])
 
@@ -185,6 +188,7 @@ export default function App() {
   const handleSignOut = async () => {
     setApiKey('')
     clearGuestVocabulary()
+    localStorage.removeItem(getApiKeyStorageKey(user))
     localStorage.removeItem('lingua-ai-api-key')
     await signOut(auth)
     navigate('/login')

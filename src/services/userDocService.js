@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db, onAuthStateChanged } from "./firebase";
+import { utf8ByteLength } from "../utils/utf8";
 import { markSynced, trackPendingWrite } from "./syncStatus";
 
 /**
@@ -30,8 +31,9 @@ export const readLocalUserDoc = (key, uid) => {
 const writeLocalUserDoc = (key, envelope, uid) => {
   try {
     localStorage.setItem(localKey(key, uid), JSON.stringify(envelope));
+    return true;
   } catch {
-    // Bỏ qua khi localStorage đầy hoặc bị chặn.
+    return false;
   }
 };
 
@@ -87,11 +89,13 @@ export const saveUserDoc = async (key, payload) => {
   const user = await currentUser();
   const normalized = normalizePayload(payload);
   const serialized = JSON.stringify(normalized);
-  if (serialized.length > MAX_PAYLOAD_BYTES) {
+  if (utf8ByteLength(serialized) > MAX_PAYLOAD_BYTES) {
     throw new Error("Dữ liệu quá lớn để đồng bộ đám mây. Hãy giảm bớt nội dung hoặc xuất file sao lưu.");
   }
   const envelope = { payload: normalized, updatedAt: Date.now() };
-  writeLocalUserDoc(key, envelope, user?.uid);
+  if (!writeLocalUserDoc(key, envelope, user?.uid)) {
+    throw new Error("Không thể lưu dữ liệu trên thiết bị. Bộ nhớ trình duyệt có thể đã đầy hoặc bị chặn.");
+  }
   if (!user) return envelope;
 
   return trackPendingWrite(async () => {
@@ -143,6 +147,8 @@ export const userDocKeys = {
 export const createDebouncedSync = (key, delay = 900) => {
   let timer = null;
   let pending;
+  let disposed = true;
+  let attached = false;
 
   const flush = async () => {
     if (timer) {
@@ -156,6 +162,7 @@ export const createDebouncedSync = (key, delay = 900) => {
   };
 
   const schedule = (payload) => {
+    if (disposed) return;
     pending = payload;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
@@ -166,16 +173,31 @@ export const createDebouncedSync = (key, delay = 900) => {
   };
 
   const flushOnHide = () => {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined" || disposed) return;
     if (document.visibilityState === "hidden") flush().catch(() => {});
   };
+  const flushOnPageHide = () => {
+    if (!disposed) flush().catch(() => {});
+  };
 
-  if (typeof window !== "undefined") {
+  const attach = () => {
+    disposed = false;
+    if (attached || typeof window === "undefined") return;
     document.addEventListener("visibilitychange", flushOnHide);
-    window.addEventListener("pagehide", () => {
-      flush().catch(() => {});
-    });
-  }
+    window.addEventListener("pagehide", flushOnPageHide);
+    attached = true;
+  };
 
-  return { key, schedule, flush };
+  const dispose = () => {
+    if (!attached && disposed) return;
+    disposed = true;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", flushOnHide);
+    if (typeof window !== "undefined") window.removeEventListener("pagehide", flushOnPageHide);
+    attached = false;
+    if (pending !== undefined) flush().catch(() => {});
+  };
+
+  return { key, attach, schedule, flush, dispose };
 };

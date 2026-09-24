@@ -26,10 +26,12 @@ export async function syncVocabulary(library) {
     wordsByDeck.get(card.deckId).add(deckKey(card.word));
   }
 
+  const createdDeckIds = [];
   const resolveDeckId = async (title) => {
     const key = deckKey(title) || deckKey(FALLBACK_DECK_TITLE);
     if (deckIdByTitle.has(key)) return deckIdByTitle.get(key);
     const created = await dataService.createDeck(String(title || '').trim() || FALLBACK_DECK_TITLE);
+    createdDeckIds.push(created.id);
     deckIdByTitle.set(key, created.id);
     wordsByDeck.set(created.id, new Set());
     return created.id;
@@ -40,13 +42,25 @@ export async function syncVocabulary(library) {
     guestDeckIds.set(deck.id, await resolveDeckId(deck.title));
   }
 
+  const cardsByDeck = new Map();
   for (const card of guestLibrary.cards) {
     const targetDeckId = guestDeckIds.get(card.deckId) || (await resolveDeckId(FALLBACK_DECK_TITLE));
     guestDeckIds.set(card.deckId, targetDeckId);
     const word = deckKey(card.word);
     if (!word || wordsByDeck.get(targetDeckId).has(word)) continue;
-    wordsByDeck.get(targetDeckId).add(word);
-    await dataService.addCard({ ...card, deckId: targetDeckId });
+    if (!cardsByDeck.has(targetDeckId)) cardsByDeck.set(targetDeckId, []);
+    cardsByDeck.get(targetDeckId).push({ ...card, deckId: targetDeckId });
+  }
+  try {
+    for (const [targetDeckId, cards] of cardsByDeck) {
+      const savedCards = await dataService.addCards(cards);
+      for (const card of savedCards) wordsByDeck.get(targetDeckId).add(deckKey(card.word));
+    }
+  } catch (error) {
+    // Nếu lần đồng bộ này tạo deck mới nhưng batch thẻ lỗi, dọn deck rỗng/dở dang.
+    // Dữ liệu guest chưa bị xoá nên người dùng có thể đăng nhập lại và thử tiếp.
+    await Promise.all(createdDeckIds.map((id) => dataService.deleteDeck(id).catch(() => {})));
+    throw error;
   }
 
   clearGuestVocabulary();

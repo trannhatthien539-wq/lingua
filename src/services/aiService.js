@@ -112,24 +112,10 @@ const PROXY_URL = (import.meta.env?.VITE_AI_PROXY_URL || "").trim();
 export const hasAiProxy = () => Boolean(PROXY_URL);
 
 /**
- * Key Gemini dự phòng đóng kèm bundle (env `VITE_GEMINI_FALLBACK_KEYS`, phân cách dấu phẩy):
- * người dùng chưa nhập key vẫn dùng được mọi chức năng AI của Gemini, và key bị sai quyền
- * hoặc rate-limit (400/401/403/429) sẽ tự chuyển sang key kế tiếp. Chỉ áp dụng provider gemini.
- * Lưu ý: biến VITE_* được Vite nhúng vào bundle — ai mở DevTools cũng đọc được key này.
+ * Production chỉ dùng proxy hoặc key cá nhân. `fallbackKeys` là tuỳ chọn dành cho test/internal
+ * và không được đọc từ biến VITE_* vì mọi VITE_* đều có thể bị đọc từ bundle công khai.
  */
-const FALLBACK_GEMINI_KEYS = (import.meta.env?.VITE_GEMINI_FALLBACK_KEYS || "")
-  .split(",")
-  .map((key) => key.trim())
-  .filter(Boolean);
-
-/**
- * True nếu app gọi được AI: có proxy, có key cá nhân, hoặc (với Gemini) còn key dự phòng.
- * UI dùng để bỏ cấm các nút AI thay vì bắt buộc mọi người phải nhập key riêng.
- */
-export const canUseAi = (apiKey, providerId) =>
-  Boolean(PROXY_URL) ||
-  Boolean(apiKey?.trim()) ||
-  (normalizeProvider(providerId) === "gemini" && FALLBACK_GEMINI_KEYS.length > 0);
+export const canUseAi = (apiKey) => Boolean(PROXY_URL) || Boolean(apiKey?.trim());
 
 async function requestViaProxy(providerId, prompt, json) {
   const response = await fetchWithTimeout(PROXY_URL, {
@@ -148,11 +134,8 @@ async function requestViaProxy(providerId, prompt, json) {
   return text;
 }
 
-/**
- * Gọi AI. `fallbackKeys` cho phép test chỉ định pool key dự phòng;
- * production mặc định lấy từ env `VITE_GEMINI_FALLBACK_KEYS`.
- */
-export async function requestAi(providerId, apiKey, prompt, { json = false, fallbackKeys = FALLBACK_GEMINI_KEYS } = {}) {
+/** `fallbackKeys` chỉ dành cho test/internal; production không nạp key từ VITE_* hay bundle. */
+export async function requestAi(providerId, apiKey, prompt, { json = false, fallbackKeys = [] } = {}) {
   const normalizedProvider = normalizeProvider(providerId);
   if (PROXY_URL) return requestViaProxy(normalizedProvider, prompt, json);
   const personalKey = apiKey?.trim() || "";

@@ -89,6 +89,6 @@ test("không có key nào thì báo chưa có API key", async () => {
 test("canUseAi tính key cá nhân ở mọi provider", () => {
   assert.equal(canUseAi("sk-personal", "deepseek"), true);
   assert.equal(canUseAi("   ", "groq"), false);
-  // node --test không nạp env Vite nên không có key dự phòng → gemini không key = false.
+  // Node test không nạp VITE proxy nên canUseAi chỉ true khi có key cá nhân.
   assert.equal(canUseAi("", "gemini"), false);
 });

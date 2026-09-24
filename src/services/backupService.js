@@ -5,6 +5,16 @@ import { markSynced } from "./syncStatus";
 
 const BACKUP_VERSION = 1;
 const wordKey = (value = "") => String(value).trim().replace(/\s+/g, " ").toLowerCase();
+const restoreCard = (card, deckId) => ({
+  ...card,
+  deckId,
+  status: card.status || "new",
+  level: card.level || "B1",
+  interval: Number(card.interval) || 0,
+  repetition: Number(card.repetition) || 0,
+  nextReviewDate: card.nextReviewDate || null,
+  lastStudiedDate: card.lastStudiedDate || null,
+});
 
 const download = (content, filename, type) => {
   const blob = new Blob([content], { type });
@@ -57,6 +67,7 @@ const restoreLibrary = async (backup) => {
   }
 
   const localDeckIds = new Map();
+  const createdDeckIds = new Set();
   let addedDecks = 0;
   for (const deck of backup.decks) {
     const key = wordKey(deck.title);
@@ -66,30 +77,33 @@ const restoreLibrary = async (backup) => {
       continue;
     }
     const created = await dataService.createDeck(deck.title);
+    createdDeckIds.add(created.id);
     deckIdByTitle.set(key, created.id);
     wordsByDeck.set(created.id, new Set());
     localDeckIds.set(deck.id, created.id);
     addedDecks += 1;
   }
 
-  let addedCards = 0;
+  const cardsByDeck = new Map();
   for (const card of backup.cards) {
     const targetDeck = localDeckIds.get(card.deckId);
     if (!targetDeck || !card.word) continue;
     const key = wordKey(card.word);
-    if (wordsByDeck.get(targetDeck)?.has(key)) continue;
-    wordsByDeck.get(targetDeck).add(key);
-    await dataService.addCard({
-      ...card,
-      deckId: targetDeck,
-      status: card.status || "new",
-      level: card.level || "B1",
-      interval: Number(card.interval) || 0,
-      repetition: Number(card.repetition) || 0,
-      nextReviewDate: card.nextReviewDate || null,
-      lastStudiedDate: card.lastStudiedDate || null,
-    });
-    addedCards += 1;
+    if (!key || wordsByDeck.get(targetDeck)?.has(key)) continue;
+    if (!cardsByDeck.has(targetDeck)) cardsByDeck.set(targetDeck, []);
+    cardsByDeck.get(targetDeck).push(restoreCard(card, targetDeck));
+  }
+
+  let addedCards = 0;
+  try {
+    for (const [targetDeck, cards] of cardsByDeck) {
+      const savedCards = await dataService.addCards(cards);
+      for (const card of savedCards) wordsByDeck.get(targetDeck).add(wordKey(card.word));
+      addedCards += savedCards.length;
+    }
+  } catch (error) {
+    await Promise.all([...createdDeckIds].map((id) => dataService.deleteDeck(id).catch(() => {})));
+    throw error;
   }
   return { decks: addedDecks, cards: addedCards };
 };

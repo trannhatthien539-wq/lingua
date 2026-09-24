@@ -13,7 +13,7 @@ import {
 import { auth, db } from "./firebase";
 import { isSafeImageSource } from "./imageService";
 import { trackPendingWrite } from "./syncStatus";
-import { chunkForFirestore } from "./firestoreBatch";
+import { chunkForFirestore, runInBatches } from "./firestoreBatch";
 import { buildTrashView } from "./vocabularyTrash";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
@@ -108,6 +108,17 @@ const normalizeCard = (card) => ({
   lapses: Number(card.lapses) || 0,
   deletedAt: card.deletedAt || null,
 });
+
+const withUniqueLocalCardIds = (cards, library) => {
+  const usedIds = new Set(library.cards.map((card) => card.id).filter(Boolean));
+  return cards.map((card) => {
+    const normalized = normalizeCard(card);
+    let id = normalized.id;
+    while (!id || usedIds.has(id)) id = makeId("card");
+    usedIds.add(id);
+    return { ...normalized, id };
+  });
+};
 
 const withUserId = (data) => ({ ...data, userId: requireUser().uid });
 
@@ -227,24 +238,52 @@ const dataMethods = {
    * - Đã đăng nhập: gom theo batch để tránh 1000 request riêng lẻ.
    */
   async addCards(cards) {
-    const normalized = cards.map((card) => normalizeCard(card));
+    const normalized = cards.map((card) => normalizeCard(card)).filter((card) => card.word && card.deckId);
     if (!normalized.length) return [];
     if (!currentUser()) {
       const library = readLocal();
-      writeLocal({ ...library, cards: [...library.cards, ...normalized] });
-      return normalized;
+      const savedCards = withUniqueLocalCardIds(normalized, library);
+      writeLocal({ ...library, cards: [...savedCards, ...library.cards] });
+      return savedCards;
     }
-    const saved = [];
-    for (const chunk of chunkForFirestore(normalized)) {
-      const batch = writeBatch(db);
-      chunk.forEach((card) => {
-        const ref = doc(collection(db, "vocabulary_cards"));
-        batch.set(ref, withUserId(omitUndefined(cardPayload(card))));
-        saved.push({ ...card, id: ref.id });
-      });
-      await batch.commit();
+    const entries = normalized.map((card) => ({ card, ref: doc(collection(db, "vocabulary_cards")) }));
+    const committed = await runInBatches(entries, {
+      commit: async (entryChunk) => {
+        const batch = writeBatch(db);
+        entryChunk.forEach(({ card, ref }) => batch.set(ref, withUserId(omitUndefined(cardPayload(card)))));
+        await batch.commit();
+      },
+      rollback: async (createdEntries) => {
+        for (const entryChunk of chunkForFirestore(createdEntries)) {
+          const batch = writeBatch(db);
+          entryChunk.forEach(({ ref }) => batch.delete(ref));
+          await batch.commit();
+        }
+      },
+    });
+    return committed.map(({ card, ref }) => ({ ...card, id: ref.id }));
+  },
+
+  /** Tạo deck và nhập nhiều thẻ; tự xoá deck/thẻ đã ghi nếu một batch lỗi. */
+  async createDeckWithCards(title, cards) {
+    if (!currentUser()) {
+      // Ghi deck + toàn bộ thẻ trong một localStorage write để không để lại deck rỗng khi quota lỗi.
+      const library = readLocal();
+      const deck = normalizeDeck({ id: makeId("deck"), title, tags: [], createdAt: new Date().toISOString() });
+      const candidates = cards.map((card) => ({ ...card, deckId: deck.id })).filter((card) => card.word);
+      const savedCards = withUniqueLocalCardIds(candidates, library);
+      writeLocal({ decks: [...library.decks, deck], cards: [...savedCards, ...library.cards] });
+      return { deck, cards: savedCards };
     }
-    return saved;
+
+    const deck = await dataMethods.createDeck(title);
+    try {
+      const savedCards = await dataMethods.addCards(cards.map((card) => ({ ...card, deckId: deck.id })));
+      return { deck, cards: savedCards };
+    } catch (error) {
+      await dataMethods.deleteDeck(deck.id).catch(() => {});
+      throw error;
+    }
   },
 
   async updateCard(id, changes) {

@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import Dialog from "./ui/Dialog";
 
 const SHORTCUTS = [
   { keys: ["Ctrl", "K"], detail: "Mở tìm kiếm toàn cục (từ vựng, ngữ pháp, bài học)" },
@@ -13,12 +14,11 @@ const SHORTCUTS = [
 
 export default function ShortcutsHelpModal({ onClose }) {
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="panel w-full max-w-md p-5" role="dialog" aria-modal="true" aria-label="Phím tắt">
+    <Dialog onClose={onClose} ariaLabelledBy="shortcuts-title" className="panel w-full max-w-md p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="eyebrow">Trợ giúp</p>
-            <h2 className="mt-1 font-display text-xl font-bold">Phím tắt</h2>
+            <h2 id="shortcuts-title" className="mt-1 font-display text-xl font-bold">Phím tắt</h2>
           </div>
           <button onClick={onClose} className="icon-btn -mr-2" aria-label="Đóng bảng phím tắt"><X size={18} /></button>
         </div>
@@ -35,7 +35,6 @@ export default function ShortcutsHelpModal({ onClose }) {
           ))}
         </ul>
         <p className="mt-3 text-xs text-ink/50 dark:text-white/50">Phím tắt học thẻ chỉ hoạt động khi đang trong phiên flashcard.</p>
-      </section>
-    </div>
+      </Dialog>
   );
 }

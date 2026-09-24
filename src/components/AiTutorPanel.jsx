@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, LoaderCircle, Send, Settings2, Sparkles, Trash2, X } from "lucide-react";
 import { canUseAi, requestAi } from "../services/aiService";
 import { toast } from "../services/toast";
+import Dialog from "./ui/Dialog";
 
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const MAX_MESSAGES = 40;
@@ -104,8 +105,7 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
   };
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-end justify-end bg-ink/30 p-0 backdrop-blur-sm sm:p-5 dark:bg-black/50" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="panel flex h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-b-none sm:h-[min(640px,88vh)] sm:rounded-2xl" role="dialog" aria-modal="true" aria-label="Gia sư AI">
+    <Dialog onClose={onClose} ariaLabel="Gia sư AI" overlayClassName="fixed inset-0 z-[95] flex items-end justify-end bg-ink/30 p-0 backdrop-blur-sm sm:p-5 dark:bg-black/50" className="panel flex h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-b-none sm:h-[min(640px,88vh)] sm:rounded-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-ink/[0.08] px-4 py-3 dark:border-white/[0.08]">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><Bot size={19} /></span>
@@ -175,7 +175,6 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
           />
           <button disabled={busy || !input.trim()} className="btn-primary h-11 shrink-0 px-4" aria-label="Gửi câu hỏi"><Send size={16} /></button>
         </form>
-      </section>
-    </div>
+    </Dialog>
   );
 }

@@ -50,6 +50,11 @@ export default function useCloudDoc(key, { initial, normalize, select, debounce 
   }, [hydrate]);
 
   useEffect(() => {
+    syncer.attach();
+    return () => syncer.dispose();
+  }, [syncer]);
+
+  useEffect(() => {
     if (!ready) return;
     if (skipNextSaveRef.current) {
       skipNextSaveRef.current = false;

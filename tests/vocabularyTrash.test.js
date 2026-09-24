@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chunkForFirestore, FIRESTORE_BATCH_SIZE } from "../src/services/firestoreBatch.js";
+import { runInBatches, chunkForFirestore, FIRESTORE_BATCH_SIZE } from "../src/services/firestoreBatch.js";
 import { buildTrashView } from "../src/services/vocabularyTrash.js";
 
 test("chia 1.000 thẻ thành 3 batch Firestore an toàn", () => {
@@ -15,6 +15,31 @@ test("chia 1.000 thẻ thành 3 batch Firestore an toàn", () => {
   assert.ok(chunks.every((chunk) => chunk.length <= 500));
   assert.equal(FIRESTORE_BATCH_SIZE, 400);
 });
+test("batch lỗi thì rollback đúng các thẻ đã commit trước đó", async () => {
+  const cards = Array.from({ length: 1000 }, (_, index) => ({ id: `card-${index + 1}` }));
+  const committed = [];
+  let commitCalls = 0;
+  let rolledBack = [];
+
+  await assert.rejects(
+    runInBatches(cards, {
+      commit: async (chunk) => {
+        commitCalls += 1;
+        if (commitCalls === 3) throw new Error("batch lỗi");
+        committed.push(...chunk);
+      },
+      rollback: async (created) => { rolledBack = created; },
+    }),
+    /batch lỗi/,
+  );
+
+  assert.equal(commitCalls, 3);
+  assert.equal(committed.length, 800);
+  assert.equal(rolledBack.length, 1000);
+  assert.equal(rolledBack[0].id, "card-1");
+  assert.equal(rolledBack.at(-1).id, "card-1000");
+});
+
 
 test("buildTrashView gom card con vào deck và chỉ giữ card lẻ đã xoá", () => {
   const deckCards = Array.from({ length: 1000 }, (_, index) => ({ id: `card-${index}`, deckId: "deck-1" }));
