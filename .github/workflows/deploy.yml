@@ -39,12 +39,18 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check VSTEP exam data
+        run: node scripts/check-vstep.mjs
+
       - name: Build
         env:
           GITHUB_PAGES: true
           # Web client ID (không phải bí mật) để bản PWA/APK dùng chung cấu hình Google.
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
         run: npm run build
+
+      - name: Check bundle size budget
+        run: npm run size
 
       - name: Enable SPA routes
         run: cp dist/index.html dist/404.html

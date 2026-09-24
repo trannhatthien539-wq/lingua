@@ -85,15 +85,6 @@
   .metric { @apply font-display font-bold tabular-nums; }
 }
 
-/* React Flow: nút điều khiển zoom mặc định chỉ 26px, nới lên 40px cho dễ bấm */
-.react-flow__controls .react-flow__controls-button {
-  width: 40px;
-  height: 40px;
-}
-.react-flow__controls .react-flow__controls-button svg {
-  max-width: 16px;
-  max-height: 16px;
-}
 
 /*
  * Sàn tương phản cho chữ mờ (chế độ sáng): các utility text-ink/25…/55 mặc định

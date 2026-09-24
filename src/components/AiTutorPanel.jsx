@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, LoaderCircle, Send, Settings2, Sparkles, Trash2, X } from "lucide-react";
-import { hasAiProxy, requestAi } from "../services/aiService";
+import { canUseAi, requestAi } from "../services/aiService";
 import { toast } from "../services/toast";
 
 const PROVIDER_STORAGE = "lingua-ai-provider";
@@ -26,17 +26,22 @@ const readConversation = (user) => {
   }
 };
 
-const buildPrompt = (messages) => {
-  const history = messages
-    .slice(-6)
-    .map((message) => `${message.role === "user" ? "Học viên" : "Gia sư"}: ${message.content}`)
-    .join("\n");
-  return [
+/**
+ * Prompt gửi AI = chỉ dẫn hệ thống + 6 tin nhắn gần nhất + câu hỏi mới.
+ * Trước đây phần "Lịch sử gần đây" được ráp rời ở `send()` và trong này có một biến
+ * `history` không dùng — nay gộp về một chỗ để ngữ cảnh luôn khớp với câu hỏi.
+ */
+const buildPrompt = (messages, question) =>
+  [
     "Bạn là gia sư tiếng Anh kiên nhẫn cho người Việt đang học trình độ B1.",
     "Trả lời bằng tiếng Việt, ngắn gọn (tối đa 200 từ), ví dụ tiếng Anh phải kèm nghĩa tiếng Việt.",
     "Nếu học viên viết sai, hãy chỉ rõ lỗi và đưa câu đúng. Không markdown phức tạp, dùng gạch đầu dòng.",
-  ].join(" ");
-};
+  ].join(" ") +
+  `\n\nLịch sử gần đây:\n${messages
+    .slice(-6)
+    .map((message) => `${message.role === "user" ? "Học viên" : "Gia sư"}: ${message.content}`)
+    .join("\n")}\n\nCâu hỏi mới nhất: ${question}`;
+
 
 /** Gia sư AI: hội thoại hỏi đáp dùng chung API key/provider với các tính năng AI khác. */
 export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) {
@@ -44,7 +49,8 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
-  const ready = Boolean(apiKey?.trim()) || hasAiProxy();
+  const provider = localStorage.getItem(PROVIDER_STORAGE) || "gemini";
+  const ready = canUseAi(apiKey, provider);
 
   useEffect(() => {
     setMessages(readConversation(user));
@@ -75,12 +81,9 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
     setBusy(true);
     try {
       const answer = await requestAi(
-        localStorage.getItem(PROVIDER_STORAGE) || "gemini",
+        provider,
         apiKey,
-        `${buildPrompt(nextMessages)}\n\nLịch sử gần đây:\n${nextMessages
-          .slice(-6)
-          .map((message) => `${message.role === "user" ? "Học viên" : "Gia sư"}: ${message.content}`)
-          .join("\n")}\n\nCâu hỏi mới nhất: ${question}`,
+        buildPrompt(messages, question),
       );
       setMessages((current) => [...current, { role: "assistant", content: answer }].slice(-MAX_MESSAGES));
     } catch (error) {

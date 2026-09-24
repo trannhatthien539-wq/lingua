@@ -22,7 +22,7 @@
 | UI | React, `react-router-dom` (routing theo path), Tailwind CSS, `lucide-react` (icon) |
 | Hiệu ứng | `canvas-confetti` (chúc mừng), `react-player` (audio/video), `html-to-image` |
 | Dữ liệu | Firebase Auth + Firestore (`initializeFirestore` + `persistentLocalCache` để dùng offline) |
-| Nội dung nâng cao | `@xyflow/react` + `dagre` (mindmap), `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) |
+| Nội dung nâng cao | `@xyflow/react` + `dagre` (mindmap), `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) — `jszip`/`sql.js` **được `import()` động trong `ankiParser.js`**, chỉ tải khi người dùng import file Anki |
 | Di động | `@capacitor/core|app|browser`, `@capacitor/local-notifications` (nhắc học trên APK), `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
 | Build | Vite (`base` = `/lingua/` khi `GITHUB_PAGES=true`), PostCSS/Tailwind |
 
@@ -36,11 +36,12 @@ Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất l
 | `npm run dev` | Dev server (thêm `-- --force` khi dependency cache lỗi thời) |
 | `npm run build` | Build production ra `dist/` (dùng để **kiểm tra sau mỗi lần sửa**) |
 | `npm run preview` | Xem thử bản build |
-| `npm test` | `node --test "tests/*.test.js"` — 7 file test, 46 test. **Cần Node 22+** (Node cũ hơn không hỗ trợ glob cho `--test`, và `node --test tests` — thư mục trần — cũng lỗi) |
-| `npm run lint` | `eslint .` — cấu hình ở `eslint.config.js` (0 error, warning không chặn CI) |
+| `npm test` | `node --test "tests/*.test.js"` — 12 file test, 82 test. **Cần Node 22+** (Node cũ hơn không hỗ trợ glob cho `--test`, và `node --test tests` — thư mục trần — cũng lỗi) |
+| `npm run lint` | `eslint . --max-warnings 0` — cấu hình ở `eslint.config.js`; **0 error & 0 warning** (warning cũng chặn CI) |
 | `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
+| `npm run size` | `node scripts/check-bundle.mjs` — chạy sau `npm run build`: in các chunk lớn nhất và **fail nếu vượt ngân sách byte** (chống bundle phình lại) |
 
-CI (`deploy.yml`) chạy theo thứ tự: `npm ci` → `npm test` → `npm run lint` → `npm run build` → deploy GitHub Pages.
+CI (`deploy.yml`) chạy theo thứ tự: `npm ci` → `npm test` → `npm run lint` → `node scripts/check-vstep.mjs` → `npm run build` → `npm run size` → deploy GitHub Pages.
 
 ## 3. Kiến trúc & luồng
 
@@ -77,11 +78,11 @@ src/
 ├─ components/             # UI dùng chung
 │  ├─ layout/              # Sidebar, Topbar
 │  ├─ learning/            # FlashcardModal, QuizView, SpellerView, MatchingView, StudyHubModal, StudySummary, ImportExportModal
-│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StatCard, StudyHistoryChart, SyncStatusBadge, Toaster, NavIcon
+│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StudyHistoryChart, SyncStatusBadge, Toaster, NavIcon
 │  ├─ Auth/AuthPage.jsx    # đăng nhập/đăng ký (Email + Google) và chế độ khách
 │  ├─ AiTutorPanel.jsx     # chat gia sư AI
 │  ├─ SearchPalette.jsx    # tìm kiếm toàn cục (Ctrl/⌘+K)
-│  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, StudyAnalyticsWidget, MobileHeader, MobileBottomNav
+│  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, MobileHeader, MobileBottomNav
 ├─ modules/                # 1 folder = 1 tab
 │  ├─ home/HomeHub.jsx                  # trang chủ: lời chào, chuỗi ngày, mục tiêu, khu vực học, tổng quan tiến độ
 │  ├─ learning/VocabularyHub.jsx        # tab Từ vựng (file lớn nhất, ~1.4k dòng)
@@ -95,7 +96,7 @@ src/
 │  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
 ├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
 ├─ services/               # xem bảng §7
-├─ utils/                  # srs, speech, speechScore, ankiParser, sanitizeCard, studyFeedback
+├─ utils/                  # srs, day (khóa ngày), history (prune/summary lịch sử), speech, speechScore, ankiParser, sanitizeCard, studyFeedback
 ├─ data/                   # navigation + toàn bộ nội dung học (tĩnh, không cần mạng)
 ├─ config/googleAuth.js    # chế độ đăng nhập Google
 └─ lib/formatters.js       # format ngày/giờ tiếng Việt
@@ -108,7 +109,7 @@ native/android-widget/     # mã native cho widget màn hình chính + shortcut 
 
 Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `scripts/` (script QA nội dung), `tests/`, `.github/workflows/` (deploy + build APK).
 
-**File chết (đã bị thay thế, xoá được)**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`; `src/components/StudyAnalyticsWidget.jsx` (tab Từ vựng không còn dùng — thay bằng header gọn + chip số liệu trong chi tiết bộ).
+**File chết ĐÃ XOÁ trong refactoring P0–P3**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`; `src/components/StudyAnalyticsWidget.jsx`; `src/components/ui/StatCard.jsx`; `src/services/{apiClient,aiClient}.js` (AI dùng chung `aiService.js`); `PracticeSession` + `readLibrary` + `emptyLibrary` trong `VocabularyHub.jsx` (chế độ học thật nằm ở FlashcardModal/QuizView/SpellerView/MatchingView — `PracticeSession` là bản sao chết, không còn component nào import).
 
 ## 5. Điều hướng & các tab
 
@@ -192,7 +193,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `userDocService.js` | State theo tài khoản (`user_state`), `syncGuestUserDocs`, `createDebouncedSync` |
 | `historyService.js` | Lịch sử học theo ngày + event `lingua:history-changed` |
 | `streakService.js` | Chuỗi ngày học (`users/{uid}` hoặc localStorage cho khách) |
-| `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini (fallback 3 model) & Groq; hỗ trợ proxy qua `VITE_AI_PROXY_URL`; các prompt mẫu (`generateSmartVocabularyPrompt`, …) |
+| `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini (thử lần lượt 3 model), Groq, DeepSeek; **timeout 30 giây** (`AbortController`); hỗ trợ proxy qua `VITE_AI_PROXY_URL` (xem badge ở Cài đặt → API); key dự phòng Gemini `VITE_GEMINI_FALLBACK_KEYS` + helper `canUseAi(apiKey, provider)` (chưa có key vẫn dùng được, bị limit thì tự chuyển key); các prompt mẫu (`generateSmartVocabularyPrompt`, …) |
 | `dictionaryService.js` | Tra từ **miễn phí** (dictionaryapi.dev + MyMemory), không cần key |
 | `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
 | `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
@@ -218,7 +219,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `accountAuthService.js` | Email đặt lại mật khẩu (`sendResetPasswordEmail`) + hàm tạo/đổi mật khẩu cho tài khoản Google (`createPasswordForApp`, `changeAccountPassword`) — **hiện không có UI nào gọi** (đã bỏ phần hướng dẫn đăng nhập APK); có thể bật lại bằng 1 nút trong Cài đặt nếu cần |
 | `appearanceService.js` | Bảng màu/font/cỡ chữ, đổi CSS variables |
 | `vocabularySync.js` | Merge dữ liệu khách → tài khoản sau khi đăng nhập |
-| `platform.js`, `apiClient.js`, `aiClient.js`, `apiKeyStorage.js` | Tiện ích nền tảng, client dự phòng, đọc/ghi API key |
+| `platform.js`, `apiKeyStorage.js` | Tiện ích nền tảng, đọc/ghi API key theo tài khoản |
 
 ## 8. Hooks (`src/hooks/`)
 
@@ -301,7 +302,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 ## 12. AI: provider, key, proxy
 
 - Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`), `groq` (`llama-3.3-70b-versatile`) hoặc `deepseek` (`deepseek-chat`, API tương thích OpenAI: `https://api.deepseek.com/chat/completions`, key dạng `sk-...`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
-- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí); các tính năng khác báo lỗi thân thiện và nhắc mở Cài đặt.
+- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí); Gemini còn key dự phòng bundle `VITE_GEMINI_FALLBACK_KEYS` nên mọi chức năng AI chạy ngay, key bị rate-limit/sai quyền (400/401/403/429) thì tự chuyển key kế tiếp; Groq/DeepSeek không có key dự phòng → báo lỗi thân thiện và nhắc mở Cài đặt.
 - Proxy tuỳ chọn (người dùng không cần key): deploy `functions/index.js` (Cloud Function v2, rate-limit theo IP) rồi build với `VITE_AI_PROXY_URL=https://<region>-<project>.cloudfunctions.net/aiProxy npm run build`. Khi có biến này, `requestAi` gọi proxy và bỏ qua key client.
 - Prompt trả JSON (Gemini `responseMimeType`, Groq `response_format`) và parse bằng `parseAiJson` — luôn bọc `try/catch` và hiển thị lỗi qua `toast`.
 
@@ -311,6 +312,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | --- | --- |
 | `GITHUB_PAGES` | Build cho GitHub Pages → `base = /lingua/` |
 | `VITE_AI_PROXY_URL` | Bật proxy AI (không cần API key client) |
+| `VITE_GEMINI_FALLBACK_KEYS` | Key Gemini dự phòng (phân cách `,`) — AI chạy khi người dùng chưa nhập key |
 | `VITE_GOOGLE_USE_NATIVE_AUTH=1` | Dùng plugin Google Auth native cho APK (mặc định tắt) |
 | `src/config/googleAuth.js` | Hằng số `GOOGLE_LOGIN_MODE`, override theo thiết bị qua localStorage `lingua-google-login-mode` (Cài đặt → Tài khoản) |
 | `public/sw.js`, `index.html` | Service worker: chỉ đăng ký ngoài `localhost`/`.local` và khi không chạy trong Capacitor; ở localhost sẽ **unregister + xoá cache** |

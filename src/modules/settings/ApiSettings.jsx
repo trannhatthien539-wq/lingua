@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, CheckCircle2, KeyRound, Save } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
 import { getApiKeyStorageKey, PROVIDER_STORAGE, readApiKeyForUser } from '../../services/apiKeyStorage'
+import { canUseAi, hasAiProxy } from '../../services/aiService'
 
 export default function ApiSettings({ user, apiKey, setApiKey }) {
   const [open, toggleSection] = useSectionState('api', false)
   const [provider, setProvider] = useState(() => localStorage.getItem(PROVIDER_STORAGE) || 'gemini')
   const [saved, setSaved] = useState(false)
+  const savedTimerRef = useRef(null)
+  // Dọn timer khi unmount để không set state sau khi đóng thẻ cài đặt.
+  useEffect(() => () => window.clearTimeout(savedTimerRef.current), [])
+  // Bản build có `VITE_AI_PROXY_URL`: AI chạy qua máy chủ riêng, người dùng không cần API key.
+  const proxied = hasAiProxy()
+  // Chưa có key cá nhân nhưng bundle kèm key Gemini dự phòng (env) → AI vẫn dùng được.
+  const usingFallback = !proxied && !apiKey?.trim() && canUseAi(apiKey, provider)
+  const connected = proxied || Boolean(apiKey?.trim()) || usingFallback
 
   useEffect(() => {
     setApiKey(readApiKeyForUser(user))
@@ -21,7 +30,9 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
     setApiKey(nextApiKey)
     localStorage.setItem(PROVIDER_STORAGE, provider)
     setSaved(true)
-    window.setTimeout(() => setSaved(false), 1800)
+    // Xóa timer cũ để bấm Lưu liên tiếp không làm chữ “Đã lưu” tắt sớm.
+    window.clearTimeout(savedTimerRef.current)
+    savedTimerRef.current = window.setTimeout(() => setSaved(false), 1800)
   }
 
   return (
@@ -32,14 +43,24 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
       title="Kết nối AI"
       description="Sinh từ vựng, chấm chữa và gợi ý mindmap"
       badge={
-        <span className={`chip ${apiKey ? 'bg-okbg text-ok dark:bg-okdark dark:text-okfgdark' : 'bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60'}`}>
-          {apiKey ? 'Đã cấu hình' : 'Chưa kết nối'}
+        <span className={`chip ${connected ? 'bg-okbg text-ok dark:bg-okdark dark:text-okfgdark' : 'bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60'}`}>
+          {proxied && !apiKey?.trim() ? 'Máy chủ proxy' : usingFallback ? 'Key dự phòng' : connected ? 'Đã cấu hình' : 'Chưa kết nối'}
         </span>
       }
       open={open}
       onToggle={toggleSection}
     >
       <div className="max-w-xl space-y-5">
+        {proxied && (
+          <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
+            Bản này dùng máy chủ AI proxy riêng — mọi tính năng AI hoạt động mà không cần nhập API key.
+          </p>
+        )}
+        {usingFallback && (
+          <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
+            Bundle kèm key Gemini dự phòng — AI chạy ngay cả khi bạn chưa nhập key, tự chuyển key khác khi bị limit.
+          </p>
+        )}
         <label className="block">
           <span className="mb-2 block text-xs font-bold text-ink/60 dark:text-white/60">Provider</span>
           <select value={provider} onChange={(event) => setProvider(event.target.value)} className="field">

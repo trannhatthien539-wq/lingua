@@ -44,7 +44,6 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
     stop()
     setShowTranscript(false)
     return stop
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
 
   const playFrom = (index) => {

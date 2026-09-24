@@ -17,12 +17,8 @@ import {
   Trash2,
   Volume2,
   X,
-  XCircle,
-  Download,
-  FileUp,
 } from "lucide-react";
-import confetti from "canvas-confetti";
-import { generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../services/aiService";
+import { canUseAi, generateSmartVocabularyPrompt, parseAiJson, requestAi } from "../../services/aiService";
 import { lookupWordOffline } from "../../services/dictionaryService";
 import { consumePendingItem, subscribeOpenItem } from "../../services/deepLink";
 import { findVocabularyImageSafely } from "../../services/imageService";
@@ -41,9 +37,12 @@ import QuizView from "../../components/learning/QuizView";
 import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
-import NavIcon from "../../components/ui/NavIcon";
 import SafeImage from "../../components/ui/SafeImage";
-import { dateKey, isDue, isLeech, schedulePayload } from "../../utils/srs";
+import VocabularyDeckCard from "../../components/learning/VocabularyDeckCard";
+import VocabularyOverviewBanner from "../../components/learning/VocabularyOverviewBanner";
+import NewDeckCard from "../../components/learning/NewDeckCard";
+import NewDeckModal from "../../components/learning/NewDeckModal";
+import { dateKey, isDue, isLeech } from "../../utils/srs";
 import { createStarterDeck } from "../../data/starterDeck";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
 
@@ -55,10 +54,7 @@ const RENDER_LIMIT = 60;
 // Bộ mặc định cũ và bộ mặc định mới, dùng để nâng cấp một lần cho thư viện đã có sẵn.
 const LEGACY_STARTER_TITLE = "IELTS Speaking Part 1";
 const COMMON_DECK_TITLE_MATCH = "từ tiếng Anh thông dụng";
-import { playStudySound } from "../../utils/studyFeedback";
 
-const STORAGE_KEY = "lingua-vocabulary-library";
-const OLD_STORAGE_KEY = "lingua-vocabulary";
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const statuses = { new: "Mới", learning: "Đang học", mastered: "Thuộc" };
@@ -71,46 +67,9 @@ const srsFilterLabels = {
   leech: "Từ hay quên",
 };
 
+// Id sinh từ `Date.now()` đơn thuần dễ trùng khi StrictMode chạy effect 2 lần → thêm phần ngẫu nhiên.
 const makeId = (prefix) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const emptyLibrary = () => ({
-  decks: [
-    {
-      id: makeId("deck"),
-      title: "IELTS Speaking Part 1",
-      tags: ["IELTS", "Speaking"],
-      createdAt: new Date().toISOString(),
-    },
-  ],
-  cards: [],
-});
-
-function readLibrary() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (stored?.decks && stored?.cards) return stored;
-    const oldWords = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) || "[]");
-    const library = emptyLibrary();
-    library.cards = oldWords.map((item) => ({
-      id: makeId("card"),
-      deckId: library.decks[0].id,
-      word: item.word || "",
-      ipa: item.pronunciation || "",
-      meaning: item.meaning || "",
-      example: item.example || "",
-      level: "B1",
-      status: "new",
-      reviewDate: null,
-      interval: 0,
-      nextReviewDate: null,
-      repetition: 0,
-      imageUrl: "",
-    }));
-    return library;
-  } catch {
-    return emptyLibrary();
-  }
-}
 
 const quickLookupPrompt = (word) =>
   `Tra cứu từ tiếng Anh "${word}". Chỉ trả về JSON hợp lệ theo schema {"ipa":"...","meaning":"nghĩa tiếng Việt ngắn gọn","example":"một câu ví dụ tiếng Anh"}. Không markdown.`;
@@ -170,8 +129,6 @@ function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemo
   </article>;
 }
 
-const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
-
 // Chỉ tạo bộ thẻ khởi tạo một lần, kể cả khi effect chạy lại (React StrictMode)
 // hoặc hai tab cùng mở — tránh tạo trùng bộ và trùng id thẻ.
 // Bộ mặc định là 1000 từ thông dụng, được tải riêng để không làm nặng gói chính.
@@ -214,382 +171,11 @@ const repairLibrary = (decks, cards) => {
   return { decks: uniqueDecks, cards: uniqueCards };
 };
 
-function PracticeSession({ deck, cards, onExit, onUpdateCard, onStudyActivity, streak }) {
-  const [mode, setMode] = useState("flashcard");
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [answer, setAnswer] = useState(null);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [spelling, setSpelling] = useState("");
-  const [results, setResults] = useState([]);
-  const [completed, setCompleted] = useState(false);
-  const card = cards[index];
-  const quizOptions = useMemo(() => {
-    if (!card) return [];
-    const distractors = shuffle(
-      cards
-        .filter((item) => item.id !== card.id && item.word !== card.word)
-        .map((item) => item.word),
-    ).slice(0, 3);
-    return shuffle([card.word, ...distractors]);
-  }, [card?.id]);
-
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === "Enter" && answer !== null && mode === "quiz" && index < cards.length - 1) {
-        event.preventDefault();
-        nextQuestion();
-        return;
-      }
-      if (mode !== "quiz" || answer !== null) return;
-      const optionIndex = Number(event.key) - 1;
-      if (optionIndex >= 0 && optionIndex < quizOptions.length) {
-        event.preventDefault();
-        quizAnswer(quizOptions[optionIndex]);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [answer, cards.length, index, mode, quizOptions]);
-
-  const finish = async (nextResults) => {
-    await onStudyActivity?.();
-    void recordStudyEvent({ sessions: 1, reviewed: 0 });
-    setResults(nextResults);
-    setCompleted(true);
-  };
-
-  const submitResult = (isCorrect) => {
-    const nextResults = [...results, isCorrect];
-    // Dùng chung lịch ôn với flashcard để tiến độ không bị lệch giữa các chế độ.
-    onUpdateCard(card.id, schedulePayload(card, isCorrect ? "mastered" : "again"));
-    setAnswer(isCorrect);
-    if (mode === "quiz") {
-      playStudySound(isCorrect ? "correct" : "wrong");
-      if (isCorrect) confetti({ particleCount: 90, spread: 70, origin: { y: 0.65 } });
-    }
-    if (index === cards.length - 1) finish(nextResults);
-    else if (mode === "flashcard") {
-      setIndex((current) => current + 1);
-      setFlipped(false);
-      setAnswer(null);
-      setSpelling("");
-    }
-  };
-
-  const leave = () => {
-    setIndex(0);
-    setCompleted(false);
-    setResults([]);
-    setFlipped(false);
-    setAnswer(null);
-    setSelectedOption(null);
-    setSpelling("");
-    onExit();
-  };
-  const quizAnswer = (option) => {
-    if (answer === null) {
-      setSelectedOption(option);
-      submitResult(option === card.word);
-    }
-  };
-  const spellingAnswer = (event) => {
-    event.preventDefault();
-    if (answer === null)
-      submitResult(
-        spelling.trim().toLowerCase() === card.word.trim().toLowerCase(),
-      );
-  };
-  const nextQuestion = () => {
-    setIndex((current) => current + 1);
-    setAnswer(null);
-    setSelectedOption(null);
-    setSpelling("");
-    setFlipped(false);
-  };
-
-  if (completed) {
-    const correct = results.filter(Boolean).length;
-    return (
-      <div className="space-y-6">
-        <button
-          onClick={leave}
-          className="flex items-center gap-2 text-sm font-bold text-ink/55 hover:text-ink dark:text-white/55 dark:hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Quay lại bộ từ
-        </button>
-        <section className="panel mx-auto max-w-xl p-8 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-lime text-ink">
-            <Check size={27} />
-          </div>
-          <p className="eyebrow mt-5">Hoàn thành phiên</p>
-          <h2 className="mt-2 font-display text-2xl font-bold">
-            Hoàn thành lượt học
-          </h2>
-          <p className="mt-2 text-sm text-ink/50 dark:text-white/50">
-            {deck.title}
-          </p>
-          <div className="mt-8 grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-okbg p-4 dark:bg-okdark">
-              <p className="metric text-2xl text-ok dark:text-okfgdark">
-                {correct}
-              </p>
-              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
-                Đúng
-              </p>
-            </div>
-            <div className="rounded-xl bg-dangerbg p-4 dark:bg-dangerdark">
-              <p className="metric text-2xl text-danger dark:text-dangerfgdark">
-                {results.length - correct}
-              </p>
-              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
-                Cần ôn lại
-              </p>
-            </div>
-            <div className="rounded-xl bg-slab2 p-4 dark:bg-dark3">
-              <p className="metric text-2xl">
-                {Math.round((correct / results.length) * 100)}%
-              </p>
-              <p className="mt-1 text-xs text-ink/60 dark:text-white/55">
-                Điểm số
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 rounded-xl bg-lime p-4 text-left">
-            <p className="text-xs font-bold uppercase tracking-wider text-ink/55">
-              Streak học tập
-            </p>
-            <p className="mt-1 font-display text-2xl font-bold">
-              {streak?.currentStreak || 0} ngày liên tiếp
-            </p>
-            <p className="mt-1 text-xs text-ink/60">
-              Tổng số phiên: {streak?.totalSessions || 0}
-            </p>
-          </div>
-          <button
-            onClick={leave}
-            className="mt-6 w-full rounded-xl bg-ink py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink"
-          >
-            Về thư viện
-          </button>
-        </section>
-      </div>
-    );
-  }
-
-  if (!card)
-    return (
-      <div className="panel p-8 text-center">
-        <p className="font-bold">Bộ này chưa có từ để luyện tập.</p>
-        <button onClick={onExit} className="mt-4 text-sm font-bold text-sage">
-          Quay lại
-        </button>
-      </div>
-    );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          onClick={onExit}
-          className="flex items-center gap-2 text-sm font-bold text-ink/55 hover:text-ink dark:text-white/55 dark:hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Thoát luyện tập
-        </button>
-        <div className="text-right">
-          <p className="font-display font-bold">
-            {index + 1} / {cards.length}
-          </p>
-          <p className="text-xs text-ink/40 dark:text-white/40">{deck.title}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-1 rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]">
-        <button
-          onClick={() => {
-            setMode("flashcard");
-            setAnswer(null);
-            setSelectedOption(null);
-          }}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "flashcard" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
-        >
-          Flashcard
-        </button>
-        <button
-          onClick={() => {
-            setMode("quiz");
-            setAnswer(null);
-            setSelectedOption(null);
-          }}
-          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "quiz" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
-        >
-          Trắc nghiệm
-        </button>
-        <button
-          onClick={() => {
-            setMode("spelling");
-            setAnswer(null);
-            setSelectedOption(null);
-          }}
-          className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold ${mode === "spelling" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}
-        >
-          Điền từ / Nghe gõ
-        </button>
-      </div>
-      {mode === "flashcard" && (
-        <section className="mx-auto max-w-2xl">
-          <button
-            onClick={() => {
-              if (!flipped) onStudyActivity?.();
-              setFlipped((value) => !value);
-            }}
-            className="panel flex min-h-[330px] w-full flex-col items-center justify-center p-8 text-center transition hover:-translate-y-1"
-          >
-            <p className="eyebrow">
-              {flipped ? "Mặt sau" : "Mặt trước"} · Click để lật
-            </p>
-            {flipped ? (
-              <>
-                <p className="mt-5 text-sm text-sage">{card.ipa}</p>
-                <p className="mt-2 font-display text-3xl font-bold">
-                  {card.meaning}
-                </p>
-                <p className="mt-5 max-w-md text-sm leading-6 text-ink/55 dark:text-white/55">
-                  {card.example.replace(new RegExp(card.word, "ig"), "_____")}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-5 font-display text-5xl font-bold">
-                  {card.word}
-                </p>
-                <span
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    speakText(card.word);
-                  }}
-                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-ink/[0.06] px-3 py-2 text-xs font-bold dark:bg-white/10"
-                >
-                  <Volume2 size={15} />
-                  Nghe phát âm
-                </span>
-              </>
-            )}
-          </button>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => submitResult(false)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-ink/[0.1] py-3 text-sm font-bold text-ink/60 dark:border-white/[0.1] dark:text-white/60"
-            >
-              <XCircle size={16} />
-              Chưa thuộc
-            </button>
-            <button
-              onClick={() => submitResult(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink"
-            >
-              <Check size={16} />
-              Đã thuộc
-            </button>
-          </div>
-        </section>
-      )}
-      {mode === "quiz" && (
-        <section className="panel relative mx-auto max-w-2xl overflow-hidden p-7 pb-28">
-          <div className="text-center">
-            <p className="eyebrow">Chọn từ đúng với nghĩa</p>
-            <p className="mt-5 font-display text-2xl font-bold">
-              {card.meaning}
-            </p>
-            <p className="mt-2 text-sm text-ink/45 dark:text-white/45">
-              {card.example.replace(new RegExp(card.word, "ig"), "_____")}
-            </p>
-          </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {quizOptions.map((option, optionIndex) => (
-              <button
-                key={`${option}-${optionIndex}`}
-                disabled={answer !== null}
-                onClick={() => quizAnswer(option)}
-                className={`rounded-2xl border-2 border-b-4 p-4 text-left text-sm font-bold transition-all active:translate-y-[2px] active:border-b-2 ${answer === null ? "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-[#29332f] dark:hover:bg-[#34423c]" : option === card.word ? "quiz-correct border-emerald-500 bg-emerald-50 text-emerald-700 shadow-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-200" : selectedOption === option ? "quiz-shake border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-200" : "border-slate-200 bg-white opacity-60 dark:border-white/10 dark:bg-[#29332f]"}`}
-              >
-                <span className="mr-3 inline-grid h-6 w-6 place-items-center rounded-md bg-slate-100 text-xs text-slate-500 dark:bg-white/10 dark:text-white/50">{optionIndex + 1}</span>{option}
-              </button>
-            ))}
-          </div>
-          {answer !== null && (
-            <div className={`absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 px-7 py-4 ${answer ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-rose-50 dark:bg-rose-950/30"}`}>
-              <p className={`flex items-center gap-2 text-sm font-bold ${answer ? "text-emerald-700 dark:text-emerald-200" : "text-rose-700 dark:text-rose-200"}`}>
-                {answer ? <><Check size={18} />Tuyệt vời!</> : <><XCircle size={18} />Cần cố gắng thêm</>}
-              </p>
-              {index < cards.length - 1 && <button onClick={nextQuestion} className={`rounded-xl border-2 border-b-4 px-5 py-2.5 text-sm font-bold text-white transition-all active:translate-y-[2px] active:border-b-2 ${answer ? "border-emerald-700 bg-emerald-600" : "border-rose-700 bg-rose-600"}`}>Tiếp tục <span className="ml-1 text-xs opacity-70">Enter</span></button>}
-            </div>
-          )}
-        </section>
-      )}
-      {mode === "spelling" && (
-        <section className="panel mx-auto max-w-2xl p-7 text-center">
-          <p className="eyebrow">Nghe và gõ lại từ</p>
-          <button
-            onClick={() =>
-              speakText(card.word)
-            }
-            className="mx-auto mt-6 flex items-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-ink"
-          >
-            <Volume2 size={17} />
-            Phát âm
-          </button>
-          <p className="mt-5 text-sm text-ink/50 dark:text-white/50">
-            {card.meaning}
-          </p>
-          <form
-            onSubmit={spellingAnswer}
-            className="mx-auto mt-6 flex max-w-md gap-2"
-          >
-            <input
-              autoFocus
-              value={spelling}
-              onChange={(event) => setSpelling(event.target.value)}
-              placeholder="Gõ từ bạn nghe được..."
-              className="min-w-0 flex-1 rounded-xl border border-ink/[0.1] bg-transparent px-3 py-3 text-sm outline-none dark:border-white/[0.1]"
-            />
-            <button
-              disabled={answer !== null}
-              className="rounded-xl bg-ink px-4 py-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-lime dark:text-ink"
-            >
-              Kiểm tra
-            </button>
-          </form>
-          {answer !== null && (
-            <div className="mt-5">
-              <p
-                className={`text-sm font-bold ${answer ? "text-sage" : "text-danger"}`}
-              >
-                {answer
-                  ? "Chính xác!"
-                  : `Gợi ý: ${card.word.slice(0, 2)}... (${card.word.length} ký tự)`}
-              </p>
-              {index < cards.length - 1 && (
-                <button
-                  onClick={nextQuestion}
-                  className="mt-3 rounded-xl bg-ink px-4 py-2.5 text-xs font-bold text-white dark:bg-lime dark:text-ink"
-                >
-                  Từ tiếp theo
-                </button>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
 export default function VocabularyHub({ onStudyActivity, streak, apiKey, user }) {
   const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
   const [manualWord, setManualWord] = useState("");
   const [lookupResult, setLookupResult] = useState(null);
   const [manualModalOpen, setManualModalOpen] = useState(false);
@@ -663,6 +249,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const { libraryStats, deckStats } = useMemo(() => {
     const byDeck = new Map();
     let mastered = 0;
+    let learning = 0;
+    let newCards = 0;
     let due = 0;
     library.cards.forEach((card) => {
       const entry = byDeck.get(card.deckId) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
@@ -671,6 +259,12 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       if (card.status === "mastered") {
         entry.mastered += 1;
         mastered += 1;
+      } else if (card.status === "learning") {
+        entry.learning = (entry.learning || 0) + 1;
+        learning += 1;
+      } else {
+        entry.newCards = (entry.newCards || 0) + 1;
+        newCards += 1;
       }
       if (isDue(card, today)) {
         entry.due += 1;
@@ -679,9 +273,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       }
       byDeck.set(card.deckId, entry);
     });
-    return { libraryStats: { total: library.cards.length, mastered, due }, deckStats: byDeck };
+    return { libraryStats: { total: library.cards.length, mastered, learning, newCards, due }, deckStats: byDeck };
   }, [library.cards, today]);
-  const masteredPercent = libraryStats.total ? Math.round((libraryStats.mastered / libraryStats.total) * 100) : 0;
   const activeDeckIndex = Math.max(0, library.decks.findIndex((deck) => deck.id === selectedDeck?.id));
   const searchTerm = debouncedSearch.trim().toLowerCase();
   const filteredCards = useMemo(() => {
@@ -764,7 +357,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     };
     loadLibrary();
     return () => { active = false; };
-  }, [user?.uid, reloadToken]);
+  }, [reloadToken, setError, setNotice, user?.uid]);
   useEffect(() => {
     const handleRefresh = () => setReloadToken((value) => value + 1);
     window.addEventListener(refreshRequestedEvent, handleRefresh);
@@ -832,12 +425,20 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     event.preventDefault();
     const title = deckInput.trim();
     if (!title) return;
-    const deck = await dataService.createDeck(title);
-    const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || deck.created_at };
-    updateLibrary({ decks: [...library.decks, normalizedDeck] });
-    setSelectedDeckId(normalizedDeck.id);
-    setDeckInput("");
-    setNotice(`Đã tạo bộ “${title}”. Thêm từ cho bộ mới nhé.`);
+    setLoading("new-deck");
+    try {
+      const deck = await dataService.createDeck(title);
+      const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || deck.created_at };
+      updateLibrary({ decks: [...library.decks, normalizedDeck] });
+      setSelectedDeckId(normalizedDeck.id);
+      setDeckInput("");
+      setNewDeckOpen(false);
+      setNotice(`Đã tạo bộ “${title}”. Thêm từ cho bộ mới nhé.`);
+    } catch (createError) {
+      setError(createError.message || "Không thể tạo bộ thẻ lúc này.");
+    } finally {
+      setLoading("");
+    }
   };
   const renameDeck = async (deck) => {
     const title = window.prompt("Tên mới của bộ thẻ:", deck.title)?.trim();
@@ -959,10 +560,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         setError("Từ này đã có trong bộ hiện tại.");
         return;
       }
-      // Có API key thì dùng AI; chưa có hoặc AI lỗi thì rơi về từ điển miễn phí.
+      // Có key cá nhân hoặc key dự phòng (Gemini) thì dùng AI; không có hoặc AI lỗi thì rơi về từ điển miễn phí.
       let result = null;
       let aiFailed = false;
-      if (apiKey) {
+      if (canUseAi(apiKey, localStorage.getItem(PROVIDER_STORAGE) || "gemini")) {
         try {
           result = parseAiJson(
             await requestAi(
@@ -1004,7 +605,8 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
   const updateManualDraft = (field, value) => setManualDraft((current) => ({ ...current, [field]: value }));
   const suggestManualDetails = async () => {
-    if (!apiKey || !manualDraft.word.trim()) return setError("Hãy nhập từ và lưu API key trước khi dùng AI.");
+    if (!manualDraft.word.trim()) return setError("Hãy nhập từ trước khi dùng AI.");
+    if (!canUseAi(apiKey, localStorage.getItem(PROVIDER_STORAGE) || "gemini")) return setError("Hãy lưu API key trước khi dùng tính năng AI.");
     setLoading("manual-suggest");
     try {
       const result = parseAiJson(await requestAi(localStorage.getItem(PROVIDER_STORAGE) || "gemini", apiKey, quickLookupPrompt(manualDraft.word), { json: true }));
@@ -1023,7 +625,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const generateVocabulary = async () => {
-    if (!apiKey)
+    if (!canUseAi(apiKey, localStorage.getItem(PROVIDER_STORAGE) || "gemini"))
       return setError(
         "Hãy lưu API key trong tab Cài đặt API trước khi dùng AI.",
       );
@@ -1456,92 +1058,27 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </>
       ) : (
         <>
-          <section className="panel p-4 sm:p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <NavIcon icon={BookOpen} color="#1cb0f6" />
-              <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
-                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-                  <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${masteredPercent}%` }} />
-                </div>
-                <span className="metric shrink-0 text-sm">{libraryStats.mastered}/{libraryStats.total} từ đã thuộc</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={startLibraryStudy} disabled={!libraryStats.total} className="btn-primary px-4 disabled:cursor-not-allowed">
-                  <Sparkles size={16} />
-                  {libraryStats.due ? `Ôn ${Math.min(libraryStats.due, SESSION_LIMIT)} từ đến hạn` : "Học ngay"}
-                </button>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setThemePickerOpen(true)} className="btn-ghost px-3 text-xs"><BookOpen size={15} />Bộ theo chủ đề</button>
-              <button type="button" onClick={() => setDataModal("import")} className="btn-ghost px-3 text-xs"><FileUp size={15} />Nhập</button>
-              <button type="button" onClick={() => setDataModal("export")} className="btn-ghost px-3 text-xs"><Download size={15} />Xuất</button>
-              <button type="button" onClick={openTrash} className="btn-ghost px-3 text-xs"><ArchiveRestore size={15} />Thùng rác</button>
-            </div>
-          </section>
+          <VocabularyOverviewBanner libraryStats={libraryStats} streak={streak} onStudy={startLibraryStudy} onOpenTheme={() => setThemePickerOpen(true)} onImport={() => setDataModal("import")} onExport={() => setDataModal("export")} onTrash={openTrash} />
 
-          <section className="space-y-3">
+          <section className="space-y-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="font-display text-lg font-bold">Bộ thẻ của bạn</h3>
+              <div>
+                <p className="eyebrow">Thư viện của bạn</p>
+                <h2 className="mt-1 font-display text-xl font-bold tracking-tight">Bộ thẻ của bạn</h2>
+              </div>
               <span className="text-xs font-semibold text-ink/55 dark:text-white/55">{library.decks.length} bộ · {libraryStats.total} từ</span>
             </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              {library.decks.map((deck) => {
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {library.decks.map((deck, index) => {
                 const entry = deckStats.get(deck.id) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
-                const percent = entry.total ? Math.round((entry.mastered / entry.total) * 100) : 0;
-                return (
-                  <article key={deck.id} className="panel flex flex-col border-b-4 p-4" style={{ borderBottomColor: "#1cb0f6" }}>
-                    <div className="flex items-start gap-3">
-                      <NavIcon icon={BookOpen} color="#1cb0f6" size="md" />
-                      <div className="min-w-0 flex-1">
-                        <p className="eyebrow">{entry.total} từ{deck.level ? ` · ${deck.level}` : ""}</p>
-                        <h4 className="mt-1 font-display text-base font-bold">{deck.title}</h4>
-                      </div>
-                      {entry.mastered ? (
-                        <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">
-                          <Check size={13} className="mr-1" />{percent}%
-                        </span>
-                      ) : (
-                        <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">Chưa học</span>
-                      )}
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-                      <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${percent}%` }} />
-                    </div>
-                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
-                      <button
-                        type="button"
-                        onClick={() => openStudy(entry.dueCards.length ? entry.dueCards : entry.cards, deck.id)}
-                        disabled={!entry.total}
-                        className="btn-primary px-4 disabled:cursor-not-allowed"
-                      >
-                        <Sparkles size={16} />{entry.due ? `Ôn ${Math.min(entry.due, SESSION_LIMIT)} từ` : "Học ngay"}
-                      </button>
-                      <button type="button" onClick={() => openDeck(deck.id)} className="btn-secondary px-4">
-                        <BookOpen size={16} />Xem {entry.total} từ
-                      </button>
-                    </div>
-                  </article>
-                );
+                return <VocabularyDeckCard key={deck.id} deck={deck} index={index} entry={entry} onOpen={openDeck} onStudy={openStudy} />;
               })}
-              <form onSubmit={addDeck} className="panel flex flex-col justify-center gap-3 border-2 border-dashed border-ink/15 p-4 dark:border-white/15">
-                <p className="flex items-center gap-2 text-sm font-bold"><Plus size={16} />Tạo bộ mới</p>
-                <div className="flex gap-2">
-                  <input
-                    value={deckInput}
-                    onChange={(event) => setDeckInput(event.target.value)}
-                    placeholder="Tên bộ mới..."
-                    className="min-w-0 flex-1 rounded-xl border border-ink/10 bg-transparent px-3 py-2.5 text-sm outline-none dark:border-white/10"
-                  />
-                  <button className="btn-primary h-11 w-11 shrink-0 p-0" aria-label="Tạo bộ mới">
-                    <Plus size={17} />
-                  </button>
-                </div>
-              </form>
+              <NewDeckCard onClick={() => setNewDeckOpen(true)} />
             </div>
           </section>
         </>
       )}
+      {newDeckOpen && <NewDeckModal value={deckInput} onChange={setDeckInput} onSubmit={addDeck} onClose={() => { setNewDeckOpen(false); setDeckInput(""); }} busy={loading === "new-deck"} />}
       {themePickerOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-lg p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Bộ từ theo chủ đề</p><h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ</h2></div><button onClick={() => setThemePickerOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Học cụm từ (collocation, phrasal verb) giúp bạn dùng từ đúng ngữ cảnh — đây là phần hay mất điểm ở trình độ B1.</p><ul className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto">{themeDecks.map((deck) => <li key={deck.id}><button onClick={() => addThemeDeck(deck.id)} disabled={loading === `theme-${deck.id}`} className="flex w-full items-center gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><BookOpen size={17} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="mt-0.5 block truncate text-xs text-ink/60 dark:text-white/60">{deck.description}</span></span><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{loading === `theme-${deck.id}` ? 'Đang thêm…' : deck.level}</span></button></li>)}</ul></section></div>}
       {trashOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Thùng rác</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ &amp; từ đã xoá</h2></div><button onClick={() => setTrashOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Mọi thứ bạn xoá được giữ ở đây để khôi phục. “Dọn thùng rác” sẽ xoá vĩnh viễn.</p>{trashBusy && <p className="mt-4 flex items-center gap-2 text-xs text-ink/60 dark:text-white/60"><LoaderCircle size={14} className="animate-spin" />Đang xử lý…</p>}<div className="mt-4 space-y-2">{trashItems.decks.map((deck) => <div key={deck.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><BookOpen size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="text-xs text-ink/50 dark:text-white/50">Bộ thẻ</span></span><button disabled={trashBusy} onClick={() => restoreTrashedDeck(deck)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{trashItems.cards.map((card) => <div key={card.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><RotateCcw size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{card.word}</span><span className="block truncate text-xs text-ink/50 dark:text-white/50">{card.meaning}</span></span><button disabled={trashBusy} onClick={() => restoreTrashedCard(card)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{!trashBusy && !trashItems.decks.length && !trashItems.cards.length && <p className="rounded-xl bg-ink/[0.04] p-4 text-center text-sm text-ink/50 dark:bg-white/[0.06] dark:text-white/50">Thùng rác đang trống.</p>}</div><div className="mt-5 flex justify-end gap-2"><button onClick={() => setTrashOpen(false)} className="btn-secondary px-4">Đóng</button><button disabled={trashBusy || (!trashItems.decks.length && !trashItems.cards.length)} onClick={emptyTrash} className="btn-ghost px-4 text-danger dark:text-dangerfgdark"><Trash2 size={16} />Dọn thùng rác</button></div></section></div>}
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}

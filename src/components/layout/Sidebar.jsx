@@ -1,6 +1,7 @@
 import { Flame, LogIn, LogOut, Moon, Sun } from 'lucide-react'
-import AppMark from '../AppMark'
+import ProgressAvatar from '../ui/ProgressAvatar'
 import NavIcon from '../ui/NavIcon'
+import useTodayProgress from '../../hooks/useTodayProgress'
 import { navigationItems } from '../../data/navigation'
 
 // Mục đang chọn giống Duolingo: nền xanh nhạt + viền xanh + chữ xanh.
@@ -10,11 +11,12 @@ const IDLE_ITEM = 'border-2 border-transparent text-ink/60 hover:bg-ink/[0.04] h
 export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, user, streak, onOpenAuth, onSignOut }) {
   const currentStreak = streak?.currentStreak || 0
   const streakProgress = Math.min(100, Math.round((currentStreak / 7) * 100))
+  const { percent: todayPercent } = useTodayProgress()
   return (
     <aside className="no-print hidden w-full shrink-0 flex-col border-b border-ink/[0.08] bg-slab px-4 py-4 dark:border-white/[0.08] dark:bg-dark2 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[264px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
       <div className="flex items-center justify-between gap-3 lg:block">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#58cc02]/15"><AppMark className="h-9 w-9" /></span>
+          <ProgressAvatar user={user} percent={todayPercent} />
           <p className="font-display text-2xl font-bold tracking-tight text-[#58cc02]">lingua<span className="text-ink/50 dark:text-white/45">.</span></p>
         </div>
         <button onClick={onToggleTheme} className="icon-btn h-10 w-10 border border-ink/10 lg:mt-0 dark:border-white/15" aria-label="Đổi giao diện">

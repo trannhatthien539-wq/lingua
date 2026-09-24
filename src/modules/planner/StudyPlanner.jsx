@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bell,
   Check,
-  Circle,
   Clock3,
   Maximize2,
   Music2,
@@ -19,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
+import ModuleHero from "../../components/ui/ModuleHero";
 import ReactPlayer from "react-player";
 import useCloudDoc from "../../hooks/useCloudDoc";
 import { toast as notify } from "../../services/toast";
@@ -129,9 +128,9 @@ function playChime(audioElement, alarm = "chime", customSource = "", volume = 35
       if (!resumeBackground || !backgroundSource) return;
       audioElement.src = backgroundSource;
       audioElement.loop = true;
-      audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+      audioElement.play().catch(() => {});
     };
-    audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+    audioElement.play().catch(() => {});
     return;
   }
   try {
@@ -164,6 +163,9 @@ function FocusAudio({ sound, volume, active, customSource }) {
   const contextRef = useRef(null);
   const gainRef = useRef(null);
   const nodesRef = useRef([]);
+  // Âm lượng đọc qua ref: effect khởi tạo AudioContext không phụ thuộc `volume`,
+  // nên kéo thanh âm lượng không làm audio bị tạo lại (giật tiếng).
+  const volumeRef = useRef(volume);
   useEffect(() => {
     if (!active || sound === "mute") return undefined;
     if (customSource) return undefined;
@@ -176,7 +178,7 @@ function FocusAudio({ sound, volume, active, customSource }) {
       return undefined;
     }
     const gain = context.createGain();
-    gain.gain.value = (volume / 100) * 0.12;
+    gain.gain.value = (volumeRef.current / 100) * 0.12;
     gain.connect(context.destination);
     gainRef.current = gain;
     const nodes = [];
@@ -214,6 +216,7 @@ function FocusAudio({ sound, volume, active, customSource }) {
     };
   }, [active, sound, customSource]);
   useEffect(() => {
+    volumeRef.current = volume;
     if (gainRef.current) gainRef.current.gain.value = (volume / 100) * 0.12;
   }, [volume]);
   return null;
@@ -259,7 +262,7 @@ function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
   };
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section className="panel w-full max-w-md rounded-3xl p-6 shadow-soft">
@@ -420,7 +423,6 @@ function ZenFocus({
   timer,
   progress,
   audio,
-  volume,
   onToggle,
   onMute,
   onExit,
@@ -564,10 +566,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     audioElement.loop = true;
     audioElement.volume = audio.volume / 100;
     if (timer.isRunning && source && audio.volume > 0) {
-      audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+      // Trình duyệt chặn autoplay khi chưa có tương tác — bỏ qua lặng lẽ, người dùng bấm Play là phát.
+      audioElement.play().catch(() => {});
     }
     return () => audioElement.pause();
-  }, [audio.sound, audio.customBackground?.dataUrl, audio.customBackground?.mediaType, audio.volume, timer.isRunning, timer.mode]);
+  }, [audio.sound, audio.customBackground, audio.volume, timer.isRunning, timer.mode]);
 
   useEffect(
     () => localStorage.setItem(plannerStorageKey(user), JSON.stringify(planner)),
@@ -578,70 +581,68 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
-  useEffect(() => {
-    if (!timer.isRunning || !timer.endAt) return undefined;
-    const tick = () => {
-      const secondsLeft = Math.max(
-        0,
-        Math.ceil((timer.endAt - Date.now()) / 1000),
-      );
-      if (secondsLeft > 0) {
-        setPlanner((current) => ({
-          ...current,
-          timer: { ...current.timer, secondsLeft },
-        }));
-        return;
-      }
-      const nextMode = timer.mode === "focus" ? "break" : "focus";
+  /**
+   * Đồng hồ 1 giây: thân tick đọc state MỚI NHẤT qua ref.
+   * Cách cũ để effect phụ thuộc 7 giá trị (thiếu 7 giá trị khác) nên tick có thể dùng
+   * dữ liệu cũ: task mục tiêu sai, chuông phát bằng âm lượng cũ, streak không được ghi.
+   */
+  const timerTickRef = useRef(() => {});
+  timerTickRef.current = () => {
+    const secondsLeft = Math.max(
+      0,
+      Math.ceil((timer.endAt - Date.now()) / 1000),
+    );
+    if (secondsLeft > 0) {
       setPlanner((current) => ({
         ...current,
-        days: timer.mode === "focus" && timer.focusTaskId
-          ? {
-              ...current.days,
-              [date]: (current.days[date] || defaultTasks).map((task) =>
-                task.id === timer.focusTaskId ? { ...task, completed: true } : task,
-              ),
-            }
-          : current.days,
-        timer: {
-          ...defaultTimer,
-          mode: nextMode,
-          focusTaskId: timer.focusTaskId,
-          sessions:
-            timer.mode === "focus" ? timer.sessions + 1 : timer.sessions,
-        },
+        timer: { ...current.timer, secondsLeft },
       }));
-      if (timer.mode === "focus") {
-        onStudyActivity?.();
-        setToast(timer.focusTaskId
-          ? "Hết 25 phút học. Đã tick task mục tiêu, nghỉ 5 phút nhé!"
-          : "Hết 25 phút học. Nghỉ 5 phút nhé!");
-      } else {
-        setToast("Hết giờ nghỉ. Sẵn sàng học tiếp chưa?");
-      }
-      playChime(
-        audioRef.current,
-        audio.alarm,
-        audio.customAlarm?.dataUrl,
-        audio.volume,
-        audio.sound === "custom" && audio.customBackground?.type !== "youtube"
-          ? audio.customBackground?.dataUrl
-          : "",
-        timer.isRunning,
-      );
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
+      return;
+    }
+    const nextMode = timer.mode === "focus" ? "break" : "focus";
+    setPlanner((current) => ({
+      ...current,
+      days: timer.mode === "focus" && timer.focusTaskId
+        ? {
+            ...current.days,
+            [date]: (current.days[date] || defaultTasks).map((task) =>
+              task.id === timer.focusTaskId ? { ...task, completed: true } : task,
+            ),
+          }
+        : current.days,
+      timer: {
+        ...defaultTimer,
+        mode: nextMode,
+        focusTaskId: timer.focusTaskId,
+        sessions:
+          timer.mode === "focus" ? timer.sessions + 1 : timer.sessions,
+      },
+    }));
+    if (timer.mode === "focus") {
+      onStudyActivity?.();
+      setToast(timer.focusTaskId
+        ? "Hết 25 phút học. Đã tick task mục tiêu, nghỉ 5 phút nhé!"
+        : "Hết 25 phút học. Nghỉ 5 phút nhé!");
+    } else {
+      setToast("Hết giờ nghỉ. Sẵn sàng học tiếp chưa?");
+    }
+    playChime(
+      audioRef.current,
+      audio.alarm,
+      audio.customAlarm?.dataUrl,
+      audio.volume,
+      audio.sound === "custom" && audio.customBackground?.type !== "youtube"
+        ? audio.customBackground?.dataUrl
+        : "",
+      timer.isRunning,
+    );
+  };
+  useEffect(() => {
+    if (!timer.isRunning || !timer.endAt) return undefined;
+    timerTickRef.current();
+    const id = window.setInterval(() => timerTickRef.current(), 1000);
     return () => window.clearInterval(id);
-  }, [
-    audio.alarm,
-    audio.customAlarm,
-    audio.volume,
-    timer.endAt,
-    timer.isRunning,
-    timer.mode,
-    timer.sessions,
-  ]);
+  }, [timer.endAt, timer.isRunning]);
 
   const setTimer = (nextTimer) =>
     setPlanner((current) => ({ ...current, timer: nextTimer }));
@@ -728,7 +729,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     audioElement.loop = false;
     audioElement.volume = audio.volume / 100;
     audioElement.onended = null;
-    audioElement.play().catch((err) => console.log("Chờ tương tác người dùng:", err));
+    audioElement.play().catch(() => {});
   };
   const resetAudio = () => {
     setAudio({
@@ -763,6 +764,20 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         />
       )}
       <div className="space-y-6">
+        <ModuleHero
+          icon={Target}
+          eyebrow="Todo & Lịch học"
+          title="Kế hoạch học hôm nay"
+          description="Chọn một việc cụ thể, bắt đầu phiên tập trung và hoàn thành kế hoạch từng bước."
+          accent="#ff86d0"
+          deep="#c84d93"
+          illustration="planner"
+          progress={taskProgress}
+          progressLabel="Việc học hôm nay"
+          stats={[{ label: 'Đã hoàn thành', value: `${completedCount}/${tasks.length}` }, { label: 'Phiên tập trung', value: timer.sessions }, { label: 'Chế độ', value: timer.mode === 'focus' ? 'Tập trung' : 'Nghỉ' }]}
+          action={timer.isRunning ? 'Tạm dừng phiên học' : 'Bắt đầu phiên học'}
+          onAction={toggleTimer}
+        />
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="panel relative isolate overflow-hidden p-5">
             {audio.sound === "custom" && audio.customBackground?.mediaType === "video" && audio.customBackground.dataUrl && (
@@ -961,7 +976,6 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           timer={timer}
           progress={timerProgress}
           audio={audio}
-          volume={audio.volume}
           onToggle={toggleTimer}
           onMute={toggleMute}
           onExit={exitZen}

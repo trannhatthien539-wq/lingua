@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, BookOpen, CalendarCheck, Download, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
+import { Award, BookOpen, CalendarCheck, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
+import ModuleHero from "../../components/ui/ModuleHero";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
 import MistakeBankCard from "../../components/MistakeBankCard";
@@ -112,15 +113,21 @@ export default function ProgressHub({ user, streak, onNavigate }) {
 
   return (
     <div className="space-y-5">
-      <div className="no-print flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="eyebrow">Tiến độ &amp; thành tích</p>
-          <h2 className="mt-1 font-display text-xl font-bold">Toàn cảnh tiến độ</h2>
-        </div>
-        <button onClick={() => window.print()} className="btn-secondary px-4 no-print">
-          <Download size={16} />Xuất báo cáo
-        </button>
-      </div>
+      <ModuleHero
+        icon={Trophy}
+        eyebrow="Tiến độ & thành tích"
+        title="Toàn cảnh hành trình học"
+        description="Theo dõi XP, chuỗi ngày, mục tiêu ôn tập và những kỷ lục bạn đã tạo."
+        accent="#ffc800"
+        deep="#b88900"
+        illustration="progress"
+        progress={level.percent}
+        progressLabel={`Tiến độ lên cấp ${level.level + 1}`}
+        stats={[{ label: 'Cấp hiện tại', value: `${level.level}` }, { label: 'XP tích lũy', value: xp }, { label: 'Huy hiệu', value: `${earnedCount}/${achievements.length}` }]}
+        action="Xuất báo cáo"
+        onAction={() => window.print()}
+        className="no-print"
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <TodayPlanCard

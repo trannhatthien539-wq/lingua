@@ -89,6 +89,10 @@ jobs:
           if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then exit 0; fi
           node -e "const fs=require('fs');const file='capacitor.config.json';const config=JSON.parse(fs.readFileSync(file,'utf8'));config.plugins=Object.assign({},config.plugins,{GoogleAuth:{scopes:['profile','email'],serverClientId:process.env.GOOGLE_WEB_CLIENT_ID,forceCodeForRefreshToken:true}});fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');"
 
+      # APK cũng build từ main nên test phải chạy trước — tránh đóng gói bundle lỗi.
+      - name: Run unit tests
+        run: npm test
+
       - name: Build web assets
         env:
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}

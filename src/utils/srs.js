@@ -1,16 +1,15 @@
-export const dateKey = (date = new Date()) => {
-  const value = new Date(date);
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+import { addDaysToKey, dayKeyOf } from "./day.js";
 
-export const addDaysKey = (days, from = new Date()) => {
-  const value = new Date(from);
-  value.setDate(value.getDate() + days);
-  return dateKey(value);
-};
+/** Khoá ngày dạng `YYYY-MM-DD` theo giờ địa phương (alias của `utils/day.js`). */
+export const dateKey = dayKeyOf;
+
+/**
+ * Dịch ngày đi `days` ngày: `addDaysKey(days, from)`.
+ * Chú ý thứ tự tham số ngược với `addDaysToKey(key, days)` trong `utils/day.js` — giữ nguyên
+ * chữ ký cũ vì `tests/srs.test.js` và 3 chế độ học đang dùng.
+ */
+export const addDaysKey = (days, from = new Date()) => addDaysToKey(dayKeyOf(from), days);
+
 
 /**
  * Lịch ôn tập dùng chung cho mọi chế độ học (flashcard, trắc nghiệm, chính tả...).

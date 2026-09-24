@@ -74,10 +74,28 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
     return [...commands, ...mapped]
   }, [query, results])
 
+  // Giữ ref cho danh sách kết quả + callback (App truyền arrow inline) để phím Enter
+  // luôn mở item mới nhất mà không phải gắn lại listener mỗi render.
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
+  const onOpenTutorRef = useRef(onOpenTutor)
+  onOpenTutorRef.current = onOpenTutor
+
   useEffect(() => {
     inputRef.current?.focus()
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose()
+      // Enter mở kết quả đầu tiên (khớp gợi ý ở footer); bỏ qua khi đang gõ bằng IME.
+      if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+        const first = itemsRef.current[0]
+        if (first) {
+          event.preventDefault()
+          if (first.isCommand) onOpenTutorRef.current?.()
+          else onSelectRef.current?.(first)
+        }
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)

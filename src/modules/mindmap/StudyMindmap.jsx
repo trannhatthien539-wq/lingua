@@ -20,10 +20,10 @@ import {
   X,
   ZoomIn,
 } from "lucide-react";
+import ModuleHero from "../../components/ui/ModuleHero";
 import {
   addEdge,
   Background,
-  Controls,
   Handle,
   MarkerType,
   MiniMap,
@@ -37,7 +37,7 @@ import {
 import { toPng } from "html-to-image";
 import dagre from "dagre";
 import "@xyflow/react/dist/style.css";
-import { parseAiJson, requestAi } from "../../services/aiService";
+import { canUseAi, parseAiJson, requestAi } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { createDebouncedSync, loadUserDoc, userDocKeys } from "../../services/userDocService";
 import { refreshRequestedEvent } from "../../services/syncStatus";
@@ -351,7 +351,6 @@ function RoadmapNode({ id, data }) {
 function MobileOutliner({ nodes, edges, onSelect, view, onViewChange }) {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const children = useMemo(() => edges.reduce((map, edge) => ({ ...map, [edge.source]: [...(map[edge.source] || []), edge.target] }), {}), [edges]);
-  const byId = useMemo(() => Object.fromEntries(nodes.map((node) => [node.id, node])), [nodes]);
   const roots = nodes.filter((node) => !edges.some((edge) => edge.target === node.id));
   const toggleAll = (close) => setCollapsed(close ? new Set(nodes.map((node) => node.id)) : new Set());
   const renderNode = (node, depth = 0) => {
@@ -446,7 +445,6 @@ function RoadmapCanvas({
         proOptions={proOptions}
       >
         <Background color="#9aaa9c" gap={22} size={1} />
-        <Controls showInteractive={false} />
         <MiniMap
           nodeColor={(node) =>
             node.data.status === "mastered"
@@ -538,7 +536,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{ transform: `translateY(${dragOffset}px)` }}
-      className="fixed bottom-0 left-0 right-0 z-50 max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t border-ink/[0.08] bg-white p-5 shadow-2xl transition-transform md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-full md:max-w-sm md:rounded-none md:rounded-l-2xl md:border-l md:border-t-0 md:p-6 md:!transform-none dark:border-white/[0.08] dark:bg-[#1b211f]"
+      className="fixed bottom-0 left-0 right-0 z-[70] max-h-[75vh] w-full overflow-y-auto rounded-t-2xl border-t border-ink/[0.08] bg-white p-5 shadow-2xl transition-transform md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-full md:max-w-sm md:rounded-none md:rounded-l-2xl md:border-l md:border-t-0 md:p-6 md:!transform-none dark:border-white/[0.08] dark:bg-[#1b211f]"
     >
       <div className="mx-auto mb-4 h-1.5 w-12 touch-none rounded-full bg-ink/15 md:hidden dark:bg-white/20" />
       <div className="flex items-start justify-between gap-3">
@@ -778,7 +776,6 @@ export default function StudyMindmap({ apiKey }) {
     lastCloudRef.current = serialized;
     cloudVersionRef.current = Date.now();
     mindmapSync.schedule(payload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudReady, edges, mapName, mindmapSync, nodes]);
   const onConnect = useCallback(
     (connection) =>
@@ -878,7 +875,7 @@ export default function StudyMindmap({ apiKey }) {
   };
   const generateRoadmap = async () => {
     if (!debouncedTopic.trim()) return setError("Hãy nhập chủ đề roadmap.");
-    if (!apiKey)
+    if (!canUseAi(apiKey, localStorage.getItem(PROVIDER_STORAGE) || "gemini"))
       return setError("Hãy lưu API key trong Cài đặt API trước.");
     setLoading(true);
     setError("");
@@ -936,6 +933,20 @@ export default function StudyMindmap({ apiKey }) {
   };
   return (
     <div className="space-y-5">
+      <ModuleHero
+        icon={BrainCircuit}
+        eyebrow="Sơ đồ cây học tập"
+        title={mapName || "Roadmap học tập"}
+        description="Biến mục tiêu thành các nhánh nhỏ, cập nhật tiến độ và mở rộng lộ trình theo cách của bạn."
+        accent="#2b70c9"
+        deep="#174b8a"
+        illustration="mindmap"
+        progress={progress}
+        progressLabel="Chủ điểm đã hoàn thành"
+        stats={[{ label: 'Chủ điểm', value: nodes.length }, { label: 'Liên kết', value: edges.length }, { label: 'Đã hoàn thành', value: `${progress}%` }]}
+        action="Lưu sơ đồ"
+        onAction={saveMap}
+      />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Lộ trình học tương tác</p>

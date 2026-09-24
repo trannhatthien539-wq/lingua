@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LoaderCircle, Sparkles } from 'lucide-react'
-import { requestAi } from '../../services/aiService'
+import { canUseAi, requestAi } from '../../services/aiService'
 import { toast } from '../../services/toast'
 
 /**
@@ -11,7 +11,7 @@ export default function AiExplainButton({ question, response, apiKey, provider =
   const [state, setState] = useState({ loading: false, text: '' })
 
   const explain = async () => {
-    if (!apiKey?.trim()) {
+    if (!canUseAi(apiKey, provider)) {
       toast.error('Hãy lưu API key ở Cài đặt → Kết nối AI để dùng tính năng này.')
       return
     }

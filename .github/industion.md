@@ -1,5 +1,12 @@
 # Lingua Study Hub - Project Handoff
 
+> **⚠️ Tài liệu bàn giao CŨ (lưu trữ)** — nhiều nội dung dưới đây đã lỗi thời so với codebase hiện tại.
+> Ví dụ đã thay đổi: `aiClient.js`/`apiClient.js` và `StatCard.jsx` đã bị **xoá** (AI dùng `aiService.js`);
+> `PracticeSession` đã bị xoá (các chế độ học nằm ở FlashcardModal/QuizView/SpellerView/MatchingView);
+> `aiService.js` giờ có **timeout 30 giây**, fallback nhiều model Gemini và hỗ trợ thêm DeepSeek;
+> util ngày tháng đã gộp vào `src/utils/day.js` + `src/utils/history.js` (có test).
+> **Nguồn sự thật mới nhất là `README.md`** — đọc file này chỉ để tham khảo ngữ cảnh lịch sử.
+
 Tài liệu này giúp AI/agent khác tiếp nhận và tiếp tục phát triển dự án mà không cần quét lại toàn bộ codebase.
 
 ## 1. Tổng quan

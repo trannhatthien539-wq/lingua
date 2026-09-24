@@ -62,9 +62,15 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
 
   const isDevice = nativeNotificationsAvailable();
 
+  const flashTimerRef = useRef(null);
+  // Dọn timer khi unmount; clear trước mỗi lần flash để thông báo mới
+  // không bị timer của thông báo cũ tắt sớm.
+  useEffect(() => () => window.clearTimeout(flashTimerRef.current), []);
+
   const flash = (text) => {
     setMessage(text);
-    window.setTimeout(() => setMessage(""), 4200);
+    window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setMessage(""), 4200);
   };
 
   /** Xin quyền thông báo: bản APK dùng quyền của hệ điều hành, web dùng Notification API. */

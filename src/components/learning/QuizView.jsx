@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Check, Volume2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Volume2, X } from "lucide-react";
 import StudySummary from "./StudySummary";
 import { getPlayableAudio, sanitizeCard } from "../../utils/sanitizeCard";
 import { addDaysKey, dateKey } from "../../utils/srs";
@@ -13,6 +13,7 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
   const [selected, setSelected] = useState(null);
   const [results, setResults] = useState([]);
   const [startedAt] = useState(Date.now());
+  const advanceTimerRef = useRef(null);
   const card = safeCards[index];
   const options = useMemo(() => {
     if (!card) return [];
@@ -20,6 +21,8 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
     return shuffle(uniqueMeanings([card.meaning, ...distractors]));
   }, [card, safeCards]);
   const complete = index >= safeCards.length;
+  // Dọn timer chuyển câu khi đóng bài để không set state sau khi unmount.
+  useEffect(() => () => window.clearTimeout(advanceTimerRef.current), []);
 
   const choose = (option) => {
     if (selected || !card) return;
@@ -28,8 +31,11 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
     setResults((current) => [...current, { word: card.word, correct }]);
     const interval = correct ? 5 : 1;
     onUpdateCard(card.id, { status: correct ? "mastered" : "learning", interval, nextReviewDate: addDaysKey(interval), lastStudiedDate: dateKey(), repetition: correct ? Number(card.repetition || 0) + 1 : 0 }).catch(() => {});
-    window.setTimeout(async () => {
-      if (index + 1 >= safeCards.length) await onStudyActivity?.();
+    // Ghi nhận hoạt động học ngay khi trả lời câu cuối thay vì đặt trong setTimeout,
+    // để đóng bài trong 800ms đầu cũng không mất tiến độ; timer chỉ hoãn chuyển câu.
+    if (index + 1 >= safeCards.length) Promise.resolve(onStudyActivity?.()).catch(() => {});
+    window.clearTimeout(advanceTimerRef.current);
+    advanceTimerRef.current = window.setTimeout(() => {
       setIndex((current) => current + 1);
       setSelected(null);
     }, 800);

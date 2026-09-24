@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Settings2, Sparkles } from 'lucide-react'
+import ModuleHero from './components/ui/ModuleHero'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
@@ -24,9 +25,6 @@ import { formatDate } from './lib/formatters'
 import MobileBottomNav from './components/MobileBottomNav'
 import MobileHeader from './components/MobileHeader'
 import AppMark from './components/AppMark'
-import AccountPanel from './components/AccountPanel'
-import AccountDataPanel from './components/AccountDataPanel'
-import AppearancePanel from './modules/settings/AppearancePanel'
 import SearchPalette from './components/SearchPalette'
 import Toaster from './components/ui/Toaster'
 import AiTutorPanel from './components/AiTutorPanel'
@@ -44,6 +42,10 @@ const StudyPlanner = lazy(() => import('./modules/planner/StudyPlanner'))
 const StudyMindmap = lazy(() => import('./modules/mindmap/StudyMindmap'))
 const ApiSettings = lazy(() => import('./modules/settings/ApiSettings'))
 const InstallAppPanel = lazy(() => import('./modules/settings/InstallAppPanel'))
+// Panel trong tab Cài đặt chỉ render khi người dùng mở tab đó → lazy để không nạp sớm.
+const AccountPanel = lazy(() => import('./components/AccountPanel'))
+const AccountDataPanel = lazy(() => import('./components/AccountDataPanel'))
+const AppearancePanel = lazy(() => import('./modules/settings/AppearancePanel'))
 const modules = { home: HomeHub, vocabulary: VocabularyHub, grammar: GrammarHub, skills: SkillsHub, vstep: VstepHub, writing: WritingChecker, progress: ProgressHub, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
 const tabPaths = { home: '/home', vocabulary: '/vocabulary', grammar: '/grammar', skills: '/skills', vstep: '/vstep', writing: '/writing', progress: '/progress', planner: '/planner', mindmap: '/mindmap', settings: '/settings' }
 const pathTabs = Object.fromEntries(Object.entries(tabPaths).map(([tab, path]) => [path, tab]))
@@ -204,12 +206,12 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-28 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} /><div className="animate-[fade-in_400ms_ease-out]" key={activeTab}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' ? <div className="max-w-3xl space-y-4"><AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} /><InstallAppPanel /><AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} /><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} /></div> : <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />}</Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />
+  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-28 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} streak={streak} /><div className="animate-[fade-in_400ms_ease-out]" key={activeTab}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' ? <div className="max-w-3xl space-y-4"><ModuleHero icon={Settings2} eyebrow="Cài đặt" title="Tùy chỉnh không gian học" description="Quản lý tài khoản, giao diện, dữ liệu và kết nối AI của bạn." accent="#8a9aa3" deep="#56666c" illustration="settings" stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]} /><AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} /><InstallAppPanel /><AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} /><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} /></div> : <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />}</Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />
     {/* Gia sư AI: một nút nổi duy nhất, dùng được ở mọi tab (thay cho nút “Thêm từ” cũ). */}
     <button
       type="button"
       onClick={() => setTutorOpen(true)}
-      className="no-print fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#58cc02] text-white shadow-[0_5px_0_0_#3f9c02] transition hover:-translate-y-0.5 md:bottom-6 md:right-6"
+      className="no-print fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#58cc02] text-white transition hover:bg-[#4cc002] md:bottom-6 md:right-6"
       aria-label="Mở gia sư AI"
       title="Gia sư AI — hỏi bất cứ lúc nào"
     >

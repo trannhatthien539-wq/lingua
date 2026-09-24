@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, Volume2, X, RotateCcw } from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speech";
 import { intervalLabel, previewIntervals, schedulePayload } from "../../utils/srs";
@@ -37,7 +37,7 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
 
   // Nếu thẻ đang ở mặt sau: lật về mặt trước (vẫn giữ nội dung thẻ hiện tại) rồi mới đổi
   // sang thẻ kế tiếp. Nếu không làm vậy, mặt sau của thẻ mới sẽ lộ ra trong lúc xoay.
-  const advanceAfterFlip = (swapContent) => {
+  const advanceAfterFlip = useCallback((swapContent) => {
     window.clearTimeout(flipTimer.current);
     if (!flipped) {
       swapContent();
@@ -52,9 +52,9 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
       setImageError(false);
       setLocked(false);
     }, FLIP_MS);
-  };
+  }, [flipped]);
 
-  const rateCard = async (rating) => {
+  const rateCard = useCallback(async (rating) => {
     if (!currentCard || locked) return;
     const previousSrs = {
       status: currentCard.status || "new",
@@ -76,9 +76,9 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
       setIndex((current) => current + 1);
     });
     if (rating !== "again" && index + 1 >= queue.length) await onStudyActivity?.();
-  };
+  }, [advanceAfterFlip, currentCard, index, locked, onStudyActivity, onUpdateCard, queue.length, results]);
 
-  const goPrevious = async () => {
+  const goPrevious = useCallback(async () => {
     if (locked || index === 0 || !history.length) return;
     const record = history[history.length - 1];
     const restore = onUpdateCard(record.cardId, record.previousSrs);
@@ -89,7 +89,7 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
       setIndex((current) => current - 1);
     });
     await restore;
-  };
+  }, [advanceAfterFlip, history, index, locked, onUpdateCard]);
 
   const handleTouchStart = (event) => {
     touchStartX.current = event.changedTouches[0]?.clientX ?? null;
@@ -126,7 +126,7 @@ export default function FlashcardModal({ deck, cards, onClose, onUpdateCard, onS
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [flipped, locked, index, isComplete, currentCard, queue.length, results, history]);
+  }, [flipped, goPrevious, isComplete, locked, rateCard]);
 
   if (isComplete) {
     const mastered = results.filter((result) => result === "mastered").length;

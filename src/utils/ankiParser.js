@@ -1,11 +1,27 @@
-import JSZip from "jszip";
-import initSqlJs from "sql.js";
-import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
-
 const FIELD_SEPARATOR = "\x1f";
 let sqlPromise;
+let zipPromise;
 
 const report = (onProgress, percent, message) => onProgress?.({ percent, message });
+
+/**
+ * jszip (≈0,1 MB) và sql.js (≈0,5 MB JS + 0,6 MB wasm) chỉ được **tải khi người dùng thật sự
+ * nhập file Anki** — trước đây import tĩnh nên chúng nằm trong gói của tab Từ vựng dù rất ít dùng.
+ */
+const loadJsZip = () => {
+  zipPromise = zipPromise || import("jszip").then((module) => module.default);
+  return zipPromise;
+};
+
+const loadSql = () => {
+  if (!sqlPromise) {
+    sqlPromise = Promise.all([
+      import("sql.js"),
+      import("sql.js/dist/sql-wasm.wasm?url"),
+    ]).then(([module, wasm]) => module.default({ locateFile: () => wasm.default }));
+  }
+  return sqlPromise;
+};
 
 const stripHtml = (value = "") => {
   const documentFragment = new DOMParser().parseFromString(value.replace(/<br\s*\/?>(\r?\n)?/gi, "\n"), "text/html");
@@ -33,15 +49,13 @@ const classifyFields = (rawFields, sortField) => {
 };
 
 async function getSqlModule() {
-  if (!sqlPromise) {
-    sqlPromise = initSqlJs({ locateFile: () => sqlWasmUrl });
-  }
-  return sqlPromise;
+  return loadSql();
 }
 
 export async function parseAnkiFile(file, onProgress) {
   if (!file?.name?.toLowerCase().endsWith(".apkg")) throw new Error("Vui lòng chọn file Anki .apkg.");
   report(onProgress, 5, "Đang đọc file Anki...");
+  const JSZip = await loadJsZip();
   const zip = await JSZip.loadAsync(file);
   report(onProgress, 20, "Đã đọc gói Anki, bỏ qua media để tối ưu bộ nhớ...");
 

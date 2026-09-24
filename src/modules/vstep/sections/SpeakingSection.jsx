@@ -4,8 +4,11 @@ import { speakText, stopSpeech } from "../../../utils/speech";
 import { scoreLabel, scorePronunciation } from "../../../utils/speechScore";
 import useAudioRecorder, { formatSeconds } from "../useAudioRecorder";
 
-/** Phần Nói: nghe câu hỏi bằng TTS, ghi âm câu trả lời, chấm phát âm khi xem lại. */
-export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "exam", review = null }) {
+/**
+ * Phần Nói: nghe câu hỏi bằng TTS, ghi âm câu trả lời, chấm phát âm khi xem lại.
+ * (Câu trả lời đã lưu nằm trong `speaking[part.id]`, nên không cần prop `review`.)
+ */
+export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "exam" }) {
   const parts = exam.speaking?.parts || [];
   const [activeId, setActiveId] = useState(parts[0]?.id);
   const part = parts.find((item) => item.id === activeId) || parts[0];

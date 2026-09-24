@@ -15,6 +15,27 @@ const OPENAI_COMPATIBLE_ENDPOINTS = {
   deepseek: "https://api.deepseek.com/chat/completions",
 };
 
+/** Tự cắt kết nối sau 30 giây — tránh để người dùng chờ vô hạn khi mạng yếu (spinner quay mãi). */
+const REQUEST_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error(`Yêu cầu AI quá ${REQUEST_TIMEOUT_MS / 1000} giây. Mạng có vẻ chậm, vui lòng thử lại.`);
+      // Đánh dấu 408 để requestAi dừng thử model tiếp theo và giữ nguyên thông báo này.
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Chuẩn hoá id provider, mặc định về gemini. */
 export const normalizeProvider = (providerId) =>
   providerId === "groq" || providerId === "deepseek" ? providerId : "gemini";
@@ -71,7 +92,7 @@ async function requestModel(providerId, apiKey, prompt, json, model) {
     "Content-Type": "application/json",
     ...(isGemini ? {} : { Authorization: `Bearer ${apiKey}` }),
   };
-  const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+  const response = await fetchWithTimeout(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
   const payload = await readPayload(response);
   if (!response.ok) {
     const error = new Error(getErrorMessage(response.status, payload));
@@ -90,8 +111,28 @@ async function requestModel(providerId, apiKey, prompt, json, model) {
 const PROXY_URL = (import.meta.env?.VITE_AI_PROXY_URL || "").trim();
 export const hasAiProxy = () => Boolean(PROXY_URL);
 
+/**
+ * Key Gemini dự phòng đóng kèm bundle (env `VITE_GEMINI_FALLBACK_KEYS`, phân cách dấu phẩy):
+ * người dùng chưa nhập key vẫn dùng được mọi chức năng AI của Gemini, và key bị sai quyền
+ * hoặc rate-limit (400/401/403/429) sẽ tự chuyển sang key kế tiếp. Chỉ áp dụng provider gemini.
+ * Lưu ý: biến VITE_* được Vite nhúng vào bundle — ai mở DevTools cũng đọc được key này.
+ */
+const FALLBACK_GEMINI_KEYS = (import.meta.env?.VITE_GEMINI_FALLBACK_KEYS || "")
+  .split(",")
+  .map((key) => key.trim())
+  .filter(Boolean);
+
+/**
+ * True nếu app gọi được AI: có proxy, có key cá nhân, hoặc (với Gemini) còn key dự phòng.
+ * UI dùng để bỏ cấm các nút AI thay vì bắt buộc mọi người phải nhập key riêng.
+ */
+export const canUseAi = (apiKey, providerId) =>
+  Boolean(PROXY_URL) ||
+  Boolean(apiKey?.trim()) ||
+  (normalizeProvider(providerId) === "gemini" && FALLBACK_GEMINI_KEYS.length > 0);
+
 async function requestViaProxy(providerId, prompt, json) {
-  const response = await fetch(PROXY_URL, {
+  const response = await fetchWithTimeout(PROXY_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ provider: providerId, prompt, json }),
@@ -107,18 +148,38 @@ async function requestViaProxy(providerId, prompt, json) {
   return text;
 }
 
-export async function requestAi(providerId, apiKey, prompt, { json = false } = {}) {
+/**
+ * Gọi AI. `fallbackKeys` cho phép test chỉ định pool key dự phòng;
+ * production mặc định lấy từ env `VITE_GEMINI_FALLBACK_KEYS`.
+ */
+export async function requestAi(providerId, apiKey, prompt, { json = false, fallbackKeys = FALLBACK_GEMINI_KEYS } = {}) {
   const normalizedProvider = normalizeProvider(providerId);
   if (PROXY_URL) return requestViaProxy(normalizedProvider, prompt, json);
-  if (!apiKey?.trim()) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
+  const personalKey = apiKey?.trim() || "";
+  // Gemini: key cá nhân (nếu có) xếp trước, rồi đến key dự phòng; key nào
+  // sai/hết quyền/bị rate-limit thì bỏ qua, tự chuyển sang key kế tiếp.
+  const keys =
+    normalizedProvider === "gemini"
+      ? [...new Set([personalKey, ...fallbackKeys].filter(Boolean))]
+      : [personalKey];
+  if (!keys[0]) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
   const models = AI_PROVIDERS[normalizedProvider].models;
   let lastError;
-  for (const model of models) {
-    try {
-      return await requestModel(normalizedProvider, apiKey.trim(), prompt, json, model);
-    } catch (error) {
-      lastError = error;
-      if (normalizedProvider !== "gemini" || ![404, 429, 500].includes(error.status)) break;
+  for (const [keyIndex, key] of keys.entries()) {
+    const isLastKey = keyIndex === keys.length - 1;
+    for (const model of models) {
+      try {
+        return await requestModel(normalizedProvider, key, prompt, json, model);
+      } catch (error) {
+        lastError = error;
+        // Key hiện tại không dùng được và vẫn còn key sau → chuyển key ngay.
+        if ([400, 401, 403, 429].includes(error.status) && !isLastKey) break;
+        // Giữ hành vi cũ: Gemini thử model kế tiếp khi gặp 404/429/500 (đến key cuối).
+        if (normalizedProvider === "gemini" && [404, 429, 500].includes(error.status)) continue;
+        // Timeout (408), lỗi 4xx còn lại và lỗi mạng: đổi key/model không cứu được.
+        if (error.status) throw error;
+        throw new Error("Không thể kết nối tới dịch vụ AI. Hãy kiểm tra mạng và thử lại.", { cause: error });
+      }
     }
   }
   if (lastError?.status) throw lastError;

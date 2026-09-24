@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Award, Flame, GraduationCap, Layers, PlayCircle, Star, Target, Trophy } from "lucide-react";
+import StudyIllustration from "../../components/StudyIllustration";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
 import NavIcon from "../../components/ui/NavIcon";
+import useCloudDoc from "../../hooks/useCloudDoc";
 import useDailyGoal from "../../hooks/useDailyGoal";
 import useGrammarProgress from "../../hooks/useGrammarProgress";
 import useSkillsProgress from "../../hooks/useSkillsProgress";
 import useVstepProgress from "../../hooks/useVstepProgress";
+import { listeningLessons } from "../../data/skills/listening";
+import { readingPassages } from "../../data/skills/reading";
 import { navigationItems } from "../../data/navigation";
+import { registry as vstepRegistry } from "../../data/vstep/metadata";
 import { dataService } from "../../services/dataService";
 import { getHistoryDays, loadHistory } from "../../services/historyService";
 import { summarize } from "../../services/gamification";
 import { refreshRequestedEvent } from "../../services/syncStatus";
+import { userDocKeys } from "../../services/userDocService";
 import { toast } from "../../services/toast";
 
 /** Các khu vực học hiện trên trang chủ (lấy icon + màu từ `navigationItems`). */
@@ -48,6 +54,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
   const { progress: skillsProgress } = useSkillsProgress();
   const { attempts: vstepAttempts } = useVstepProgress();
   const { target } = useDailyGoal();
+  const { value: writingDoc } = useCloudDoc(userDocKeys.writing, { initial: {} });
   const [days, setDays] = useState(() => getHistoryDays());
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,57 +111,80 @@ export default function HomeHub({ user, streak, onNavigate }) {
   const earnedCount = achievements.filter((achievement) => achievement.earned).length;
   const goalToday = stats.goal.today;
   const goalPercent = target ? Math.min(100, Math.round((goalToday / target) * 100)) : 0;
+
+  // Tiến độ từng khu vực học cho lưới thẻ (thanh mini + nhãn “x/y • %”).
+  const areaStats = useMemo(() => {
+    const build = (done, total, unit) => {
+      if (total <= 0) return { percent: 0, label: `Chưa có ${unit}` };
+      const percent = Math.min(100, Math.round((done / total) * 1000) / 10);
+      return { percent, label: `${done}/${total} ${unit} • ${percent}%` };
+    };
+    const skillsDone = stats.skills.listening + stats.skills.reading;
+    const vstepDone = new Set(vstepAttempts.map((attempt) => attempt.examId).filter(Boolean)).size;
+    return {
+      vocabulary: build(stats.cards.mastered, stats.cards.total, "từ"),
+      grammar: build(stats.grammar.passed, stats.grammar.total, "bài"),
+      skills: build(skillsDone, listeningLessons.length + readingPassages.length, "bài"),
+      vstep: build(vstepDone, vstepRegistry.length, "đề"),
+      writing: writingDoc?.result
+        ? { percent: 100, label: "Đã chấm 1 bài • 100%" }
+        : { percent: 0, label: "Chưa có bài nào được chấm" },
+      progress: build(earnedCount, achievements.length, "huy hiệu"),
+    };
+  }, [stats, earnedCount, achievements, vstepAttempts, writingDoc]);
   const displayName = (user?.displayName || "").trim().split(" ").slice(-1)[0];
   const areas = AREA_IDS.map((id) => navigationItems.find((item) => item.id === id)).filter(Boolean);
 
   return (
     <div className="space-y-5">
       <section className="relative overflow-hidden rounded-3xl border-2 border-[#4cb102] bg-gradient-to-br from-[#58cc02] to-[#43a302] p-5 text-white shadow-soft sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/85">{greetingByHour()}{displayName ? `, ${displayName}` : ''} 👋</p>
             <h2 className="mt-1.5 font-display text-2xl font-bold sm:text-3xl">Hôm nay học gì?</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/85">
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
+                <Flame size={16} className="text-[#ffd900]" />{stats.streak.current > 0 ? `Streaks: ${stats.streak.current} ngày liên tiếp` : "Streaks: Chưa bắt đầu"}
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
+                <Star size={16} className="text-[#ffd900]" />Cấp {level.level} · {level.title}
+              </span>
+            </div>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/85">
               {goalPercent >= 100
                 ? "Bạn đã đạt mục tiêu hôm nay 🎉 Học thêm chút nữa nếu còn thời gian nhé."
                 : `Còn ${Math.max(0, target - goalToday)} lượt ôn nữa để hoàn thành mục tiêu hôm nay.`}
             </p>
+            <div className="mt-5 max-w-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-[0.06em] text-white/90">
+                <span className="inline-flex items-center gap-1.5"><Target size={14} />Mục tiêu hôm nay</span>
+                <span>{goalToday}/{target} lượt ôn</span>
+              </div>
+              <div className="mt-2 h-3 overflow-hidden rounded-full bg-black/25">
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${goalPercent}%` }} />
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onNavigate?.("vocabulary")}
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-white px-5 text-sm font-black uppercase tracking-[0.06em] text-[#3f9c02] shadow-[0_4px_0_0_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5"
+              >
+                <PlayCircle size={18} />Học ngay
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("vstep")}
+                className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl border-2 border-white/60 px-5 text-sm font-bold uppercase tracking-[0.06em] text-white transition hover:bg-white/10"
+              >
+                <Award size={18} />Thi thử VSTEP
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
-              <Flame size={16} className="text-[#ffd900]" />{stats.streak.current} ngày
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-2xl bg-black/20 px-3 py-2 text-sm font-bold">
-              <Star size={16} className="text-[#ffd900]" />Cấp {level.level} · {level.title}
-            </span>
+          {/* Minh hoạ bên phải: ẩn trên điện thoại để banner gọn, hiện từ md trở lên */}
+          <div className="hidden shrink-0 md:block">
+            <StudyIllustration className="w-[220px] lg:w-[260px]" />
           </div>
-        </div>
-
-        <div className="mt-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-[0.06em] text-white/90">
-            <span className="inline-flex items-center gap-1.5"><Target size={14} />Mục tiêu hôm nay</span>
-            <span>{goalToday}/{target} lượt ôn</span>
-          </div>
-          <div className="mt-2 h-3 overflow-hidden rounded-full bg-black/25">
-            <div className="h-full rounded-full bg-white transition-all" style={{ width: `${goalPercent}%` }} />
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate?.("vocabulary")}
-            className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.06em] text-[#3f9c02] shadow-[0_4px_0_0_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5"
-          >
-            <PlayCircle size={18} />Học ngay
-          </button>
-          <button
-            type="button"
-            onClick={() => onNavigate?.("vstep")}
-            className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl border-2 border-white/60 px-5 text-sm font-bold uppercase tracking-[0.06em] text-white transition hover:bg-white/10"
-          >
-            <Award size={18} />Thi thử VSTEP
-          </button>
         </div>
       </section>
 
@@ -164,22 +194,42 @@ export default function HomeHub({ user, streak, onNavigate }) {
           <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Bấm để vào thẳng khu vực đó</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {areas.map((area) => (
-            <button
-              key={area.id}
-              type="button"
-              onClick={() => onNavigate?.(area.id)}
-              className="panel group flex items-center gap-3 border-b-4 p-4 text-left transition hover:-translate-y-0.5"
-              style={{ borderBottomColor: area.color }}
-            >
-              <NavIcon icon={area.icon} color={area.color} size="lg" />
-              <span className="min-w-0 flex-1">
-                <span className="block font-display text-base font-bold">{area.label}</span>
-                <span className="block text-xs leading-5 text-ink/60 dark:text-white/60">{area.description}</span>
-              </span>
-              <ArrowRight size={18} className="shrink-0 text-ink/30 transition group-hover:translate-x-0.5 group-hover:text-ink/60 dark:text-white/30" />
-            </button>
-          ))}
+          {areas.map((area) => {
+            const stat = areaStats[area.id] || { percent: 0, label: "" };
+            const Icon = area.icon;
+            return (
+              <button
+                key={area.id}
+                type="button"
+                onClick={() => onNavigate?.(area.id)}
+                className="panel group relative flex flex-col gap-3 overflow-hidden border-b-4 p-4 text-left transition hover:-translate-y-1 hover:shadow-[0_14px_28px_-10px_rgba(24,32,29,0.22)] dark:hover:shadow-[0_14px_28px_-10px_rgba(0,0,0,0.5)]"
+                style={{ borderBottomColor: area.color }}
+              >
+                {/* Watermark icon mờ theo chủ đề, chìm ở góc phải trên */}
+                <Icon
+                  size={104}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-5 -top-6 opacity-[0.08] transition-transform duration-300 group-hover:-rotate-6"
+                  style={{ color: area.color }}
+                />
+                <span className="relative flex items-start gap-3">
+                  <NavIcon icon={area.icon} color={area.color} size="lg" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-base font-bold">{area.label}</span>
+                    <span className="block text-xs leading-5 text-ink/60 dark:text-white/60">{area.description}</span>
+                  </span>
+                  <ArrowRight size={18} className="mt-1 shrink-0 text-ink/30 transition group-hover:translate-x-0.5 group-hover:text-ink/60 dark:text-white/30" />
+                </span>
+                <span className="relative mt-auto block space-y-1.5">
+                  <span className="block h-1.5 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+                    <span className="block h-full rounded-full" style={{ width: `${stat.percent}%`, backgroundColor: area.color }} />
+                  </span>
+                  <span className="block text-xs font-semibold text-ink/55 dark:text-white/55">{stat.label}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 

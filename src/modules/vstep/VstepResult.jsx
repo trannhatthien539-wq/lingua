@@ -8,6 +8,7 @@ import { SECTION_LABELS, scoreObjectiveSection, selfAssessedScore10, summariseAt
 import { bandFor } from "../../data/vstep/bands";
 import { gradeSpeakingPart, gradeWritingTask } from "../../services/vstepAi";
 import { toast } from "../../services/toast";
+import { canUseAi } from "../../services/aiService";
 
 const countWords = (value = "") => (value.trim() ? value.trim().split(/\s+/).length : 0);
 const round1 = (value) => Math.round((Number(value) || 0) * 10) / 10;
@@ -214,7 +215,7 @@ export default function VstepResult({ exam, result, apiKey, provider, onRetry, o
                 ))}
               </div>
             </div>
-            {!apiKey && <p className="mt-2 text-xs text-warn">Chưa có API key — mở Cài đặt → Kết nối AI (Gemini/Groq/DeepSeek) để dùng tính năng chấm tự động.</p>}
+            {!canUseAi(apiKey, provider) && <p className="mt-2 text-xs text-warn">Chưa có API key — mở Cài đặt → Kết nối AI (Gemini/Groq/DeepSeek) để dùng tính năng chấm tự động.</p>}
           </section>
           <WritingSection exam={exam} writings={result.writings} onWrite={() => {}} mode="review" review={{ writing: writingFeedback }} checks={result.writingChecks} onCheck={() => {}} />
         </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { AlarmClock, GraduationCap, RotateCcw, Trophy } from 'lucide-react'
 import GrammarQuiz from './GrammarQuiz'
 import { grammarAllItems } from '../../data/grammarIndex'
@@ -35,7 +35,14 @@ const buildExamQuestions = () => {
 export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
   const [round, setRound] = useState(0)
   const [result, setResult] = useState(null)
-  const questions = useMemo(() => buildExamQuestions().slice(0, QUESTION_COUNT), [round])
+  // Đề được tạo trong state (không dùng useMemo theo biến đếm) để "Làm đề mới" đổi câu một cách rõ ràng.
+  const [questions, setQuestions] = useState(() => buildExamQuestions().slice(0, QUESTION_COUNT))
+
+  const startNewExam = () => {
+    setResult(null)
+    setQuestions(buildExamQuestions().slice(0, QUESTION_COUNT))
+    setRound((value) => value + 1)
+  }
 
   const handleFinish = (correct, total, advance, details) => {
     if (advance) return
@@ -97,7 +104,7 @@ export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
             </span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => { setResult(null); setRound((value) => value + 1) }} className="btn-primary px-4">
+            <button type="button" onClick={startNewExam} className="btn-primary px-4">
               <RotateCcw size={15} />Làm đề mới
             </button>
             <button type="button" onClick={onExit} className="btn-secondary px-4">Về danh sách bài</button>

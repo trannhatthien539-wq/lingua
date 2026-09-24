@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import ModuleHero from '../../components/ui/ModuleHero'
 import {
   AlertCircle,
   BookOpen,
@@ -6,13 +7,14 @@ import {
   CheckCircle2,
   Copy,
   LoaderCircle,
+  PenLine,
   Plus,
   Send,
   Sparkles,
   Trash2,
   WandSparkles,
 } from 'lucide-react'
-import { parseAiJson, requestAi } from '../../services/aiService'
+import { canUseAi, parseAiJson, requestAi } from '../../services/aiService'
 import { useDebounce } from '../../hooks/useDebounce'
 import useCloudDoc from '../../hooks/useCloudDoc'
 import { userDocKeys } from '../../services/userDocService'
@@ -57,7 +59,7 @@ export function VocabularyHub({ apiKey }) {
   }
 
   const generateWords = async () => {
-    if (!apiKey) return setError('Hãy lưu API key trước khi dùng tính năng AI.')
+    if (!canUseAi(apiKey, provider)) return setError('Hãy lưu API key trước khi dùng tính năng AI.')
     setLoading(true)
     setError('')
     try {
@@ -89,7 +91,7 @@ export function WritingChecker({ apiKey }) {
   const wordCount = useMemo(() => text.trim() ? text.trim().split(/\s+/).length : 0, [text])
 
   const checkGrammar = async () => {
-    if (!apiKey) return setError('Hãy lưu API key trước khi dùng tính năng AI.')
+    if (!canUseAi(apiKey, provider)) return setError('Hãy lưu API key trước khi dùng tính năng AI.')
     if (!debouncedText.trim()) return setError('Hãy nhập một đoạn văn để AI phân tích.')
     setLoading(true)
     setError('')
@@ -102,12 +104,15 @@ export function WritingChecker({ apiKey }) {
     }
   }
 
-  return <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]"><section className="panel p-5"><div className="flex items-center justify-between"><div><p className="eyebrow">Trợ lý viết</p><h2 className="mt-1 font-display text-lg font-bold">Viết đoạn văn</h2></div><span className="text-xs text-ink/35 dark:text-white/35">{wordCount} từ</span></div><textarea value={text} onChange={(event) => setText(event.target.value)} className="mt-6 min-h-[390px] w-full resize-none rounded-xl border border-ink/[0.1] bg-transparent p-4 text-sm leading-7 outline-none transition placeholder:text-ink/30 focus:border-ink/30 dark:border-white/[0.1] dark:placeholder:text-white/30" placeholder="Viết đoạn văn tiếng Anh của bạn..." /><button onClick={checkGrammar} disabled={loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-white hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60 dark:bg-lime dark:text-ink">{loading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}AI Check</button>{error && <div className="mt-4"><ErrorMessage message={error} /></div>}</section><section className="panel min-h-[520px] p-5">{result ? <ResultView result={result} /> : <div className="grid min-h-[470px] place-items-center rounded-xl bg-mist p-8 text-center dark:bg-[#29332f]"><div><Sparkles className="mx-auto text-ink/25 dark:text-white/25" size={28} /><p className="mt-4 font-display font-bold">Kết quả phân tích sẽ xuất hiện ở đây</p><p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-ink/40 dark:text-white/40">AI sẽ tìm lỗi, viết lại đoạn văn tự nhiên hơn và giải thích bằng tiếng Việt.</p></div></div>}</section></div>
+  return <div className="space-y-6"><ModuleHero icon={PenLine} eyebrow="AI Writing Coach" title="Kiểm tra Writing thông minh" description="Viết đoạn văn của bạn, để AI tìm lỗi, giải thích và viết lại tự nhiên hơn." accent="#ff9600" deep="#b35c00" illustration="writing" stats={[{ label: 'Số từ', value: wordCount }, { label: 'Điểm AI', value: result?.score ?? '—' }, { label: 'Trạng thái', value: result ? 'Đã chấm' : 'Chờ nhập' }]} action="Chấm bài bằng AI" onAction={checkGrammar} actionDisabled={loading} /><div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]"><section className="panel p-5"><div className="flex items-center justify-between"><div><p className="eyebrow">Trợ lý viết</p><h2 className="mt-1 font-display text-lg font-bold">Viết đoạn văn</h2></div><span className="text-xs text-ink/35 dark:text-white/35">{wordCount} từ</span></div><textarea value={text} onChange={(event) => setText(event.target.value)} className="mt-6 min-h-[390px] w-full resize-none rounded-xl border border-ink/[0.1] bg-transparent p-4 text-sm leading-7 outline-none transition placeholder:text-ink/30 focus:border-ink/30 dark:border-white/[0.1] dark:placeholder:text-white/30" placeholder="Viết đoạn văn tiếng Anh của bạn..." /><button onClick={checkGrammar} disabled={loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-white hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60 dark:bg-lime dark:text-ink">{loading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}AI Check</button>{error && <div className="mt-4"><ErrorMessage message={error} /></div>}</section><section className="panel min-h-[520px] p-5">{result ? <ResultView result={result} /> : <div className="grid min-h-[470px] place-items-center rounded-xl bg-mist p-8 text-center dark:bg-[#29332f]"><div><Sparkles className="mx-auto text-ink/25 dark:text-white/25" size={28} /><p className="mt-4 font-display font-bold">Kết quả phân tích sẽ xuất hiện ở đây</p><p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-ink/40 dark:text-white/40">AI sẽ tìm lỗi, viết lại đoạn văn tự nhiên hơn và giải thích bằng tiếng Việt.</p></div></div>}</section></div></div>
 }
 
 function ResultView({ result }) {
   const [copied, setCopied] = useState(false)
-  const copyText = async () => { await navigator.clipboard.writeText(result.rewritten || ''); setCopied(true); setTimeout(() => setCopied(false), 1600) }
+  const copiedTimerRef = useRef(null)
+  // Dọn timer khi unmount / bấm Copy liên tiếp để trạng thái “Đã copy” không bị tắt sớm.
+  useEffect(() => () => window.clearTimeout(copiedTimerRef.current), [])
+  const copyText = async () => { await navigator.clipboard.writeText(result.rewritten || ''); setCopied(true); window.clearTimeout(copiedTimerRef.current); copiedTimerRef.current = window.setTimeout(() => setCopied(false), 1600) }
   return <div><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Nhận xét AI</p><h2 className="mt-1 font-display text-lg font-bold">Kết quả phân tích</h2></div><div className="rounded-xl bg-lime px-3 py-2 text-center text-ink"><p className="font-display text-xl font-bold">{result.score ?? '--'}</p><p className="text-xs font-bold uppercase tracking-wide">điểm</p></div></div><div className="mt-5 rounded-xl border border-ink/[0.08] p-4 dark:border-white/[0.08]"><p className="text-sm leading-6 text-ink/65 dark:text-white/65">{result.summary}</p></div><div className="mt-6"><p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink/45 dark:text-white/45"><AlertCircle size={14} />Lỗi cần lưu ý ({result.corrections?.length || 0})</p><div className="space-y-3">{result.corrections?.length ? result.corrections.map((item, index) => <div key={`${item.original}-${index}`} className="rounded-xl bg-dangerbg p-4 dark:bg-dangerdark"><p className="text-sm font-semibold text-danger line-through dark:text-dangerfgdark">{item.original}</p><p className="mt-1 text-sm font-bold text-ok dark:text-okfgdark">{item.corrected}</p><p className="mt-2 text-xs leading-5 text-ink/55 dark:text-white/55">{item.explanation}</p></div>) : <div className="flex items-center gap-2 rounded-xl bg-okbg p-4 text-sm font-semibold text-ok dark:bg-okdark dark:text-okfgdark"><CheckCircle2 size={16} />Không phát hiện lỗi rõ ràng.</div>}</div></div><div className="mt-6"><div className="mb-3 flex items-center justify-between gap-3"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink/45 dark:text-white/45"><WandSparkles size={14} />Phiên bản tự nhiên hơn</p><button onClick={copyText} className="flex items-center gap-1.5 text-xs font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? 'Đã copy' : 'Copy'}</button></div><p className="rounded-xl bg-mist p-4 text-sm leading-7 dark:bg-[#29332f]">{result.rewritten}</p></div></div>
 }
 

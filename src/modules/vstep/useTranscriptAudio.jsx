@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pause, RotateCcw, Volume2 } from "lucide-react";
 import { speakText, stopSpeech } from "../../utils/speech";
 
@@ -14,7 +14,9 @@ export default function useTranscriptAudio(part, { maxPlays = 2, examMode = true
   const playsRef = useRef(0);
   const cancelledRef = useRef(false);
 
-  const lines = part?.transcript || [];
+  // `part?.transcript || []` tạo mảng mới mỗi render nên phải memo, nếu không
+  // `play()` bị tạo lại liên tục (lint từng cảnh báo useCallback đổi mỗi render).
+  const lines = useMemo(() => part?.transcript || [], [part?.transcript]);
 
   const stop = useCallback(() => {
     cancelledRef.current = true;

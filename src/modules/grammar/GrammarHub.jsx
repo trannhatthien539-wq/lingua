@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, BadgeCheck, GraduationCap, Layers, PlayCircle, Sparkles, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BadgeCheck, GraduationCap, Layers, Sparkles, Trash2 } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
 import useGrammarProgress from '../../hooks/useGrammarProgress'
@@ -11,6 +11,8 @@ import { grammarConfusingPairs } from '../../data/grammarConfusingPairs'
 import { consumePendingItem } from '../../services/deepLink'
 import { dataService } from '../../services/dataService'
 import { toast } from '../../services/toast'
+import GrammarOverviewBanner from '../../components/learning/GrammarOverviewBanner'
+import GrammarLessonCard from '../../components/learning/GrammarLessonCard'
 
 const MISTAKE_DECK_TITLE = 'Ngữ pháp · câu hay sai'
 
@@ -56,7 +58,8 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
 
   const activeIndex = Math.max(0, grammarAllItems.findIndex((lesson) => lesson.id === activeId))
   const lesson = grammarAllItems[activeIndex] || grammarAllItems[0]
-  const percent = Math.round((completedCount / total) * 100)
+  const percent = total ? Math.round((completedCount / total) * 100) : 0
+  const nextLesson = initialLesson
   const mistakeIds = useMemo(() => mistakes.map((entry) => entry.questionId), [mistakes])
   const mistakeQuestions = useMemo(() => mistakes.map((entry) => entry.question).slice(0, 20), [mistakes])
 
@@ -135,30 +138,17 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
 
   return (
     <div className="space-y-4">
-      <section className="panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink" aria-hidden="true">
-            <GraduationCap size={19} />
-          </span>
-          <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-              <div className="h-full rounded-full bg-lime transition-all" style={{ width: `${percent}%` }} />
-            </div>
-            <span className="metric shrink-0 text-sm">
-              {completedCount}/{total} bài
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => openLesson(initialLesson.id)} className="btn-primary px-4">
-              <PlayCircle size={16} />
-              {completedCount ? 'Tiếp tục học' : 'Bắt đầu học'}
-            </button>
-            <button type="button" onClick={() => setExamOpen((value) => !value)} className="btn-secondary px-4">
-              <GraduationCap size={16} />{examOpen ? 'Về danh sách bài' : 'Thi tổng hợp'}
-            </button>
-          </div>
-        </div>
-      </section>
+      {!examOpen && view === 'list' && (
+        <GrammarOverviewBanner
+          completedCount={completedCount}
+          total={total}
+          percent={percent}
+          nextLesson={nextLesson}
+          mistakesCount={mistakes.length}
+          onStart={() => openLesson(initialLesson.id)}
+          onExam={() => setExamOpen(true)}
+        />
+      )}
 
       <CollapsibleCard
         id="grammar-mistakes"
@@ -293,50 +283,29 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
           />
         </div>
       ) : (
-        <div className="space-y-6">
-          {grammarSections.map((section) => {
-            const sectionDone = section.items.filter((item) => progress.completed?.[item.id]?.passed).length
-            return (
-              <section key={section.id} className="space-y-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-display text-base font-bold">{section.title}</h3>
-                  <span className="text-xs font-semibold text-ink/55 dark:text-white/55">
-                    {sectionDone}/{section.items.length} bài đã hoàn thành
-                  </span>
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {section.items.map((item) => {
-                    const result = progress.completed?.[item.id]
-                    return (
-                      <article key={item.id} className="panel flex flex-col p-4 sm:p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="eyebrow">Bài {item.order} · {item.level}</p>
-                            <h4 className="mt-1 font-display text-base font-bold">{item.title}</h4>
-                            <p className="text-xs text-ink/60 dark:text-white/60">{item.en}</p>
-                          </div>
-                          {result?.passed ? (
-                            <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">
-                              <BadgeCheck size={13} className="mr-1" />Đạt {result.best}/{result.total}
-                            </span>
-                          ) : (
-                            <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">Chưa học</span>
-                          )}
-                        </div>
-                        <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/70 dark:text-white/70">{item.summary}</p>
-                        <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
-                          <button type="button" onClick={() => openLesson(item.id)} className={result?.passed ? 'btn-secondary px-4' : 'btn-primary px-4'}>
-                            <PlayCircle size={16} />{result?.passed ? 'Ôn lại' : 'Học bài'}
-                          </button>
-                          <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">{item.questions.length} câu hỏi</span>
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-              </section>
-            )
-          })}
+        <div className="space-y-8">
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div><p className="eyebrow">Lộ trình từng bước</p><h2 className="mt-1 font-display text-xl font-bold tracking-tight">Bài học của bạn</h2></div>
+              <span className="text-xs font-semibold text-ink/55 dark:text-white/55">{grammarAllItems.length} bài · hoàn thành khi đạt từ 80%</span>
+            </div>
+            <div className="space-y-8">
+              {grammarSections.map((section) => {
+                const sectionDone = section.items.filter((item) => progress.completed?.[item.id]?.passed).length
+                return (
+                  <section key={section.id} className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink/[0.08] pb-2 dark:border-white/[0.08]">
+                      <div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#ce82ff]/20 text-[#7652b8] dark:bg-[#ce82ff]/20 dark:text-[#e6c9ff]"><GraduationCap size={16} /></span><h3 className="font-display text-base font-bold">{section.title}</h3></div>
+                      <span className="text-xs font-semibold text-ink/55 dark:text-white/55">{sectionDone}/{section.items.length} bài</span>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                      {section.items.map((item, index) => <GrammarLessonCard key={item.id} lesson={item} result={progress.completed?.[item.id]} index={index} onOpen={openLesson} />)}
+                    </div>
+                  </section>
+                )
+              })}
+            </div>
+          </section>
         </div>
       )}
     </div>
