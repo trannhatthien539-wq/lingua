@@ -20,9 +20,9 @@
 | Nhóm | Dùng gì |
 | --- | --- |
 | UI | React, `react-router-dom` (routing theo path), Tailwind CSS, `lucide-react` (icon) |
-| Hiệu ứng | `canvas-confetti` (chúc mừng), `react-player` (audio/video), `html-to-image` |
+| Hiệu ứng | `canvas-confetti` (chúc mừng), `react-player` (audio/video) |
 | Dữ liệu | Firebase Auth + Firestore (`initializeFirestore` + `persistentLocalCache` để dùng offline) |
-| Nội dung nâng cao | `@xyflow/react` + `dagre` (mindmap), `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) — `jszip`/`sql.js` **được `import()` động trong `ankiParser.js`**, chỉ tải khi người dùng import file Anki |
+| Nội dung nâng cao | `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) — `jszip`/`sql.js` **được `import()` động trong `ankiParser.js`**, chỉ tải khi người dùng import file Anki |
 | Di động | `@capacitor/core|app|browser`, `@capacitor/local-notifications` (nhắc học trên APK), `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
 | Build | Vite (`base` = `/lingua/` khi `GITHUB_PAGES=true`), PostCSS/Tailwind |
 
@@ -92,7 +92,7 @@ src/
 │  ├─ progress/ProgressHub.jsx          # mục tiêu, XP, huy hiệu, thống kê gộp, xuất báo cáo
 │  ├─ vstep/                            # tab VSTEP: VstepHub, VstepExamRunner, VstepResult, sections/*, docs/*, useTranscriptAudio, useAudioRecorder
 │  ├─ planner/StudyPlanner.jsx          # todo + lịch + pomodoro
-│  ├─ mindmap/StudyMindmap.jsx          # sơ đồ cây React Flow (+ sinh bằng AI)
+│  ├─ mindmap/StudyMindmap.jsx          # đồ lộ trình kiểu roadmap.sh (cột dọc + nét đứt), sinh bằng AI
 │  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
 ├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
 ├─ services/               # xem bảng §7
@@ -123,7 +123,7 @@ Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest
 | `writing` | `/writing` | `WritingChecker` | Chấm chữa bài viết bằng AI |
 | `progress` | `/progress` | `ProgressHub` | Mục tiêu ngày, XP/cấp, huy hiệu, 12 ô thống kê, biểu đồ, in báo cáo |
 | `planner` | `/planner` | `StudyPlanner` | Todo, lịch học, pomodoro |
-| `mindmap` | `/mindmap` | `StudyMindmap` | Sơ đồ tư duy (React Flow), sinh nhánh bằng AI, xuất ảnh |
+| `mindmap` | `/mindmap` | `StudyMindmap` | Đồ lộ trình kiểu roadmap.sh (cột dọc + nét đứt), sinh nhánh bằng AI, xuất Markdown |
 | `settings` | `/settings` | `ApiSettings` + các panel | Tài khoản, giao diện, cài app, dữ liệu (backup/nhắc học/sync), API key |
 
 Ngoài tab: `/login` (AuthPage cho khách), `/` → `/vocabulary`, path lạ → `/vocabulary`.

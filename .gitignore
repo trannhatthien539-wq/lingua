@@ -1,6 +1,8 @@
 node_modules
 dist
 dev.log
+# Log tạm khi chạy `npm run dev` thủ công (dev_v.log, dev_check.log…) — không commit.
+dev_*.log
 .env
 .env.*
 !.env.example

@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight,
   BookOpen,
   BrainCircuit,
   Check,
-  Download,
   ChevronDown,
   ChevronRight,
-  LayoutGrid,
+  Download,
   LoaderCircle,
-  Maximize2,
-  Minus,
   Pencil,
   Plus,
   Save,
@@ -18,45 +14,44 @@ import {
   Trash2,
   Upload,
   X,
-  ZoomIn,
 } from "lucide-react";
 import ModuleHero from "../../components/ui/ModuleHero";
-import {
-  addEdge,
-  Background,
-  Handle,
-  MarkerType,
-  MiniMap,
-  Position,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-} from "@xyflow/react";
-import { toPng } from "html-to-image";
-import dagre from "dagre";
-import "@xyflow/react/dist/style.css";
 import { canUseAi, parseAiJson, requestAi } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { createDebouncedSync, loadUserDoc, userDocKeys } from "../../services/userDocService";
 import { refreshRequestedEvent } from "../../services/syncStatus";
+import { buildRoadmapTree, nextStatus, progressPercent } from "../../utils/roadmapTree";
+import { edgePath, layoutRoadmap, pruneCollapsed } from "../../utils/roadmapLayout";
 
 const STORAGE_KEY = "lingua-study-mindmap";
 const PROVIDER_STORAGE = "lingua-ai-provider";
-const NODE_WIDTH = 260;
-const NODE_HEIGHT = 100;
 const statuses = {
   pending: "Chưa học",
   progress: "Đang học",
   mastered: "Đã thuộc",
 };
-const statusClasses = {
-  pending: "border-ink/15 bg-slab dark:border-white/20 dark:bg-dark3",
-  progress:
-    "border-amber-400 bg-warnbg shadow-amber-100 dark:border-amber-400/50 dark:bg-amber-950/30",
-  mastered: "border-ok/50 bg-okbg dark:border-okfgdark/40 dark:bg-okdark",
+// Nhãn ngắn + màu cho nút trạng thái kiểu roadmap.sh.
+const statusMeta = {
+  pending: {
+    short: "Chưa học",
+    action: "Bỏ qua",
+    chip: "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60",
+  },
+  progress: {
+    short: "Đang học",
+    action: "Đang học",
+    chip: "bg-warnbg text-warn dark:bg-amber-950/40 dark:text-amber-200",
+  },
+  mastered: {
+    short: "Đã thuộc",
+    action: "Hoàn thành",
+    chip: "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark",
+  },
 };
+// Lưu ý: dữ liệu lưu của roadmap là `nodes` (id + data) và `edges` (id/source/target).
+// Bản cũ từ lúc dùng React Flow còn `position`/`type`/handle trong payload; các trường đó
+// vẫn được đọc được nhưng không còn dùng, và `mapSnapshot` sẽ loại bỏ khi lưu lại.
+
 const initialNodes = [
   {
     id: "root",
@@ -94,68 +89,37 @@ const initialNodes = [
   },
 ];
 const initialEdges = [
-  {
-    id: "root-vocabulary",
-    source: "root",
-    target: "vocabulary",
-    type: "smoothstep",
-    sourceHandle: "bottom-source",
-    targetHandle: "top-target",
-    style: { stroke: "#94a3b8", strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed },
-  },
-  {
-    id: "root-grammar",
-    source: "root",
-    target: "grammar",
-    type: "smoothstep",
-    sourceHandle: "bottom-source",
-    targetHandle: "top-target",
-    style: { stroke: "#94a3b8", strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed },
-  },
+  { id: "root-vocabulary", source: "root", target: "vocabulary" },
+  { id: "root-grammar", source: "root", target: "grammar" },
 ];
 const makeId = (prefix) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-// Loại bỏ các callback trước khi lưu (localStorage và Firestore đều không lưu được hàm).
+// Chỉ giữ `label/detail/status/notes` khi lưu: các trường callback của canvas cũ không
+// lưu được, và `position`/`type` đã thành vô nghĩa nên bỏ đi cho payload gọn.
 const mapSnapshot = (name, nodes, edges) => ({
   name,
-  nodes: nodes.map(({ data, ...node }) => ({
-    ...node,
+  nodes: nodes.map((node) => ({
+    id: node.id,
     data: {
-      ...data,
-      onCycleStatus: undefined,
-      onEdit: undefined,
-      onQuickAdd: undefined,
-      onCommitEdit: undefined,
-      onAddChild: undefined,
-      onOpenDetails: undefined,
-      onDelete: undefined,
+      label: node.data?.label ?? "",
+      detail: node.data?.detail ?? "",
+      status: node.data?.status ?? "pending",
+      notes: node.data?.notes ?? "",
     },
   })),
-  edges,
+  // Edge chỉ cần quan hệ cha–con; source/target của bản cũ vẫn dùng được.
+  edges: edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+  })),
 });
 const readMap = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     return saved?.nodes?.length
-      ? {
-          ...saved,
-          edges: (saved.edges || []).map((edge) => ({
-            ...edge,
-            sourceHandle: edge.sourceHandle?.endsWith("-source")
-              ? edge.sourceHandle
-              : edge.sourceHandle
-                ? `${edge.sourceHandle}-source`
-                : edge.sourceHandle,
-            targetHandle: edge.targetHandle?.endsWith("-target")
-              ? edge.targetHandle
-              : edge.targetHandle
-                ? `${edge.targetHandle}-target`
-                : edge.targetHandle,
-          })),
-        }
+      ? { ...saved, edges: saved.edges || [] }
       : {
           name: "English Fluency Roadmap",
           nodes: initialNodes,
@@ -178,117 +142,212 @@ const roadmapPrompt = (topic) =>
 Ví dụ với "12 Thì Tiếng Anh": Root "12 Thì Tiếng Anh" -> 3 nhóm "Hiện tại", "Quá khứ", "Tương lai" -> mỗi nhóm tỏa ra các thì cụ thể.
 Chỉ trả về JSON hợp lệ, không markdown, schema: {"nodes":[{"id":"root-1","label":"...","parentId":null,"level":0,"detail":"..."},{"id":"group-1","label":"...","parentId":"root-1","level":1,"detail":"..."},{"id":"detail-1","label":"...","parentId":"group-1","level":2,"detail":"..."}],"edges":[{"id":"edge-1","source":"root-1","target":"group-1","parentId":"root-1"}]}.`;
 
-const edgeStyle = { stroke: "#94a3b8", strokeWidth: 2 };
-const edgeHandles = (direction) => direction === "LR"
-  ? { sourceHandle: "right-source", targetHandle: "left-target" }
-  : { sourceHandle: "bottom-source", targetHandle: "top-target" };
+/** Nút trạng thái kiểu roadmap.sh: bấm để đổi Chưa học → Đang học → Đã thuộc. */
+function StatusPill({ status, onCycle }) {
+  const meta = statusMeta[status] || statusMeta.pending;
+  const dot =
+    status === "mastered"
+      ? "bg-ok"
+      : status === "progress"
+        ? "bg-warn"
+        : "bg-ink/30 dark:bg-white/40";
+  return (
+    <button
+      onClick={onCycle}
+      title={`Đổi trạng thái (đang: ${meta.action})`}
+      aria-label={`Trạng thái: ${statuses[status]}. Bấm để đổi.`}
+      className={`chip shrink-0 gap-1.5 transition hover:brightness-95 ${meta.chip}`}
+    >
+      <span className={`h-2 w-2 rounded-full ${dot}`} />
+      {meta.short}
+    </button>
+  );
+}
 
-export const getLayoutedElements = (nodes, edges, direction = "LR") => {
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 40 });
-  nodes.forEach((node) => dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT }));
-  edges.forEach((edge) => dagreGraph.setEdge(edge.source, edge.target));
-  dagre.layout(dagreGraph);
-  const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    return { ...node, position: { x: nodeWithPosition.x - NODE_WIDTH / 2, y: nodeWithPosition.y - NODE_HEIGHT / 2 } };
-  });
-  const layoutedEdges = edges.map((edge) => ({
-    ...edge,
-    type: "smoothstep",
-    ...edgeHandles(direction),
-    pathOptions: { borderRadius: 16 },
-    style: edgeStyle,
-  }));
-  return { nodes: layoutedNodes, edges: layoutedEdges };
+/** Màu ô theo trạng thái, bám theo tông của roadmap.sh (xanh lá/vàng/be). */
+const nodeTone = {
+  pending: "border-[#e6dcc4] bg-[#fdf6e4] dark:border-white/15 dark:bg-[#2a2822]",
+  progress: "border-[#d9c53a] bg-[#ffe14d] dark:border-[#d9c53a]/60 dark:bg-[#4a4416]",
+  mastered: "border-[#9ad3a4] bg-[#e7f7ec] dark:border-[#9ad3a4]/45 dark:bg-[#1f3327]",
 };
 
-function RoadmapNode({ id, data }) {
-  const directions = [
-    ["top", Position.Top],
-    ["right", Position.Right],
-    ["bottom", Position.Bottom],
-    ["left", Position.Left],
-  ];
+/**
+ * Lộ trình dạng đồ kiểu roadmap.sh: mỗi cấp là một **cột dọc**, các node xếp chồng
+ * dọc trong cột và nối sang nhau bằng đường nét đứt.
+ *
+ * Vẫn nằm thẳng trong trang (không canvas, không zoom): chiều cao coi theo độ sâu cây
+ * nên trang chỉ cuộn dọc như một tài liệu thường.
+ */
+function RoadmapGraph({
+  nodes,
+  edges,
+  selectedId,
+  onSelect,
+  onCycleStatus,
+  onAddChild,
+  onEdit,
+  onCommitEdit,
+  onDelete,
+  onOpenDetails,
+}) {
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  // Ô hẹp lại trên màn hình nhỏ để cây vẫn đọc được thay vì tràn ngang.
+  const [compact, setCompact] = useState(false);
+  const tree = useMemo(() => buildRoadmapTree(nodes, edges), [nodes, edges]);
+  const visible = useMemo(() => pruneCollapsed(tree, collapsed), [collapsed, tree]);
+  const options = useMemo(
+    () => (compact ? { nodeWidth: 156, nodeHeight: 58, gapX: 44 } : undefined),
+    [compact],
+  );
+  const layout = useMemo(() => layoutRoadmap(visible, options), [options, visible]);
+  const positionOf = useMemo(
+    () => new Map(layout.nodes.map((item) => [item.id, item])),
+    [layout.nodes],
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setCompact(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  const toggle = (id) =>
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAll = (close) =>
+    setCollapsed(close ? new Set(nodes.map((node) => node.id)) : new Set());
+
+  if (!layout.nodes.length)
+    return (
+      <div className="rounded-2xl border border-dashed border-ink/15 p-10 text-center dark:border-white/15">
+        <p className="text-sm text-ink/50 dark:text-white/50">
+          Lộ trình đang trống. Bấm “Chủ đề gốc” để bắt đầu.
+        </p>
+      </div>
+    );
+
   return (
-    <div
-      onContextMenu={(event) => {
-        event.preventDefault();
-        data.onCycleStatus(id);
-      }}
-      onDoubleClick={() => data.onEdit(id)}
-      className={`group relative flex w-[260px] min-h-[90px] max-h-[140px] flex-col justify-center rounded-2xl border-2 bg-white p-3 shadow-sm transition ${statusClasses[data.status] || statusClasses.pending} ${data.status === "progress" ? "animate-pulse" : ""}`}
-    >
-      {data.selected && (
-        <div className="nodrag nopan absolute -top-14 left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-2xl border border-zinc-200 bg-white/95 p-1 shadow-md backdrop-blur dark:border-white/10 dark:bg-[#202724]/95">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/10">
           <button
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onAddChild(id);
-            }}
-            className="icon-btn h-10 w-10"
-            aria-label="Thêm nhánh con"
-            title="Thêm nhánh con"
+            onClick={() => toggleAll(false)}
+            className="btn-ghost !min-h-[40px] !rounded-lg px-3.5 !text-xs"
           >
-            <Plus size={17} />
+            Mở hết
           </button>
           <button
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onEdit(id);
-            }}
-            className="icon-btn h-10 w-10"
-            aria-label="Đổi tên node"
-            title="Đổi tên node"
+            onClick={() => toggleAll(true)}
+            className="btn-ghost !min-h-[40px] !rounded-lg px-3.5 !text-xs"
           >
-            <Pencil size={16} />
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onOpenDetails(id);
-            }}
-            className="icon-btn h-10 w-10"
-            aria-label="Mở ghi chú node"
-            title="Mở ghi chú node"
-          >
-            <BookOpen size={16} />
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onDelete(id);
-            }}
-            className="icon-btn text-danger hover:bg-dangerbg dark:text-dangerfgdark dark:hover:bg-dangerdark"
-            aria-label="Xoá node"
-            title="Xoá node"
-          >
-            <Trash2 size={16} />
+            Thu gọn
           </button>
         </div>
-      )}
-      {directions.map(([direction, position]) => (
-        <span key={direction}>
-          <Handle
-            id={`${direction}-target`}
-            type="target"
-            position={position}
-            isConnectable
-            className="!h-2 !w-2 !border-0 !bg-sage opacity-30 transition-opacity group-hover:opacity-100"
+        <p className="text-xs text-ink/45 dark:text-white/45">
+          Bấm nhãn trạng thái để đổi · Bấm tên để mở ghi chú · Bấm đúp để đổi tên
+        </p>
+      </div>
+      {/* Đồ vẽ: SVG nét đứt nằm dưới, node đặt tuyệt đối theo toạ độ đã tính sẵn.
+          Cây sâu hơn bề ngang trang thì cuộn ngang thay vì bị cắt mất node. */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-2">
+        <div
+          className="relative"
+          style={{ height: layout.height, width: layout.width, minWidth: "100%" }}
+        >
+        <svg
+          className="pointer-events-none absolute left-0 top-0 overflow-visible"
+          width={layout.width}
+          height={layout.height}
+          aria-hidden="true"
+        >
+          {layout.edges.map((edge) => {
+            const source = positionOf.get(edge.source);
+            const target = positionOf.get(edge.target);
+            if (!source || !target) return null;
+            return (
+              <path
+                key={edge.id}
+                d={edgePath(source, target, options)}
+                fill="none"
+                className="stroke-sage"
+                strokeWidth={2}
+                strokeDasharray="2 6"
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
+        {layout.nodes.map((item) => (
+          <RoadmapCard
+            key={item.id}
+            item={item}
+            hasChildren={item.children.length > 0}
+            isCollapsed={collapsed.has(item.id)}
+            isSelected={selectedId === item.id}
+            onToggle={toggle}
+            onSelect={onSelect}
+            onCycleStatus={onCycleStatus}
+            onAddChild={onAddChild}
+            onEdit={onEdit}
+            onCommitEdit={onCommitEdit}
+            onDelete={onDelete}
+            onOpenDetails={onOpenDetails}
           />
-          <Handle
-            id={`${direction}-source`}
-            type="source"
-            position={position}
-            isConnectable
-            className="!z-10 !h-2 !w-2 !border-0 !bg-sage opacity-30 transition-opacity group-hover:opacity-100"
-          />
-        </span>
-      ))}
-      <div className="flex items-start gap-2">
-        <BrainCircuit size={16} className="mt-0.5 shrink-0 text-sage" />
-        <div className="min-w-0">
+        ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Một ô trong đồ: trạng thái, tên, mô tả và các nút thao tác. */
+function RoadmapCard({
+  item,
+  hasChildren,
+  isCollapsed,
+  isSelected,
+  onToggle,
+  onSelect,
+  onCycleStatus,
+  onAddChild,
+  onEdit,
+  onCommitEdit,
+  onDelete,
+  onOpenDetails,
+}) {
+  const { id, data, x, y, width, height, depth } = item;
+  const tone = nodeTone[data.status] || nodeTone.pending;
+  return (
+    <div
+      className={`group absolute flex flex-col justify-center gap-0.5 rounded-xl border-2 px-2.5 shadow-sm transition ${tone} ${
+        isSelected ? "ring-2 ring-sage ring-offset-2 dark:ring-offset-mist" : ""
+      }`}
+      style={{ left: x, top: y, width, height }}
+    >
+      <div className="flex items-center gap-1">
+        {hasChildren ? (
+          <button
+            onClick={() => onToggle(id)}
+            aria-expanded={!isCollapsed}
+            aria-label={`${isCollapsed ? "Mở" : "Thu gọn"} nhánh ${data.label}`}
+            className="-ml-1 grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink/50 transition hover:bg-ink/10 dark:text-white/50 dark:hover:bg-white/15"
+          >
+            {isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+          </button>
+        ) : (
+          <span aria-hidden="true" className="w-1.5 shrink-0" />
+        )}
+        <button
+          onClick={() => onSelect(id)}
+          onDoubleClick={() => onEdit(id)}
+          className="min-w-0 flex-1 text-left"
+        >
           {data.editing ? (
             <input
               autoFocus
@@ -296,213 +355,66 @@ function RoadmapNode({ id, data }) {
               onClick={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
                 if (event.key === "Enter")
-                  data.onCommitEdit(id, event.currentTarget.value);
+                  onCommitEdit(id, event.currentTarget.value);
+                if (event.key === "Escape") onEdit(null);
               }}
-              onBlur={(event) =>
-                data.onCommitEdit(id, event.currentTarget.value)
-              }
-              className="w-32 rounded border border-ink/20 bg-transparent px-1 text-sm font-bold outline-none"
+              onBlur={(event) => onCommitEdit(id, event.currentTarget.value)}
+              className="w-full rounded border-2 border-sage bg-transparent px-1 text-sm font-bold outline-none"
             />
           ) : (
-            <p className="line-clamp-1 font-bold text-sm text-ink dark:text-white">{data.label}</p>
+            <>
+              <span
+                className={`block truncate font-bold text-ink dark:text-white ${
+                  depth === 0 ? "text-base" : "text-sm"
+                }`}
+              >
+                {data.label}
+              </span>
+              {data.detail && (
+                <span className="mt-0.5 block truncate text-[11px] leading-tight text-ink/60 dark:text-white/60">
+                  {data.detail}
+                </span>
+              )}
+            </>
           )}
-          <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-ink/60 line-clamp-3 dark:text-white/55">
-            {data.detail || statuses[data.status]}
-          </p>
-        </div>
+        </button>
         {data.status === "mastered" && (
-          <Check size={16} className="ml-auto shrink-0 text-ok" />
+          <Check size={14} className="shrink-0 text-ok dark:text-okfgdark" />
         )}
+        <StatusPill status={data.status} onCycle={() => onCycleStatus(id)} />
       </div>
-      <button
-        onClick={(event) => {
-          event.stopPropagation();
-          data.onCycleStatus(id);
-        }}
-        className="absolute -right-4 -top-4 grid h-11 w-11 place-items-center rounded-full transition"
-        title="Đổi trạng thái"
-        aria-label={`Trạng thái: ${statuses[data.status]}. Bấm để đổi.`}
-      >
-        <span className="grid h-7 w-7 place-items-center rounded-full border border-ink/10 bg-slab text-sm shadow-raised dark:border-white/15 dark:bg-dark3">
-          {data.status === "mastered"
-            ? "🟢"
-            : data.status === "progress"
-              ? "🟡"
-              : "⚪"}
-        </span>
-      </button>
-      {directions.map(([direction]) => (
+      <div className="flex items-center gap-0.5 pl-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
         <button
-          key={direction}
-          onClick={(event) => {
-            event.stopPropagation();
-            data.onQuickAdd(id, direction);
-          }}
-          className={`absolute ${direction === "top" ? "-top-4 left-1/2 -translate-x-1/2" : direction === "right" ? "-right-4 top-1/2 -translate-y-1/2" : direction === "bottom" ? "-bottom-4 left-1/2 -translate-x-1/2" : "-left-4 top-1/2 -translate-y-1/2"} grid h-7 w-7 place-items-center rounded-full bg-ink text-white opacity-0 shadow transition pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 dark:bg-lime dark:text-ink`}
-          aria-label={`Thêm nhánh ${direction}`}
+          onClick={() => onAddChild(id)}
+          className="icon-btn !h-7 !w-7"
+          aria-label={`Thêm nhánh con cho ${data.label}`}
+          title="Thêm nhánh con"
         >
-          <Plus size={14} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MobileOutliner({ nodes, edges, onSelect, view, onViewChange }) {
-  const [collapsed, setCollapsed] = useState(() => new Set());
-  const children = useMemo(() => edges.reduce((map, edge) => ({ ...map, [edge.source]: [...(map[edge.source] || []), edge.target] }), {}), [edges]);
-  const roots = nodes.filter((node) => !edges.some((edge) => edge.target === node.id));
-  const toggleAll = (close) => setCollapsed(close ? new Set(nodes.map((node) => node.id)) : new Set());
-  const renderNode = (node, depth = 0) => {
-    const childIds = children[node.id] || [];
-    const isCollapsed = collapsed.has(node.id);
-    return (
-      <div key={node.id} className="relative flex items-center gap-1 border-b border-ink/[0.07] pr-2 last:border-b-0 dark:border-white/[0.07]" style={{ paddingLeft: `${depth * 18 + 4}px` }}>
-        {childIds.length ? (
-          <button
-            onClick={() => setCollapsed((current) => { const next = new Set(current); if (isCollapsed) next.delete(node.id); else next.add(node.id); return next; })}
-            aria-label={`${isCollapsed ? "Mở" : "Thu gọn"} nhánh ${node.data.label}`}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/70 transition hover:bg-ink/[0.06] dark:text-white/70 dark:hover:bg-white/10"
-          >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-          </button>
-        ) : (
-          <span className="grid h-11 w-11 shrink-0 place-items-center"><span className="h-1.5 w-1.5 rounded-full bg-sage" /></span>
-        )}
-        <button onClick={() => onSelect(node.id)} className="flex min-h-[44px] min-w-0 flex-1 flex-col justify-center py-2 text-left">
-          <strong className="block truncate text-sm text-ink dark:text-white">{node.data.label}</strong>
-          <small className="block truncate text-xs text-ink/60 dark:text-white/55">{node.data.detail}</small>
-        </button>
-      </div>
-    );
-  };
-  return <div className="md:hidden"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex rounded-xl bg-ink/[0.06] p-1 dark:bg-white/10"><button onClick={() => onViewChange('tree')} aria-pressed={view === 'tree'} className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold ${view === 'tree' ? 'bg-slab shadow-raised dark:bg-dark3' : 'text-ink/60 dark:text-white/60'}`}>Xem dạng cây</button><button onClick={() => onViewChange('canvas')} aria-pressed={view === 'canvas'} className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold ${view === 'canvas' ? 'bg-slab shadow-raised dark:bg-dark3' : 'text-ink/60 dark:text-white/60'}`}>Canvas</button></div><div className="flex gap-1"><button onClick={() => toggleAll(false)} className="btn-secondary px-3 text-xs">Mở hết</button><button onClick={() => toggleAll(true)} className="btn-secondary px-3 text-xs">Thu gọn</button></div></div>{view === 'tree' && <div className="panel-flat px-1">{roots.map((node) => renderNode(node))}</div>}</div>;
-}
-const nodeTypes = { topic: RoadmapNode };
-// Hằng số ở cấp module: React Flow cảnh báo nếu object này được tạo lại mỗi lần render.
-const defaultEdgeOptions = { type: "smoothstep", animated: false, pathOptions: { borderRadius: 16 }, style: edgeStyle };
-const defaultFitViewOptions = { padding: 0.25 };
-const proOptions = { hideAttribution: true };
-
-function RoadmapCanvas({
-  nodes,
-  edges,
-  onNodesChange,
-  onEdgesChange,
-  onConnect,
-  onSelect,
-  canvasRef,
-  onViewportChange,
-  onPaneClick,
-  onEdgeClick,
-  onEdgeDoubleClick,
-  onFitViewReady,
-  onAddRoot,
-}) {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const clickTimer = useRef(null);
-  useEffect(() => onFitViewReady(fitView), [fitView, onFitViewReady]);
-  return (
-    <div
-      ref={canvasRef}
-      className="relative h-[600px] w-full overflow-hidden rounded-2xl border border-ink/[0.08] bg-[#f0f3ed] dark:border-white/[0.08] dark:bg-[#202a26]"
-    >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={(_, node) => {
-          window.clearTimeout(clickTimer.current);
-          clickTimer.current = window.setTimeout(() => onSelect(node.id), 220);
-        }}
-        onNodeDoubleClick={(_, node) => {
-          window.clearTimeout(clickTimer.current);
-          node.data.onEdit(node.id);
-        }}
-        onPaneClick={onPaneClick}
-        onEdgeClick={(_, edge) => onEdgeClick(edge.id)}
-        onEdgeDoubleClick={(_, edge) => onEdgeDoubleClick(edge.id)}
-        onViewportChange={onViewportChange}
-        panOnDrag={[0, 1]}
-        panActivationKeyCode="Space"
-        nodesDraggable
-        selectNodesOnDrag={false}
-        selectionOnDrag={false}
-        zoomOnScroll
-        connectionLineType="smoothstep"
-        deleteKeyCode={["Backspace", "Delete"]}
-        nodeExtent={[[-800, -800], [2300, 2500]]}
-        translateExtent={[[-1000, -800], [2300, 2500]]}
-        minZoom={0.4}
-        maxZoom={1.5}
-        defaultViewport={{ x: 100, y: 100, zoom: 0.9 }}
-        defaultEdgeOptions={defaultEdgeOptions}
-        fitView
-        fitViewOptions={defaultFitViewOptions}
-        proOptions={proOptions}
-      >
-        <Background color="#9aaa9c" gap={22} size={1} />
-        <MiniMap
-          nodeColor={(node) =>
-            node.data.status === "mastered"
-              ? "#10b981"
-              : node.data.status === "progress"
-                ? "#f59e0b"
-                : "#94a3b8"
-          }
-        />
-      </ReactFlow>
-      <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-xl bg-white/90 px-3 py-2 shadow-sm dark:bg-[#1b211f]/90">
-        <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55">
-          % Hoàn thành lộ trình
-        </p>
-        <p className="mt-0.5 font-display text-lg font-bold text-emerald-600">
-          {Math.round(
-            (nodes.filter((node) => node.data.status === "mastered").length /
-              Math.max(nodes.length, 1)) *
-              100,
-          )}
-          %
-        </p>
-      </div>
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1 rounded-xl bg-white/90 p-1.5 shadow-lg md:flex dark:bg-[#1b211f]/90">
-        <button
-          onClick={zoomOut}
-          className="pointer-events-auto icon-btn"
-          aria-label="Thu nhỏ"
-        >
-          <Minus size={15} />
+          <Plus size={13} />
         </button>
         <button
-          onClick={zoomIn}
-          className="pointer-events-auto icon-btn"
-          aria-label="Phóng to"
+          onClick={() => onEdit(id)}
+          className="icon-btn !h-7 !w-7"
+          aria-label={`Đổi tên ${data.label}`}
+          title="Đổi tên"
         >
-          <ZoomIn size={17} />
+          <Pencil size={13} />
         </button>
         <button
-          onClick={fitView}
-          className="pointer-events-auto icon-btn"
-          aria-label="Căn giữa sơ đồ"
+          onClick={() => onOpenDetails(id)}
+          className="icon-btn !h-7 !w-7"
+          aria-label={`Ghi chú cho ${data.label}`}
+          title="Ghi chú"
         >
-          <Maximize2 size={17} />
+          <BookOpen size={13} />
         </button>
-      </div>
-      <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-2xl border border-ink/10 bg-slab/95 p-1.5 shadow-soft backdrop-blur md:hidden dark:border-white/10 dark:bg-dark2/95">
-        <button onClick={zoomIn} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Phóng to">
-          <Plus size={18} />
-        </button>
-        <button onClick={zoomOut} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Thu nhỏ">
-          <Minus size={18} />
-        </button>
-        <button onClick={fitView} className="grid h-11 w-11 place-items-center rounded-xl hover:bg-ink/[0.06] dark:hover:bg-white/10" aria-label="Căn giữa sơ đồ">
-          <Maximize2 size={17} />
-        </button>
-        <button onClick={onAddRoot} className="grid h-11 w-11 place-items-center rounded-xl bg-lime text-ink" aria-label="Thêm chủ đề gốc">
-          <Plus size={18} />
+        <button
+          onClick={() => onDelete(id)}
+          className="icon-btn !h-7 !w-7 text-danger hover:bg-dangerbg dark:text-dangerfgdark dark:hover:bg-dangerdark"
+          aria-label={`Xoá ${data.label}`}
+          title="Xoá"
+        >
+          <Trash2 size={13} />
         </button>
       </div>
     </div>
@@ -590,10 +502,9 @@ export default function StudyMindmap({ apiKey }) {
   const [mapName, setMapName] = useState(
     saved.name || "English Fluency Roadmap",
   );
-  const [nodes, setNodes, onNodesChange] = useNodesState(saved.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(saved.edges);
+  const [nodes, setNodes] = useState(saved.nodes);
+  const [edges, setEdges] = useState(saved.edges);
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState("");
@@ -601,11 +512,6 @@ export default function StudyMindmap({ apiKey }) {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [layoutDirection, setLayoutDirection] = useState("TB");
-  const [mobileView, setMobileView] = useState("tree");
-  const [viewport, setViewport] = useState({ x: 100, y: 100, zoom: 0.9 });
-  const canvasRef = useRef(null);
-  const fitViewRef = useRef(null);
   const mindmapSync = useMemo(() => createDebouncedSync(userDocKeys.mindmap), []);
   const [cloudReady, setCloudReady] = useState(false);
   const cloudVersionRef = useRef(0);
@@ -639,28 +545,13 @@ export default function StudyMindmap({ apiKey }) {
     return () => window.removeEventListener(refreshRequestedEvent, handleRefresh);
   }, [hydrateFromCloud]);
   const selectedNode = nodes.find((node) => node.id === selectedId);
-  const progress = Math.round(
-    (nodes.filter((node) => node.data.status === "mastered").length /
-      Math.max(nodes.length, 1)) *
-      100,
-  );
+  const progress = useMemo(() => progressPercent(nodes), [nodes]);
   const updateStatus = useCallback(
     (id) =>
       setNodes((current) =>
         current.map((node) =>
           node.id === id
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  status:
-                    node.data.status === "pending"
-                      ? "progress"
-                      : node.data.status === "progress"
-                        ? "mastered"
-                        : "pending",
-                },
-              }
+            ? { ...node, data: { ...node.data, status: nextStatus(node.data.status) } }
             : node,
         ),
       ),
@@ -682,60 +573,35 @@ export default function StudyMindmap({ apiKey }) {
     },
     [edges, selectedId, setEdges, setNodes],
   );
-  const createNode = useCallback(
-    (label, position, parentId = null) => {
-      const node = {
-        id: makeId("node"),
-        type: "topic",
-        position,
-        data: {
-          label,
-          detail: "Chủ điểm mới",
-          status: "pending",
-          notes: "",
-        },
-      };
-      setNodes((current) => [...current, node]);
-      if (parentId)
-        setEdges((current) => [
-          ...current,
-          {
-            id: `${parentId}-${node.id}`,
-            source: parentId,
-            target: node.id,
-            type: "smoothstep",
-            animated: false,
-            ...edgeHandles(layoutDirection),
-            pathOptions: { borderRadius: 16 },
-            style: edgeStyle,
-            markerEnd: { type: MarkerType.ArrowClosed },
-          },
-        ]);
-      setSelectedId(node.id);
-      setStatus("Đã thêm node mới.");
+  const createNode = useCallback((label, parentId = null) => {
+    const node = {
+      id: makeId("node"),
+      // `position`/`type` cũ từ lúc dùng React Flow: giữ lại cho tương thích dữ liệu đã lưu.
+      type: "topic",
+      position: { x: 0, y: 0 },
+      data: {
+        label,
+        detail: "Chủ điểm mới",
+        status: "pending",
+        notes: "",
+      },
+    };
+    setNodes((current) => [...current, node]);
+    if (parentId)
+      setEdges((current) => [
+        ...current,
+        { id: `${parentId}-${node.id}`, source: parentId, target: node.id },
+      ]);
+    setSelectedId(node.id);
+    return node.id;
+  }, []);
+  // Thêm nhánh con rồi vào thẳng chế độ sửa tên để người dùng gõ ngay.
+  const addChild = useCallback(
+    (parentId) => {
+      const newId = createNode("Chủ điểm mới", parentId);
+      setEditingId(newId);
     },
-    [layoutDirection, setEdges, setNodes],
-  );
-  const quickAdd = useCallback(
-    (parentId, direction) => {
-      const parent = nodes.find((node) => node.id === parentId);
-      if (!parent) return;
-      const offsets = {
-        right: { x: 260, y: 0 },
-        left: { x: -260, y: 0 },
-        top: { x: 0, y: -150 },
-        bottom: { x: 0, y: 150 },
-      };
-      createNode(
-        "Chủ điểm mới",
-        {
-          x: parent.position.x + offsets[direction].x,
-          y: parent.position.y + offsets[direction].y,
-        },
-        parentId,
-      );
-    },
-    [createNode, nodes],
+    [createNode],
   );
   const commitEdit = useCallback(
     (id, label) => {
@@ -754,18 +620,11 @@ export default function StudyMindmap({ apiKey }) {
         ...node,
         data: {
           ...node.data,
-          onCycleStatus: updateStatus,
           editing: editingId === node.id,
-          onEdit: setEditingId,
-          onCommitEdit: commitEdit,
-          onQuickAdd: quickAdd,
-          onAddChild: (id) => quickAdd(id, "right"),
-          onOpenDetails: openNodeDetails,
-          onDelete: removeNode,
           selected: selectedId === node.id,
         },
       })),
-    [commitEdit, editingId, nodes, openNodeDetails, quickAdd, removeNode, selectedId, updateStatus],
+    [editingId, nodes, selectedId],
   );
   useEffect(() => {
     const payload = mapSnapshot(mapName, nodes, edges);
@@ -781,59 +640,21 @@ export default function StudyMindmap({ apiKey }) {
     cloudVersionRef.current = Date.now();
     mindmapSync.schedule(payload);
   }, [cloudReady, edges, mapName, mindmapSync, nodes]);
-  const onConnect = useCallback(
-    (connection) =>
-      setEdges((current) =>
-        addEdge(
-          {
-            ...connection,
-            type: "smoothstep",
-            animated: false,
-            pathOptions: { borderRadius: 16 },
-            style: { stroke: "#94a3b8", strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed },
-          },
-          current,
-        ),
-      ),
-    [setEdges],
-  );
-  const selectEdge = useCallback((id) => {
-    setSelectedEdgeId(id);
-    setEdges((current) => current.map((edge) => ({
-      ...edge,
-      selected: edge.id === id,
-      style: { stroke: edge.id === id ? "#e11d48" : "#94a3b8", strokeWidth: edge.id === id ? 3 : 2 },
-    })));
-  }, [setEdges]);
-  const removeEdge = useCallback((id) => {
-    setEdges((current) => current.filter((edge) => edge.id !== id));
-    setSelectedEdgeId(null);
-  }, [setEdges]);
   useEffect(() => {
     const handleShortcut = (event) => {
-      if ((!selectedId && !selectedEdgeId) || ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+      if (!selectedId || ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
-        if (selectedEdgeId) removeEdge(selectedEdgeId);
-        else removeNode();
+        removeNode();
       }
-      if (event.key === "Tab" && selectedId && !selectedEdgeId) {
+      if (event.key === "Tab") {
         event.preventDefault();
-        quickAdd(selectedId, "right");
+        addChild(selectedId);
       }
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [quickAdd, removeEdge, removeNode, selectedEdgeId, selectedId]);
-  const autoLayout = (direction = layoutDirection) => {
-    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, direction);
-    setNodes([...layoutedNodes]);
-    setEdges([...layoutedEdges]);
-    setLayoutDirection(direction);
-    setStatus(`Đã sắp xếp roadmap theo hướng ${direction === "TB" ? "trên xuống" : "trái sang phải"}.`);
-    window.requestAnimationFrame(() => fitViewRef.current?.({ padding: 0.2, duration: 400 }));
-  };
+  }, [addChild, removeNode, selectedId]);
   const saveMap = () => {
     const payload = mapSnapshot(mapName, nodes, edges);
     try {
@@ -858,24 +679,27 @@ export default function StudyMindmap({ apiKey }) {
     setSelectedId(null);
     setStatus("Đã tải sơ đồ.");
   };
-  const exportPng = async () => {
-    const viewportElement = document.querySelector(".react-flow__viewport");
-    if (!viewportElement) return;
-    const imageWidth = Math.max(viewportElement.scrollWidth, canvasRef.current?.clientWidth || 1200);
-    const imageHeight = Math.max(viewportElement.scrollHeight, canvasRef.current?.clientHeight || 800);
-    const dataUrl = await toPng(viewportElement, {
-      backgroundColor: "#f8fafc",
-      width: imageWidth,
-      height: imageHeight,
-      style: {
-        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-      },
-      filter: (node) => !node?.classList?.contains("react-flow__minimap") && !node?.classList?.contains("react-flow__controls"),
-    });
+  // Xuất lộ trình ra file Markdown — không cần canvas nên nhẹ hơn xuất ảnh.
+  const exportMarkdown = () => {
+    const lines = [`# ${mapName || "Lộ trình"}`, ""];
+    const walk = (list) => {
+      list.forEach((item, index) => {
+        const box = item.data.status === "mastered" ? "x" : " ";
+        const detail = item.data.detail ? ` — ${item.data.detail}` : "";
+        lines.push(`${"  ".repeat(item.depth)}- [${box}] **${item.data.label}**${detail}`);
+        walk(item.children);
+        if (index === list.length - 1) lines.push("");
+      });
+    };
+    walk(buildRoadmapTree(nodes, edges));
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = `${mapName.replace(/\s+/g, "-").toLowerCase()}.png`;
-    link.href = dataUrl;
+    link.href = url;
+    link.download = `${(mapName || "lo-trinh").replace(/\s+/g, "-").toLowerCase()}.md`;
     link.click();
+    URL.revokeObjectURL(url);
+    setStatus("Đã xuất lộ trình ra file Markdown.");
   };
   const generateRoadmap = async () => {
     if (!debouncedTopic.trim()) return setError("Hãy nhập chủ đề roadmap.");
@@ -895,7 +719,7 @@ export default function StudyMindmap({ apiKey }) {
         result.nodes.map((item, index) => ({
           id: item.id || `ai-${index}`,
           type: "topic",
-          position: { x: 80, y: index * 130 },
+          position: { x: 0, y: 0 },
           data: {
             label: item.label,
             detail: item.detail || "AI roadmap",
@@ -904,42 +728,30 @@ export default function StudyMindmap({ apiKey }) {
           },
         })),
       );
+      // Chỉ giữ id/source/target: phần trình bày (type, marker, handle) là của canvas cũ.
       setEdges(
         (result.edges || []).map((edge) => ({
-          ...edge,
-          type: "smoothstep",
-          animated: false,
-          ...edgeHandles(layoutDirection),
-          pathOptions: { borderRadius: 16 },
-          style: edgeStyle,
-          markerEnd: { type: MarkerType.ArrowClosed },
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
         })),
       );
-      setStatus(`Đã tạo roadmap bằng AI.`);
+      setStatus("Đã tạo roadmap bằng AI.");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setLoading(false);
     }
   };
-  const handleNodeClick = (id) => {
-    setSelectedId(id);
-    setSelectedEdgeId(null);
-  };
-  const handlePaneClick = () => {
-    setDrawerOpen(false);
-    setSelectedId(null);
-    setSelectedEdgeId(null);
-    setEdges((current) => current.map((edge) => ({ ...edge, selected: false, style: { stroke: "#94a3b8", strokeWidth: 2 } })));
-  };
   const addRootNode = () => {
-    createNode("Chủ đề gốc mới", { x: 80, y: 80 });
+    const newId = createNode("Chủ đề gốc mới");
+    setEditingId(newId);
   };
   return (
     <div className="space-y-5">
       <ModuleHero
         icon={BrainCircuit}
-        eyebrow="Sơ đồ cây học tập"
+        eyebrow="Lộ trình học tập"
         title={mapName || "Roadmap học tập"}
         description="Biến mục tiêu thành các nhánh nhỏ, cập nhật tiến độ và mở rộng lộ trình theo cách của bạn."
         accent="#2b70c9"
@@ -947,47 +759,44 @@ export default function StudyMindmap({ apiKey }) {
         illustration="mindmap"
         progress={progress}
         progressLabel="Chủ điểm đã hoàn thành"
-        stats={[{ label: 'Chủ điểm', value: nodes.length }, { label: 'Liên kết', value: edges.length }, { label: 'Đã hoàn thành', value: `${progress}%` }]}
-        action="Lưu sơ đồ"
+        stats={[{ label: 'Chủ điểm', value: nodes.length }, { label: 'Mục con', value: edges.length }, { label: 'Đã hoàn thành', value: `${progress}%` }]}
+        action="Lưu lộ trình"
         onAction={saveMap}
       />
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Lộ trình học tương tác</p>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              value={mapName}
-              onChange={(event) => setMapName(event.target.value)}
-              className="max-w-xs bg-transparent font-display text-2xl font-bold tracking-tight outline-none"
-            />
-            <Pencil size={15} className="text-ink/30 dark:text-white/30" />
-          </div>
-          <p className="mt-1 hidden text-sm text-ink/45 dark:text-white/45 md:block">
-            Double-click sửa · Tab thêm nhánh · Delete xóa · Space +
-            kéo để pan
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <input
+            value={mapName}
+            onChange={(event) => setMapName(event.target.value)}
+            aria-label="Tên lộ trình"
+            className="w-full min-w-0 max-w-full border-b-2 border-transparent bg-transparent font-display text-2xl font-bold tracking-tight outline-none transition focus:border-sage sm:text-3xl"
+          />
+          <p className="mt-1 text-sm text-ink/45 dark:text-white/45">
+            Bấm nhãn trạng thái để đổi · Bấm tên để mở ghi chú · Bấm đúp để đổi tên
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => autoLayout("TB")}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold dark:border-white/[0.1] ${layoutDirection === "TB" ? "border-ink bg-ink text-white dark:bg-lime dark:text-ink" : "border-ink/[0.1]"}`}
+            onClick={addRootNode}
+            className="flex items-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-2.5 text-xs font-bold dark:border-white/[0.1]"
           >
-            <LayoutGrid size={15} />
-            Sắp xếp Dọc
+            <Plus size={15} />
+            Chủ đề gốc
           </button>
           <button
-            onClick={() => autoLayout("LR")}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold dark:border-white/[0.1] ${layoutDirection === "LR" ? "border-ink bg-ink text-white dark:bg-lime dark:text-ink" : "border-ink/[0.1]"}`}
-          >
-            <ArrowRight size={15} />
-            Sắp xếp Ngang
-          </button>
-          <button
-            onClick={exportPng}
+            onClick={exportMarkdown}
             className="flex items-center gap-2 rounded-xl border border-ink/[0.1] px-3 py-2.5 text-xs font-bold dark:border-white/[0.1]"
           >
             <Download size={15} />
-            Xuất PNG
+            Xuất Markdown
+          </button>
+          <button
+            onClick={loadMap}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] dark:border-white/[0.1]"
+            aria-label="Tải lại bản đã lưu"
+            title="Tải lại bản đã lưu"
+          >
+            <Upload size={15} />
           </button>
           <button
             onClick={saveMap}
@@ -995,13 +804,6 @@ export default function StudyMindmap({ apiKey }) {
           >
             <Save size={15} />
             Lưu
-          </button>
-          <button
-            onClick={loadMap}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-ink/[0.1] dark:border-white/[0.1]"
-            aria-label="Tải sơ đồ"
-          >
-            <Upload size={15} />
           </button>
         </div>
       </div>
@@ -1033,38 +835,27 @@ export default function StudyMindmap({ apiKey }) {
           {error}
         </p>
       )}
-      <MobileOutliner nodes={nodes} edges={edges} onSelect={handleNodeClick} view={mobileView} onViewChange={setMobileView} />
-      {mobileView === "canvas" && <div className="panel h-[62vh] overflow-hidden p-1 md:hidden"><ReactFlowProvider><RoadmapCanvas nodes={decoratedNodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onSelect={handleNodeClick} onPaneClick={handlePaneClick} onEdgeClick={selectEdge} onEdgeDoubleClick={removeEdge} canvasRef={canvasRef} onViewportChange={setViewport} onFitViewReady={(fitView) => { fitViewRef.current = fitView; }} onAddRoot={addRootNode} /></ReactFlowProvider></div>}
-      <div className="panel hidden overflow-hidden p-3 md:block">
-        <ReactFlowProvider>
-          <RoadmapCanvas
-            nodes={decoratedNodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onSelect={handleNodeClick}
-            onPaneClick={handlePaneClick}
-            onEdgeClick={selectEdge}
-            onEdgeDoubleClick={removeEdge}
-            canvasRef={canvasRef}
-            onViewportChange={setViewport}
-            onFitViewReady={(fitView) => { fitViewRef.current = fitView; }}
-            onAddRoot={addRootNode}
-          />
-        </ReactFlowProvider>
-      </div>
-      <div className="flex items-center justify-between text-xs text-ink/45 dark:text-white/45">
-        <span className="flex items-center gap-2">
-          <span className="font-bold text-emerald-600">
-            {progress}% hoàn thành
-          </span>
+      <RoadmapGraph
+        nodes={decoratedNodes}
+        edges={edges}
+        selectedId={selectedId}
+        onSelect={openNodeDetails}
+        onCycleStatus={updateStatus}
+        onAddChild={addChild}
+        onEdit={setEditingId}
+        onCommitEdit={commitEdit}
+        onDelete={removeNode}
+        onOpenDetails={openNodeDetails}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink/45 dark:text-white/45">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-bold text-emerald-600">{progress}% hoàn thành</span>
           <span>·</span>
           <span>{nodes.length} chủ điểm</span>
           <span>·</span>
-          <span>{edges.length} liên kết</span>
+          <span>{edges.length} mục con</span>
         </span>
-        <span>Bấm nút trạng thái ở góc node để đổi (hoặc chuột phải trên máy tính)</span>
+        <span>Tab thêm nhánh con · Delete xoá mục đang chọn</span>
       </div>
       {status && (
         <p role="status" aria-live="polite" className="rounded-xl bg-[#e6f3e8] p-3 text-sm text-[#568460] dark:bg-[#293f31] dark:text-[#a9d5af]">

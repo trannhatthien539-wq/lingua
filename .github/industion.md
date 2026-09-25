@@ -27,9 +27,6 @@ Các workflow chính:
 - Vite.
 - Tailwind CSS 3.
 - `lucide-react` cho icon.
-- `@xyflow/react` cho mindmap.
-- `dagre` cho auto-layout mindmap.
-- `html-to-image` cho xuất PNG mindmap.
 - `canvas-confetti` cho Quiz vocabulary.
 - `react-player` cho nguồn audio đa dạng trong Pomodoro.
 - Web Audio API và Speech Synthesis API cho âm thanh/phát âm.
@@ -44,7 +41,7 @@ npm run build
 npm run preview
 ```
 
-Build hiện có thể hiển thị cảnh báo bundle lớn do React Flow, Dagre và ReactPlayer; đây không phải lỗi compile.
+Build hiện có thể hiển thị cảnh báo bundle lớn do ReactPlayer; đây không phải lỗi compile.
 
 ## 3. Cấu trúc thư mục
 
@@ -206,31 +203,38 @@ Khi sửa Pomodoro, phải giữ:
 
 ## 9. Study Mindmap
 
-File: `src/modules/mindmap/StudyMindmap.jsx`.
+File: `src/modules/mindmap/StudyMindmap.jsx` + `src/utils/roadmapTree.js` + `src/utils/roadmapLayout.js`.
 
-Stack:
+Stack: không còn thư viện vẽ đồ thị — chỉ React + Tailwind + SVG. Đã gỡ `@xyflow/react`, `dagre`, `html-to-image`.
 
-- React Flow.
-- Dagre.
-- html-to-image.
+Kiểu hiển thị: **đồ lộ trình kiểu roadmap.sh** — mỗi cấp là một cột dọc, node xếp chồng trong cột, nối nhau bằng đường nét đứt.
 
 Tính năng:
 
-- Node custom có handles top/right/bottom/left.
-- Node hỗ trợ status pending/progress/mastered.
-- Click node mở Study Drawer.
-- Double-click node inline edit.
-- Quick add 4 hướng.
-- Tab thêm node con.
-- Delete/Backspace xóa node hoặc edge đang chọn.
-- Click/double-click edge để chọn/xóa.
-- Pan canvas bằng chuột trái/giữa và Space + drag.
-- Giới hạn pan/zoom bằng `nodeExtent`, `translateExtent`, `minZoom`, `maxZoom`.
-- Auto-layout Dagre hỗ trợ TB và LR.
-- `getLayoutedElements(nodes, edges, direction)` phải luôn trả lại cả nodes và edges.
-- Layout dùng node size khoảng 260x100, ranksep 80, nodesep 40.
-- Edge phải giữ `smoothstep`, arrow, sourceHandle/targetHandle và stroke rõ ràng.
-- Export PNG cần chụp `.react-flow__viewport` để không mất SVG edges.
+- `buildRoadmapTree` dựng cây từ `nodes` + `edges`.
+- `layoutRoadmap` (tidy tree) tính toạ độ từng node: lá xếp chồng dọc, node cha nằm giữa theo trục dọc của các con, các cột cách nhau `gapX`.
+- `edgePath` sinh sẵn chuỗi `d` (bezier) để đưa thẳng vào SVG.
+- `pruneCollapsed` bỏ nhánh con của node đang thu gọn rồi bố cục lại.
+- Màu ô bám tông roadmap.sh: vàng = đang học, be = chưa học, xanh lá = đã thuộc.
+- Nhãn trạng thái bấm để đổi; node đã thuộc có dấu tick.
+- Nút thêm nhánh con / đổi tên / ghi chú / xoá hiện khi hover hoặc focus.
+- Thu gọn–mở từng nhánh, kèm Mở hết / Thu gọn.
+- Sửa tên tại chỗ (Enter để lưu, Esc để huỷ).
+- Tab thêm nhánh con · Delete/Backspace xoá mục đang chọn.
+- Xuất Markdown (checkbox theo trạng thái) thay cho xuất PNG.
+
+Quy tắc bắt buộc:
+
+- **Không được bọc roadmap trong `panel` hay ô canvas cố định chiều cao.** Đây chính là lý do giao diện bị tách biệt khỏi trang và chữ bị thu nhỏ.
+- **Phải bám kiểu sắp xếp roadmap.sh**: cột dọc song song + nét đứt, không thay bằng danh sách thụt lề (dễ đọc hơn nhưng không giống roadmap.sh).
+- Toạ độ do `layoutRoadmap` tính sẵn rồi đặt `absolute`; **không** dùng canvas/zoom/pan cho tab này.
+- Cây rộng hơn trang thì cho cuộn ngang (`overflow-x-auto`), không được cắt bớt node.
+- Màn hình nhỹ dùng ô hẹp hơn (`matchMedia("(max-width: 767px)")`) để cây vẫn vừa.
+- Không tách giao diện riêng cho mobile: `RoadmapGraph` dùng chung cho mọi kích thước màn hình.
+- `position` trong node và các trường trình bày của edge (`type`, `markerEnd`, `sourceHandle`…) là rác của canvas cũ: đọc vẫn chấp nhận nhưng `mapSnapshot` chỉ lưu `id` + `data` và `id/source/target`.
+- Thuật toán cây nằm ở `src/utils/roadmapTree.js`, thuật toán bố cục ở `src/utils/roadmapLayout.js` (cả hai thuần tuý, có test ở `tests/roadmapTree.test.js` và `tests/roadmapLayout.test.js`).
+- `buildRoadmapTree` phải bỏ self-loop, bỏ edge trỏ tới node không tồn tại, giữ thứ tự node đã lưu, và `children` **không được chứa `null`** khi cắt vòng lặp (`.filter(Boolean)`).
+- `layoutRoadmap` phải bảo đảm hai node cùng cột không chồng lấn theo chiều dọc.
 - AI roadmap phải sinh tree phân nhánh với root, group và detail nodes có parentId.
 
 LocalStorage mindmap:
