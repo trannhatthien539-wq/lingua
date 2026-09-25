@@ -116,3 +116,37 @@ test("pruneCollapsed giữ nguyên cây khi không thu gọn gì", () => {
   const tree = [node("root", [node("a", [node("a1")])])];
   assert.equal(pruneCollapsed(tree, new Set())[0].children[0].children[0].id, "a1");
 });
+
+// Hồi quy: trước đây node đã thu gọn có children=[] nên UI tưởng là lá và mất nút
+// mũi tên — người dùng bấm "Thu gọn" một lần là không mở lại được nữa.
+test("pruneCollapsed giữ childCount để node đã thu gọn vẫn mở lại được", () => {
+  const tree = [node("root", [node("a", [node("a1"), node("a2")])])];
+  const pruned = pruneCollapsed(tree, new Set(["a"]));
+  const a = pruned[0].children[0];
+  assert.equal(a.children.length, 0, "con đã bị cắt khỏi cây hiển thị");
+  assert.equal(a.childCount, 2, "nhưng vẫn nhớ có 2 con để vẽ nút mở");
+  assert.equal(a.collapsed, true, "đánh dấu đang thu gọn");
+  assert.ok(a.childCount > 0, "UI suy ra có nhánh con từ childCount, không phải children.length");
+});
+
+test("pruneCollapsed đánh dấu collapsed=false cho nhánh đang mở", () => {
+  const tree = [node("root", [node("a", [node("a1")])])];
+  const pruned = pruneCollapsed(tree, new Set());
+  assert.equal(pruned[0].collapsed, false);
+  assert.equal(pruned[0].childCount, 1);
+  assert.equal(pruned[0].children[0].collapsed, false);
+});
+
+test("pruneCollapsed thu gọn cả nhánh sâu, không chỉ nhánh đầu", () => {
+  const tree = [node("root", [node("a", [node("a1", [node("a1x")])])])];
+  const pruned = pruneCollapsed(tree, new Set(["a1"]));
+  assert.equal(pruned[0].children[0].children[0].children.length, 0);
+  assert.equal(pruned[0].children[0].children[0].childCount, 1);
+});
+
+test("pruneCollapsed đếm childCount cho cả node lá", () => {
+  const tree = [node("root", [node("a")])];
+  const pruned = pruneCollapsed(tree, new Set());
+  assert.equal(pruned[0].childCount, 1);
+  assert.equal(pruned[0].children[0].childCount, 0, "node lá có 0 con");
+});

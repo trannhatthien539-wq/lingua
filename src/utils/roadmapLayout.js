@@ -13,13 +13,16 @@
  * - Khoảng cách giữa hai lá liền kề là `gapY`.
  */
 
-/** Kích thước ô mặc định. Có thể ghi đè khi render để vừa màn hình hẹp. */
+/** Kích thước ô mặc định. Có thể ghi đè khi render để vừa màn hình hẹp.
+ *  - `nodeWidth` rộng hơn vì tiêu đề tiếng Việt dài; cho 2 dòng trước khi cắt.
+ *  - `nodeHeight` phải đủ cho tên (2 dòng) + mô tả (2 dòng). Nút thao tác nằm
+ *    chồng lên viền dưới nên không tính vào chiều cao này. */
 export const LAYOUT_DEFAULTS = {
-  nodeWidth: 200,
-  nodeHeight: 64,
-  gapX: 68,
-  gapY: 14,
-  padding: 4,
+  nodeWidth: 260,
+  nodeHeight: 96,
+  gapX: 76,
+  gapY: 22,
+  padding: 10,
 };
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -106,10 +109,23 @@ export const edgePath = (source, target, options = {}) => {
   return `M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`;
 };
 
-/** Bỏ nhánh con của các node đang thu gọn, giữ nguyên phần còn lại của cây. */
+/**
+ * Bỏ nhánh con của các node đang thu gọn, giữ nguyên phần còn lại của cây.
+ *
+ * Quan trọng: phải giữ `childCount` và cờ `collapsed` **trước khi** cắt bỏ `children`.
+ * Nếu không, node đã thu gọn sẽ có `children = []` nên giao diện tưởng là lá, mất nút
+ * mũi tên và người dùng không mở lại được nhánh đó nữa.
+ */
 export const pruneCollapsed = (tree, collapsed) =>
-  (tree || []).map((node) =>
-    collapsed.has(node.id)
-      ? { ...node, children: [] }
-      : { ...node, children: pruneCollapsed(node.children, collapsed) },
-  );
+  (tree || []).map((node) => {
+    const childCount = node.children?.length || 0;
+    if (collapsed.has(node.id)) {
+      return { ...node, childCount, collapsed: true, children: [] };
+    }
+    return {
+      ...node,
+      childCount,
+      collapsed: false,
+      children: pruneCollapsed(node.children, collapsed),
+    };
+  });

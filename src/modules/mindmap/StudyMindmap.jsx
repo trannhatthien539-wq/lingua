@@ -30,23 +30,11 @@ const statuses = {
   progress: "Đang học",
   mastered: "Đã thuộc",
 };
-// Nhãn ngắn + màu cho nút trạng thái kiểu roadmap.sh.
+// Nhãn + hành động kế tiếp cho nút tròn trạng thái kiểu roadmap.sh.
 const statusMeta = {
-  pending: {
-    short: "Chưa học",
-    action: "Bỏ qua",
-    chip: "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60",
-  },
-  progress: {
-    short: "Đang học",
-    action: "Đang học",
-    chip: "bg-warnbg text-warn dark:bg-amber-950/40 dark:text-amber-200",
-  },
-  mastered: {
-    short: "Đã thuộc",
-    action: "Hoàn thành",
-    chip: "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark",
-  },
+  pending: { short: "Chưa học", action: "Bỏ qua" },
+  progress: { short: "Đang học", action: "Đang học" },
+  mastered: { short: "Đã thuộc", action: "Hoàn thành" },
 };
 // Lưu ý: dữ liệu lưu của roadmap là `nodes` (id + data) và `edges` (id/source/target).
 // Bản cũ từ lúc dùng React Flow còn `position`/`type`/handle trong payload; các trường đó
@@ -142,24 +130,32 @@ const roadmapPrompt = (topic) =>
 Ví dụ với "12 Thì Tiếng Anh": Root "12 Thì Tiếng Anh" -> 3 nhóm "Hiện tại", "Quá khứ", "Tương lai" -> mỗi nhóm tỏa ra các thì cụ thể.
 Chỉ trả về JSON hợp lệ, không markdown, schema: {"nodes":[{"id":"root-1","label":"...","parentId":null,"level":0,"detail":"..."},{"id":"group-1","label":"...","parentId":"root-1","level":1,"detail":"..."},{"id":"detail-1","label":"...","parentId":"group-1","level":2,"detail":"..."}],"edges":[{"id":"edge-1","source":"root-1","target":"group-1","parentId":"root-1"}]}.`;
 
-/** Nút trạng thái kiểu roadmap.sh: bấm để đổi Chưa học → Đang học → Đã thuộc. */
-function StatusPill({ status, onCycle }) {
+/**
+ * Nút trạng thái kiểu roadmap.sh: một **vòng tròn nhỏ**, bấm để đổi
+ * Chưa học → Đang học → Đã thuộc.
+ *
+ * Cố tình không dùng chip có chữ như "Chưa học": ô trong đồ chỉ rộng ~260px, chữ tiếng
+ * Việt đã dài, thêm chip sẽ đẩy tên mục ra ngoài và bị cắt thành "Thông k…". Tên trạng
+ * thái đầy đủ nằm ở `title`/`aria-label` để không mất thông tin.
+ */
+function StatusDot({ status, label, onCycle }) {
   const meta = statusMeta[status] || statusMeta.pending;
-  const dot =
+  const ring =
     status === "mastered"
-      ? "bg-ok"
+      ? "border-ok bg-ok"
       : status === "progress"
-        ? "bg-warn"
-        : "bg-ink/30 dark:bg-white/40";
+        ? "border-warn bg-warn/25"
+        : "border-ink/25 dark:border-white/25";
   return (
     <button
       onClick={onCycle}
-      title={`Đổi trạng thái (đang: ${meta.action})`}
-      aria-label={`Trạng thái: ${statuses[status]}. Bấm để đổi.`}
-      className={`chip shrink-0 gap-1.5 transition hover:brightness-95 ${meta.chip}`}
+      title={`${label || "Mục này"} — ${meta.short}. Bấm để đổi.`}
+      aria-label={`Trạng thái của ${label || "mục này"}: ${statuses[status]}. Bấm để đổi.`}
+      className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition hover:scale-110 ${ring}`}
     >
-      <span className={`h-2 w-2 rounded-full ${dot}`} />
-      {meta.short}
+      {status === "mastered" && (
+        <Check size={12} strokeWidth={3.5} className="text-white" />
+      )}
     </button>
   );
 }
@@ -196,7 +192,10 @@ function RoadmapGraph({
   const tree = useMemo(() => buildRoadmapTree(nodes, edges), [nodes, edges]);
   const visible = useMemo(() => pruneCollapsed(tree, collapsed), [collapsed, tree]);
   const options = useMemo(
-    () => (compact ? { nodeWidth: 156, nodeHeight: 58, gapX: 44 } : undefined),
+    () =>
+      compact
+        ? { nodeWidth: 190, nodeHeight: 88, gapX: 48, gapY: 16 }
+        : undefined,
     [compact],
   );
   const layout = useMemo(() => layoutRoadmap(visible, options), [options, visible]);
@@ -254,8 +253,9 @@ function RoadmapGraph({
         </p>
       </div>
       {/* Đồ vẽ: SVG nét đứt nằm dưới, node đặt tuyệt đối theo toạ độ đã tính sẵn.
-          Cây sâu hơn bề ngang trang thì cuộn ngang thay vì bị cắt mất node. */}
-      <div className="-mx-1 overflow-x-auto px-1 pb-2">
+          Cây sâu hơn bề ngang trang thì cuộn ngang thay vì bị cắt mất node.
+          `pb-5` chừa chỗ cho hàng nút thao tác nổi chồng dưới mỗi ô. */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-5">
         <div
           className="relative"
           style={{ height: layout.height, width: layout.width, minWidth: "100%" }}
@@ -287,8 +287,8 @@ function RoadmapGraph({
           <RoadmapCard
             key={item.id}
             item={item}
-            hasChildren={item.children.length > 0}
-            isCollapsed={collapsed.has(item.id)}
+            hasChildren={item.childCount > 0}
+            isCollapsed={item.collapsed}
             isSelected={selectedId === item.id}
             onToggle={toggle}
             onSelect={onSelect}
@@ -363,27 +363,34 @@ function RoadmapCard({
             />
           ) : (
             <>
+              {/* Cho phép 2 dòng thay vì cắt: tiêu đề tiếng Việt thường dài
+                  ("Khái niệm cốt lõi", "Nền tảng kiến thức"…) và cắt ở 1 dòng
+                  sẽ mất phần ý nghĩa. */}
               <span
-                className={`block truncate font-bold text-ink dark:text-white ${
-                  depth === 0 ? "text-base" : "text-sm"
+                className={`line-clamp-2 break-words font-bold leading-tight text-ink dark:text-white ${
+                  depth === 0 ? "text-[15px]" : "text-sm"
                 }`}
               >
                 {data.label}
               </span>
               {data.detail && (
-                <span className="mt-0.5 block truncate text-[11px] leading-tight text-ink/60 dark:text-white/60">
+                <span className="mt-0.5 line-clamp-2 break-words text-[11px] leading-tight text-ink/60 dark:text-white/60">
                   {data.detail}
                 </span>
               )}
             </>
           )}
         </button>
-        {data.status === "mastered" && (
-          <Check size={14} className="shrink-0 text-ok dark:text-okfgdark" />
-        )}
-        <StatusPill status={data.status} onCycle={() => onCycleStatus(id)} />
+        <StatusDot
+          status={data.status}
+          label={data.label}
+          onCycle={() => onCycleStatus(id)}
+        />
       </div>
-      <div className="flex items-center gap-0.5 pl-0.5 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+      {/* Nút thao tác nằm CHỒNG LÊN viền dưới (absolute) chứ không chiếm chỗ trong ô.
+          Nếu để trong flow thì 28px này bị trừ khỏi chiều cao cố định, tên mục bị bóp
+          và cắt thành "Thông k…". */}
+      <div className="nodrag absolute -bottom-3 right-2 flex items-center gap-0.5 rounded-lg border border-ink/10 bg-slab/95 px-0.5 py-0.5 opacity-0 shadow-sm backdrop-blur transition focus-within:opacity-100 group-hover:opacity-100 dark:border-white/15 dark:bg-dark2/95">
         <button
           onClick={() => onAddChild(id)}
           className="icon-btn !h-7 !w-7"

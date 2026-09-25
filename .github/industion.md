@@ -214,7 +214,10 @@ Tính năng:
 - `buildRoadmapTree` dựng cây từ `nodes` + `edges`.
 - `layoutRoadmap` (tidy tree) tính toạ độ từng node: lá xếp chồng dọc, node cha nằm giữa theo trục dọc của các con, các cột cách nhau `gapX`.
 - `edgePath` sinh sẵn chuỗi `d` (bezier) để đưa thẳng vào SVG.
-- `pruneCollapsed` bỏ nhánh con của node đang thu gọn rồi bố cục lại.
+- `pruneCollapsed` bỏ nhánh con của node đang thu gọn rồi bố cục lại. **Phải giữ `childCount` và cờ `collapsed`** khi cắt bỏ `children`; nếu không, node đã thu gọn sẽ có `children = []`, UI tưởng là lá, mất nút mũi tên và không mở lại được nữa. Vì vậy UI dùng `item.childCount > 0` chứ không dùng `item.children.length > 0`.
+- Ô 260x96, tên và mô tả được xuống tối đa 2 dòng (`line-clamp-2`) thay vì cắt một dòng — tiêu đề tiếng Việt dài sẽ mất ý nghĩa nếu cắt.
+- Nút trạng thái là **vòng tròn nhỏ 20px** (`StatusDot`), không phải chip có chữ: chip "Chưa học" chiếm ~80px, đẩy tên mục ra ngoài và bị cắt thành "Thông k…". Tên trạng thái đầy đủ nằm ở `title`/`aria-label`.
+- Hàng nút thao tác nằm **chồng lên viền dưới** (`absolute -bottom-3`), không nằm trong flow. Nếu để trong flow thì 28px đó bị trừ khỏi chiều cao cố định và bóp tên. Container vì vậy cần `pb-5`.
 - Màu ô bám tông roadmap.sh: vàng = đang học, be = chưa học, xanh lá = đã thuộc.
 - Nhãn trạng thái bấm để đổi; node đã thuộc có dấu tick.
 - Nút thêm nhánh con / đổi tên / ghi chú / xoá hiện khi hover hoặc focus.
