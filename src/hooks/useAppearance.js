@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   APPEARANCE_STORAGE_KEY,
   applyAppearance,
+  compressImageFile,
   defaultAppearance,
   normalizeAppearance,
   normalizeHex,
@@ -10,8 +11,8 @@ import {
 } from '../services/appearanceService'
 
 /**
- * Quản lý tuỳ biến giao diện (màu chủ đề + phông chữ + cỡ chữ).
- * Ghi vào localStorage và áp ngay lên <html> mỗi khi thay đổi.
+ * Quản lý tuỳ biến giao diện: màu chủ đề, phông chữ, cỡ chữ và hình nền tùy chọn.
+ * Tự động đồng bộ localStorage và áp dụng ngay lập tức lên DOM.
  */
 export default function useAppearance() {
   const [appearance, setAppearance] = useState(() => readAppearance())
@@ -21,7 +22,7 @@ export default function useAppearance() {
     writeAppearance(appearance)
   }, [appearance])
 
-  // Đồng bộ khi tab khác đổi giao diện.
+  // Đồng bộ khi tab khác đổi giao diện
   useEffect(() => {
     const onStorage = (event) => {
       if (event.key === APPEARANCE_STORAGE_KEY) setAppearance(readAppearance())
@@ -47,7 +48,41 @@ export default function useAppearance() {
 
   const setFont = useCallback((fontId) => update({ fontId }), [update])
   const setFontScale = useCallback((fontScale) => update({ fontScale }), [update])
+
+  const setBackground = useCallback(
+    (bgPatch) => {
+      setAppearance((current) => {
+        const nextBg = { ...(current.background || {}), ...bgPatch }
+        return normalizeAppearance({ ...current, background: nextBg })
+      })
+    },
+    [],
+  )
+
+  const uploadCustomWallpaper = useCallback(
+    async (file) => {
+      const compressedDataUrl = await compressImageFile(file)
+      setBackground({ image: compressedDataUrl })
+      return compressedDataUrl
+    },
+    [setBackground],
+  )
+
+  const removeCustomWallpaper = useCallback(() => {
+    setBackground({ image: null })
+  }, [setBackground])
+
   const resetAppearance = useCallback(() => setAppearance({ ...defaultAppearance }), [])
 
-  return { appearance, setPalette, setCustomColor, setFont, setFontScale, resetAppearance }
+  return {
+    appearance,
+    setPalette,
+    setCustomColor,
+    setFont,
+    setFontScale,
+    setBackground,
+    uploadCustomWallpaper,
+    removeCustomWallpaper,
+    resetAppearance,
+  }
 }

@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Award, Flame, GraduationCap, Layers, PlayCircle, Star, Target, Trophy } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  CheckCircle2,
+  Circle,
+  Flame,
+  GraduationCap,
+  Layers,
+  PlayCircle,
+  Sparkles,
+  Star,
+  Target,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import StudyIllustration from "../../components/StudyIllustration";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
@@ -15,7 +29,7 @@ import { navigationItems } from "../../data/navigation";
 import { registry as vstepRegistry } from "../../data/vstep/metadata";
 import { dataService } from "../../services/dataService";
 import { getHistoryDays, loadHistory } from "../../services/historyService";
-import { summarize } from "../../services/gamification";
+import { levelFor, summarize } from "../../services/gamification";
 import { refreshRequestedEvent } from "../../services/syncStatus";
 import { userDocKeys } from "../../services/userDocService";
 import { toast } from "../../services/toast";
@@ -135,57 +149,274 @@ export default function HomeHub({ user, streak, onNavigate }) {
   const displayName = (user?.displayName || "").trim().split(" ").slice(-1)[0];
   const areas = AREA_IDS.map((id) => navigationItems.find((item) => item.id === id)).filter(Boolean);
 
+  const nextLevelTitle = useMemo(() => {
+    if (!level?.nextAt) return null;
+    return levelFor(level.nextAt)?.title || null;
+  }, [level?.nextAt]);
+
+  const cefrInfo = useMemo(() => {
+    const vstepBest = Number(stats?.vstep?.best) || 0;
+    const grammarPassed = Number(stats?.grammar?.passed) || 0;
+    const cardsMastered = Number(stats?.cards?.mastered) || 0;
+
+    let currentCefr = "A2";
+    let currentCefrLabel = "Sơ cấp (Elementary)";
+    let nextCefr = "B1";
+    let nextCefrLabel = "Trung cấp (Intermediate)";
+    let targetGrammar = 5;
+    let targetCards = 50;
+    let targetVstep = "4.0";
+    let targetVstepScore = 4.0;
+
+    if (vstepBest >= 8.5 || (grammarPassed >= 25 && cardsMastered >= 500)) {
+      currentCefr = "C1";
+      currentCefrLabel = "Cao cấp (Advanced)";
+      nextCefr = "C2";
+      nextCefrLabel = "Thông thạo (Proficiency)";
+      targetGrammar = 30;
+      targetCards = 1000;
+      targetVstep = "9.5";
+      targetVstepScore = 9.5;
+    } else if (vstepBest >= 6.0 || (grammarPassed >= 15 && cardsMastered >= 200)) {
+      currentCefr = "B2";
+      currentCefrLabel = "Trung cấp trên (Upper-Intermediate)";
+      nextCefr = "C1";
+      nextCefrLabel = "Cao cấp (Advanced)";
+      targetGrammar = 25;
+      targetCards = 500;
+      targetVstep = "8.5";
+      targetVstepScore = 8.5;
+    } else if (vstepBest >= 4.0 || (grammarPassed >= 5 && cardsMastered >= 50)) {
+      currentCefr = "B1";
+      currentCefrLabel = "Trung cấp (Intermediate)";
+      nextCefr = "B2";
+      nextCefrLabel = "Trung cấp trên (Upper-Intermediate)";
+      targetGrammar = 15;
+      targetCards = 200;
+      targetVstep = "6.0";
+      targetVstepScore = 6.0;
+    }
+
+    const cardsRemaining = Math.max(0, targetCards - cardsMastered);
+    const grammarRemaining = Math.max(0, targetGrammar - grammarPassed);
+    const vstepReached = vstepBest >= targetVstepScore;
+    const criteriaCompletedCount =
+      (grammarRemaining === 0 ? 1 : 0) +
+      (cardsRemaining === 0 ? 1 : 0) +
+      (vstepReached ? 1 : 0);
+    const criteriaPercent = Math.round((criteriaCompletedCount / 3) * 100);
+
+    return {
+      currentCefr,
+      currentCefrLabel,
+      nextCefr,
+      nextCefrLabel,
+      targetGrammar,
+      targetCards,
+      targetVstep,
+      targetVstepScore,
+      cardsRemaining,
+      grammarRemaining,
+      vstepReached,
+      cardsMastered,
+      grammarPassed,
+      vstepBest,
+      criteriaCompletedCount,
+      criteriaPercent,
+    };
+  }, [stats]);
+
   return (
-    <div className="space-y-5">
-      <section className="relative overflow-hidden rounded-2xl border-2 border-[#4cb102] bg-gradient-to-br from-[#58cc02] to-[#43a302] p-4 text-white shadow-soft sm:rounded-3xl sm:p-6">
-        <div className="flex flex-col gap-3 sm:gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-white/85 sm:text-xs sm:tracking-[0.14em]">{greetingByHour()}{displayName ? `, ${displayName}` : ''} 👋</p>
-            <h2 className="mt-1 font-display text-xl font-bold leading-tight sm:mt-1.5 sm:text-3xl">Hôm nay học gì?</h2>
-            <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 sm:flex sm:flex-wrap">
-              <span className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-1.5 text-[11px] font-bold sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm"><Flame size={14} className="shrink-0 text-[#ffd900] sm:h-4 sm:w-4" /><span className="truncate">{stats.streak.current > 0 ? `Streaks: ${stats.streak.current} ngày` : 'Streaks: Chưa bắt đầu'}</span></span>
-              <span className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-1.5 text-[11px] font-bold sm:rounded-2xl sm:px-3 sm:py-2 sm:text-sm"><Star size={14} className="shrink-0 text-[#ffd900] sm:h-4 sm:w-4" /><span className="truncate">Cấp {level.level} · {level.title}</span></span>
+    <div className="space-y-6">
+      {/* Hero Banner: Clean & Compact Linear Aurora */}
+      <section className="relative overflow-hidden rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] p-4 text-white shadow-[0_20px_60px_-15px_rgba(99,102,241,0.2)] backdrop-blur-2xl sm:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/15 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between sm:gap-6">
+          {/* Cột 1: Chào hỏi & Mục tiêu hôm nay */}
+          <div className="min-w-0 max-w-md flex-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-[11px] font-bold text-indigo-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]" />
+              {greetingByHour()}{displayName ? `, ${displayName}` : ''}
             </div>
-            <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/85 sm:mt-3 sm:line-clamp-none sm:text-sm sm:leading-6">
-              {goalPercent >= 100
-                ? "Bạn đã đạt mục tiêu hôm nay 🎉 Học thêm chút nữa nếu còn thời gian nhé."
-                : `Còn ${Math.max(0, target - goalToday)} lượt ôn nữa để hoàn thành mục tiêu hôm nay.`}
-            </p>
-            <div className="mt-3 max-w-xl sm:mt-5">
-              <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[0.04em] text-white/90 sm:text-xs sm:tracking-[0.06em]">
-                <span className="inline-flex min-w-0 items-center gap-1"><Target size={13} />Mục tiêu hôm nay</span>
-                <span className="shrink-0">{goalToday}/{target} lượt ôn</span>
+            
+            <h2 className="mt-2 font-display text-2xl font-black tracking-tight sm:text-3xl">
+              Hôm nay học gì?
+            </h2>
+
+            <div className="mt-4 max-w-sm">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="inline-flex items-center gap-1.5"><Target size={14} className="text-emerald-400" />Mục tiêu hôm nay</span>
+                <span className="font-mono text-emerald-300">{goalToday}/{target} lượt ôn</span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/25 sm:mt-2 sm:h-3">
-                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${goalPercent}%` }} />
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10 backdrop-blur-sm">
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 shadow-[0_0_12px_rgba(52,211,153,0.5)] transition-all duration-500" style={{ width: `${goalPercent}%` }} />
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-5 sm:flex sm:flex-wrap">
+
+            <div className="mt-5 flex flex-wrap gap-2.5">
               <button
                 type="button"
                 onClick={() => onNavigate?.("vocabulary")}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-white px-2 text-[11px] font-black uppercase tracking-[0.03em] text-[#3f9c02] shadow-[0_4px_0_0_rgba(0,0,0,0.18)] transition hover:-translate-y-0.5 sm:min-h-[48px] sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm sm:tracking-[0.06em]"
-              ><PlayCircle size={17} />Học ngay</button>
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-5 text-xs font-bold text-slate-950 shadow-[0_0_16px_rgba(52,211,153,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <PlayCircle size={16} />Ôn từ vựng
+              </button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("vstep")}
-                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border-2 border-white/60 px-2 text-[11px] font-bold uppercase tracking-[0.03em] text-white transition hover:bg-white/10 sm:min-h-[48px] sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm sm:tracking-[0.06em]"
-              ><Award size={17} />Thi VSTEP</button>
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
+              >
+                <Award size={16} />Luyện VSTEP
+              </button>
             </div>
           </div>
-          {/* Minh hoạ bên phải: ẩn trên điện thoại để banner gọn, hiện từ md trở lên */}
-          <div className="hidden shrink-0 md:block">
-            <StudyIllustration className="w-[220px] lg:w-[260px]" />
+
+          {/* Cột 2 (Giữa): Trình độ CEFR & Lộ trình lên cấp (Gọn gàng & Tinh tế) */}
+          <div className="w-full flex-1 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-white backdrop-blur-md sm:p-3.5 lg:max-w-md xl:max-w-lg">
+            {/* Dòng tiêu đề: Bậc hiện tại & Mục tiêu */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 font-medium">
+                <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 font-bold text-emerald-300 border border-emerald-500/30 text-[11px]">
+                  Bậc {cefrInfo.currentCefr}
+                </span>
+                <span className="text-slate-300 text-[11px] sm:text-xs">
+                  {cefrInfo.currentCefrLabel.replace(/\s*\(.*?\)/, "")}
+                </span>
+                <span className="text-slate-500 text-xs">→</span>
+                <span className="font-bold text-indigo-300 text-[11px] sm:text-xs">
+                  Mục tiêu {cefrInfo.nextCefr}
+                </span>
+              </div>
+              <span className="font-mono text-[11px] font-semibold text-slate-400">
+                {cefrInfo.criteriaCompletedCount}/3 điều kiện
+              </span>
+            </div>
+
+            {/* Thanh tiến độ mảnh */}
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-indigo-400 transition-all duration-500"
+                style={{ width: `${cefrInfo.criteriaPercent}%` }}
+              />
+            </div>
+
+            {/* 3 Thẻ điều kiện mini gọn gàng */}
+            <div className="mt-2.5 grid grid-cols-3 gap-1.5 sm:gap-2">
+              {/* 1. Ngữ pháp */}
+              <button
+                type="button"
+                onClick={() => onNavigate?.("grammar")}
+                className={`group flex flex-col justify-between rounded-xl p-1.5 sm:p-2 text-left transition-all ${
+                  cefrInfo.grammarRemaining === 0
+                    ? "bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/15"
+                    : "bg-white/[0.04] border border-white/5 hover:bg-white/[0.08] hover:border-white/15"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] font-medium text-slate-300">
+                  <span className="truncate">Ngữ pháp</span>
+                  {cefrInfo.grammarRemaining === 0 ? (
+                    <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                  ) : (
+                    <ArrowRight size={11} className="text-slate-500 shrink-0 group-hover:text-white group-hover:translate-x-0.5 transition" />
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-xs font-bold text-white">
+                  {cefrInfo.grammarPassed}/{cefrInfo.targetGrammar}
+                  <span className="text-[10px] font-normal text-slate-400 ml-0.5">bài</span>
+                </div>
+                <div className="mt-1 text-[10px] truncate">
+                  {cefrInfo.grammarRemaining === 0 ? (
+                    <span className="font-semibold text-emerald-400">Đã đạt ✓</span>
+                  ) : (
+                    <span className="font-medium text-amber-300 group-hover:text-amber-200">
+                      Thiếu {cefrInfo.grammarRemaining} <span className="hidden sm:inline">bài</span> →
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* 2. Từ vựng */}
+              <button
+                type="button"
+                onClick={() => onNavigate?.("vocabulary")}
+                className={`group flex flex-col justify-between rounded-xl p-1.5 sm:p-2 text-left transition-all ${
+                  cefrInfo.cardsRemaining === 0
+                    ? "bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/15"
+                    : "bg-white/[0.04] border border-white/5 hover:bg-white/[0.08] hover:border-white/15"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] font-medium text-slate-300">
+                  <span className="truncate">Từ vựng</span>
+                  {cefrInfo.cardsRemaining === 0 ? (
+                    <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                  ) : (
+                    <ArrowRight size={11} className="text-slate-500 shrink-0 group-hover:text-white group-hover:translate-x-0.5 transition" />
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-xs font-bold text-white">
+                  {cefrInfo.cardsMastered}/{cefrInfo.targetCards}
+                  <span className="text-[10px] font-normal text-slate-400 ml-0.5">từ</span>
+                </div>
+                <div className="mt-1 text-[10px] truncate">
+                  {cefrInfo.cardsRemaining === 0 ? (
+                    <span className="font-semibold text-emerald-400">Đã đạt ✓</span>
+                  ) : (
+                    <span className="font-medium text-amber-300 group-hover:text-amber-200">
+                      Thiếu {cefrInfo.cardsRemaining} <span className="hidden sm:inline">từ</span> →
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* 3. VSTEP */}
+              <button
+                type="button"
+                onClick={() => onNavigate?.("vstep")}
+                className={`group flex flex-col justify-between rounded-xl p-1.5 sm:p-2 text-left transition-all ${
+                  cefrInfo.vstepReached
+                    ? "bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/15"
+                    : "bg-white/[0.04] border border-white/5 hover:bg-white/[0.08] hover:border-white/15"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] font-medium text-slate-300">
+                  <span className="truncate">VSTEP</span>
+                  {cefrInfo.vstepReached ? (
+                    <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                  ) : (
+                    <ArrowRight size={11} className="text-slate-500 shrink-0 group-hover:text-white group-hover:translate-x-0.5 transition" />
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-xs font-bold text-white">
+                  {cefrInfo.vstepBest ? Number(cefrInfo.vstepBest).toFixed(1) : "0.0"}
+                  <span className="text-[10px] font-normal text-slate-400 ml-0.5">/10</span>
+                </div>
+                <div className="mt-1 text-[10px] truncate">
+                  {cefrInfo.vstepReached ? (
+                    <span className="font-semibold text-emerald-400">Đã đạt ✓</span>
+                  ) : (
+                    <span className="font-medium text-amber-300 group-hover:text-amber-200">
+                      Cần ≥ {cefrInfo.targetVstep} →
+                    </span>
+                  )}
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Cột 3: Hình minh họa */}
+          <div className="hidden shrink-0 xl:block">
+            <StudyIllustration className="w-[160px] lg:w-[180px] opacity-90 drop-shadow-2xl" />
           </div>
         </div>
       </section>
 
+      {/* Bento Grid: Khu vực học tập */}
       <section className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-display text-lg font-bold">Khu vực học</h3>
-          <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Bấm để vào thẳng khu vực đó</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <h3 className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Khu vực học tập</h3>
+
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {areas.map((area) => {
             const stat = areaStats[area.id] || { percent: 0, label: "" };
             const Icon = area.icon;
@@ -194,31 +425,29 @@ export default function HomeHub({ user, streak, onNavigate }) {
                 key={area.id}
                 type="button"
                 onClick={() => onNavigate?.(area.id)}
-                className="panel group relative flex flex-col gap-3 overflow-hidden border-b-4 p-4 text-left transition hover:-translate-y-1 hover:shadow-[0_14px_28px_-10px_rgba(24,32,29,0.22)] dark:hover:shadow-[0_14px_28px_-10px_rgba(0,0,0,0.5)]"
-                style={{ borderBottomColor: area.color }}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-left shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400/50 hover:shadow-[0_12px_30px_-5px_rgba(99,102,241,0.15)] dark:border-white/[0.08] dark:bg-[#111827]/70 dark:hover:border-indigo-500/50 dark:hover:shadow-[0_12px_30px_-5px_rgba(0,0,0,0.5)]"
               >
-                {/* Watermark icon mờ theo chủ đề, chìm ở góc phải trên */}
-                <Icon
-                  size={104}
-                  strokeWidth={1.5}
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-5 -top-6 opacity-[0.08] transition-transform duration-300 group-hover:-rotate-6"
-                  style={{ color: area.color }}
-                />
-                <span className="relative flex items-start gap-3">
-                  <NavIcon icon={area.icon} color={area.color} size="lg" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-display text-base font-bold">{area.label}</span>
-                    <span className="block text-xs leading-5 text-ink/60 dark:text-white/60">{area.description}</span>
-                  </span>
-                  <ArrowRight size={18} className="mt-1 shrink-0 text-ink/30 transition group-hover:translate-x-0.5 group-hover:text-ink/60 dark:text-white/30" />
-                </span>
-                <span className="relative mt-auto block space-y-1.5">
-                  <span className="block h-1.5 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
-                    <span className="block h-full rounded-full" style={{ width: `${stat.percent}%`, backgroundColor: area.color }} />
-                  </span>
-                  <span className="block text-xs font-semibold text-ink/55 dark:text-white/55">{stat.label}</span>
-                </span>
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/20 shadow-md transition-transform duration-200 group-hover:scale-105" style={{ backgroundColor: area.color, color: '#FFFFFF' }}>
+                    <Icon size={22} strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-display text-sm font-bold text-slate-900 dark:text-white">{area.label}</p>
+                      <ArrowRight size={14} className="text-slate-400 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative z-10 mt-4 border-t border-slate-100 pt-2.5 dark:border-white/[0.05]">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    <span>{stat.label}</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{stat.percent}%</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stat.percent}%`, backgroundColor: area.color }} />
+                  </div>
+                </div>
               </button>
             );
           })}
@@ -227,25 +456,198 @@ export default function HomeHub({ user, streak, onNavigate }) {
 
       <TodayPlanCard cards={cards} target={target} goalToday={goalToday} streak={streak} onNavigate={onNavigate} />
 
-      <section className="panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="eyebrow flex items-center gap-2"><Trophy size={14} className="text-[#ffc800]" />Tổng quan tiến độ</p>
-          <button type="button" onClick={() => onNavigate?.("progress")} className="btn-secondary px-4 text-xs">
-            Xem chi tiết<ArrowRight size={14} />
+      {/* Bảng Chỉ số, Trình độ & Lộ trình Thăng cấp */}
+      <section className="panel p-4 sm:p-6">
+        <div className="flex items-center justify-between">
+          <p className="eyebrow flex items-center gap-2">
+            <Trophy size={14} className="text-amber-500" />
+            Trình độ &amp; Tổng quan tiến độ
+          </p>
+          <button type="button" onClick={() => onNavigate?.("progress")} className="btn-secondary h-8 px-3 text-xs font-semibold">
+            Chi tiết<ArrowRight size={13} />
           </button>
         </div>
+
         {loading && !cards.length ? (
-          <p className="mt-3 text-sm text-ink/60 dark:text-white/60">Đang tải số liệu học tập…</p>
+          <p className="mt-3 text-xs text-slate-400">Đang tải số liệu…</p>
         ) : null}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <StatTile icon={Star} color="#ffc800" label={`Cấp ${level.level} · ${level.title}`} value={`${xp} XP`} note={level.nextAt ? `Còn ${level.toNext} XP để lên cấp ${level.level + 1}` : "Đã đạt cấp cao nhất"} />
-          <StatTile icon={Flame} color="#ff9600" label="Chuỗi ngày học" value={`${stats.streak.current} ngày`} note={`Tổng ${stats.streak.totalSessions} phiên học`} />
-          <StatTile icon={Layers} color="#1cb0f6" label="Từ vựng" value={`${stats.cards.mastered}/${stats.cards.total}`} note={`Đã thuộc · ${stats.cards.due} thẻ đến hạn`} />
-          <StatTile icon={GraduationCap} color="#ce82ff" label="Bài ngữ pháp" value={`${stats.grammar.passed}/${stats.grammar.total}`} note="Đạt bài kiểm tra cuối bài" />
-          <StatTile icon={Award} color="#ff4b4b" label="Đề VSTEP đã thi" value={`${stats.vstep.attempts} đề`} note={stats.vstep.band ? `Bậc cao nhất ${stats.vstep.band} · ${stats.vstep.best}/10` : "Chưa có kết quả"} />
-          <StatTile icon={Trophy} color="#58cc02" label="Huy hiệu" value={`${earnedCount}/${achievements.length}`} note={`Tỷ lệ nhớ đúng ${stats.accuracy}%`} />
+
+        {/* Khung Trình độ hiện tại & Lộ trình nâng cấp trình tiếp theo */}
+        <div className="mt-4 overflow-hidden rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/[0.06] via-slate-500/[0.02] to-emerald-500/[0.04] p-4 sm:p-5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.02]">
+          {/* Hàng 1: Trình độ CEFR & Cấp độ Gamification */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20 ring-4 ring-indigo-500/10">
+                <Sparkles size={22} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-lg bg-emerald-500/15 px-2.5 py-0.5 font-mono text-xs font-black text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                    Bậc {cefrInfo.currentCefr}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {cefrInfo.currentCefrLabel}
+                  </span>
+                </div>
+                <h4 className="mt-1 font-display text-base font-bold text-slate-900 sm:text-lg dark:text-white">
+                  Cấp {level.level}: {level.title}
+                </h4>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+              <span className="chip bg-white/90 font-mono text-xs font-bold text-indigo-600 shadow-2xs dark:bg-white/10 dark:text-indigo-400">
+                {xp} XP
+              </span>
+              {level.nextAt ? (
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Mục tiêu Cấp {level.level + 1}: <strong className="text-slate-700 dark:text-slate-200">{level.nextAt} XP</strong>
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Đã đạt cấp tối đa</span>
+              )}
+            </div>
+          </div>
+
+          {/* Hàng 2: Thanh tiến độ thăng cấp */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1.5">
+                <TrendingUp size={14} className="text-indigo-500" />
+                {nextLevelTitle ? `Tiến độ lên Cấp ${level.level + 1} (${nextLevelTitle})` : "Đã đạt cấp tối đa"}
+              </span>
+              <span className="font-mono text-indigo-600 dark:text-indigo-400">{level.percent}%</span>
+            </div>
+            <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-teal-400 to-emerald-400 shadow-sm transition-all duration-500"
+                style={{ width: `${level.percent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Hàng 3: CẦN HỌC GÌ ĐỂ LÊN CẤP TIẾP THEO */}
+          <div className="mt-5 border-t border-slate-200/60 pt-4 dark:border-white/[0.08]">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                🎯 Cần học gì để nâng cấp trình tiếp theo?
+              </p>
+              {level.toNext > 0 && (
+                <span className="rounded-md bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  Còn thiếu {level.toNext} XP
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Cột 1: Nhiệm vụ tích lũy XP thăng Cấp */}
+              <div className="rounded-xl border border-slate-200/80 bg-white/70 p-3.5 backdrop-blur-xs dark:border-white/5 dark:bg-white/[0.02]">
+                <p className="text-xs font-bold text-slate-900 dark:text-white">
+                  ⚡ Nâng Cấp {level.level + 1} {nextLevelTitle ? `(${nextLevelTitle})` : ''}
+                </p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                  Tích lũy thêm {level.toNext} XP bằng các hoạt động nhanh:
+                </p>
+                <div className="mt-2.5 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      <Layers size={13} className="text-teal-500" />
+                      Ôn ~{Math.max(1, Math.ceil(level.toNext / 5))} thẻ từ vựng (+5 XP)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.("vocabulary")}
+                      className="text-[11px] font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      Ôn ngay
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      <GraduationCap size={13} className="text-purple-500" />
+                      Vượt ~{Math.max(1, Math.ceil(level.toNext / 30))} bài ngữ pháp (+30 XP)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.("grammar")}
+                      className="text-[11px] font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      Học bài
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cột 2: Điều kiện nâng bậc CEFR */}
+              <div className="rounded-xl border border-slate-200/80 bg-white/70 p-3.5 backdrop-blur-xs dark:border-white/5 dark:bg-white/[0.02]">
+                <p className="text-xs font-bold text-slate-900 dark:text-white">
+                  🎓 Điều kiện đạt Bậc {cefrInfo.nextCefr} ({cefrInfo.nextCefrLabel})
+                </p>
+                <div className="mt-2.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      {cefrInfo.cardsRemaining === 0 ? (
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                      ) : (
+                        <Circle size={13} className="text-slate-400 shrink-0" />
+                      )}
+                      Từ vựng: {cefrInfo.cardsMastered}/{cefrInfo.targetCards} từ
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {cefrInfo.cardsRemaining === 0 ? "Đã đạt" : `Thiếu ${cefrInfo.cardsRemaining} từ`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      {cefrInfo.grammarRemaining === 0 ? (
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                      ) : (
+                        <Circle size={13} className="text-slate-400 shrink-0" />
+                      )}
+                      Ngữ pháp: {cefrInfo.grammarPassed}/{cefrInfo.targetGrammar} bài
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {cefrInfo.grammarRemaining === 0 ? "Đã đạt" : `Thiếu ${cefrInfo.grammarRemaining} bài`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                      {cefrInfo.vstepReached ? (
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                      ) : (
+                        <Circle size={13} className="text-slate-400 shrink-0" />
+                      )}
+                      Điểm VSTEP: {cefrInfo.vstepBest}/10 (Mục tiêu {cefrInfo.targetVstep})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.("vstep")}
+                      className="text-[11px] font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      {cefrInfo.vstepReached ? "Luyện thêm" : "Thi thử"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <StudyHistoryChart days={14} />
+
+        {/* Lưới các chỉ số tổng quan */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <StatTile icon={Star} color="#f59e0b" label={`Cấp ${level.level} · ${level.title}`} value={`${xp} XP`} />
+          <StatTile icon={Flame} color="#f97316" label="Chuỗi học" value={`${stats.streak.current} ngày`} />
+          <StatTile icon={Layers} color="#06b6d4" label="Từ vựng" value={`${stats.cards.mastered}/${stats.cards.total}`} />
+          <StatTile icon={GraduationCap} color="#a855f7" label="Ngữ pháp" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
+          <StatTile icon={Award} color="#ef4444" label="Đề VSTEP" value={`${stats.vstep.attempts} đề`} />
+          <StatTile icon={Trophy} color="#10b981" label="Độ chính xác" value={`${stats.accuracy}%`} />
+        </div>
+
+        <div className="mt-4">
+          <StudyHistoryChart days={14} />
+        </div>
       </section>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
+import { celebrateStudyCompletion } from '../../utils/studyFeedback'
 import AiExplainButton from './AiExplainButton'
 
 const normalizeAnswer = (value) =>
@@ -65,6 +66,12 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
 
   const question = items[index]
   const correctCount = results.filter((item) => item.correct).length
+
+  useEffect(() => {
+    if (finished && items.length > 0 && correctCount / items.length >= PASS_RATIO) {
+      celebrateStudyCompletion()
+    }
+  }, [finished, items.length, correctCount])
 
   const reset = () => {
     setIndex(0)

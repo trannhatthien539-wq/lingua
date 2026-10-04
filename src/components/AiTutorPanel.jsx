@@ -14,6 +14,13 @@ const QUICK_PROMPTS = [
   "Tạo 5 câu hỏi Speaking Part 1 về chủ đề công việc kèm câu trả lời mẫu ngắn.",
 ];
 
+const QUICK_CHIPS = [
+  { label: "🔍 Sửa lỗi câu", text: "Hãy sửa lỗi và phân tích câu sau: " },
+  { label: "✍️ Đặt 3 ví dụ", text: "Hãy đặt 3 câu ví dụ thực tế chuẩn B1-B2 với cụm từ: " },
+  { label: "⚖️ Phân biệt ngữ pháp", text: "Giải thích ngắn gọn điểm khác biệt giữa 2 cấu trúc: " },
+  { label: "🌐 Dịch tự nhiên", text: "Dịch câu này sang tiếng Anh tự nhiên như người bản xứ: " },
+];
+
 const storageKey = (user) => `lingua-tutor-chat-${user?.uid || "guest"}`;
 
 const readConversation = (user) => {
@@ -50,6 +57,7 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   const provider = localStorage.getItem(PROVIDER_STORAGE) || "gemini";
   const ready = canUseAi(apiKey, provider);
 
@@ -120,15 +128,18 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+        <div ref={scrollRef} className="flex-1 space-y-3.5 overflow-y-auto p-4 sm:p-5">
           {!messages.length && (
-            <div className="rounded-xl bg-ink/[0.04] p-4 dark:bg-white/[0.06]">
-              <p className="text-sm font-bold">Bạn cần hỏi gì?</p>
-              <p className="mt-1 text-xs leading-5 text-ink/60 dark:text-white/60">Gia sư sẽ trả lời bằng tiếng Việt, kèm ví dụ tiếng Anh và sửa lỗi giúp bạn.</p>
-              <div className="mt-3 flex flex-col gap-2">
+            <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-4 sm:p-5 backdrop-blur-md">
+              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                <Sparkles size={16} />
+                <p className="font-display text-sm font-bold">Gia sư AI đồng hành cùng bạn</p>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">Hỏi ngữ pháp, tra cách dùng collocations, sửa lỗi câu hoặc luyện viết bài luận.</p>
+              <div className="mt-3.5 flex flex-col gap-2">
                 {QUICK_PROMPTS.map((prompt) => (
-                  <button key={prompt} onClick={() => send(prompt)} className="rounded-xl border border-ink/10 px-3 py-2.5 text-left text-xs font-semibold transition hover:bg-lime/20 dark:border-white/10">
-                    <Sparkles size={13} className="mr-1.5 inline" />{prompt}
+                  <button key={prompt} onClick={() => send(prompt)} className="rounded-xl border border-slate-200/80 bg-white/60 p-3 text-left text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition-all hover:border-indigo-400/50 hover:bg-white hover:text-indigo-600 active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white">
+                    <Sparkles size={13} className="mr-1.5 inline text-emerald-500" />{prompt}
                   </button>
                 ))}
               </div>
@@ -136,12 +147,12 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
           )}
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <p className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${message.role === "user" ? "bg-ink text-white dark:bg-lime dark:text-ink" : "bg-ink/[0.06] dark:bg-white/10"}`}>
+              <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-xs leading-6 sm:text-sm shadow-sm ${message.role === "user" ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_4px_16px_rgba(16,185,129,0.25)] rounded-tr-sm" : "border border-slate-200/80 bg-white/80 text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200 rounded-tl-sm"}`}>
                 {message.content}
-              </p>
+              </div>
             </div>
           ))}
-          {busy && <p className="flex items-center gap-2 text-xs text-ink/55 dark:text-white/55"><LoaderCircle size={14} className="animate-spin" />Gia sư đang trả lời…</p>}
+          {busy && <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-500 dark:text-slate-400 backdrop-blur-md"><LoaderCircle size={14} className="animate-spin text-emerald-500" />Gia sư đang suy nghĩ…</div>}
         </div>
 
         {!ready && (
@@ -152,14 +163,33 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
           </div>
         )}
 
+        <div className="flex items-center gap-1.5 overflow-x-auto px-3.5 py-2 scrollbar-none border-t border-ink/[0.06] bg-slate-50/50 dark:bg-white/[0.02] dark:border-white/[0.06]">
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Gợi ý:</span>
+          {QUICK_CHIPS.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setInput(chip.text);
+                inputRef.current?.focus();
+              }}
+              className="chip shrink-0 cursor-pointer border border-slate-200/80 bg-white/80 text-[11px] font-semibold text-slate-700 shadow-2xs backdrop-blur-xs transition hover:border-indigo-400 hover:bg-white hover:text-indigo-600 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:bg-white/10"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
         <form
           onSubmit={(event) => {
             event.preventDefault();
             send(input);
           }}
-          className="flex items-end gap-2 border-t border-ink/[0.08] p-3 dark:border-white/[0.08]"
+          className="flex items-end gap-2 p-3"
         >
           <textarea
+            ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {

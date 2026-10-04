@@ -760,9 +760,8 @@ export default function StudyMindmap({ apiKey }) {
         icon={BrainCircuit}
         eyebrow="Lộ trình học tập"
         title={mapName || "Roadmap học tập"}
-        description="Biến mục tiêu thành các nhánh nhỏ, cập nhật tiến độ và mở rộng lộ trình theo cách của bạn."
-        accent="#2b70c9"
-        deep="#174b8a"
+        accent="#3B82F6"
+        deep="#1D4ED8"
         illustration="mindmap"
         progress={progress}
         progressLabel="Chủ điểm đã hoàn thành"

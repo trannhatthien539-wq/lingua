@@ -181,6 +181,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [addTab, setAddTab] = useState("manual");
   const [actionsOpen, setActionsOpen] = useState(false);
   const [themePickerOpen, setThemePickerOpen] = useState(false);
+  const [themeSearch, setThemeSearch] = useState("");
   const [manualDraft, setManualDraft] = useState({ word: "", ipa: "", meaning: "", example: "", exampleTranslation: "", level: "B1" });
   const [topic, setTopic] = useState("Du lịch - giao tiếp");
   const [level, setLevel] = useState("B1");
@@ -1077,7 +1078,60 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </>
       )}
       {newDeckOpen && <NewDeckModal value={deckInput} onChange={setDeckInput} onSubmit={addDeck} onClose={() => { setNewDeckOpen(false); setDeckInput(""); }} busy={loading === "new-deck"} />}
-      {themePickerOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-lg p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Bộ từ theo chủ đề</p><h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ</h2></div><button onClick={() => setThemePickerOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Học cụm từ (collocation, phrasal verb) giúp bạn dùng từ đúng ngữ cảnh — đây là phần hay mất điểm ở trình độ B1.</p><ul className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto">{themeDecks.map((deck) => <li key={deck.id}><button onClick={() => addThemeDeck(deck.id)} disabled={loading === `theme-${deck.id}`} className="flex w-full items-center gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink"><BookOpen size={17} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="mt-0.5 block truncate text-xs text-ink/60 dark:text-white/60">{deck.description}</span></span><span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{loading === `theme-${deck.id}` ? 'Đang thêm…' : deck.level}</span></button></li>)}</ul></section></div>}
+      {themePickerOpen && (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
+          <section className="panel w-full max-w-lg p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="eyebrow">Bộ từ theo chủ đề</p>
+                <h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ & sách chuẩn</h2>
+              </div>
+              <button onClick={() => { setThemePickerOpen(false); setThemeSearch(""); }} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button>
+            </div>
+            <p className="mt-2.5 text-xs leading-5 text-ink/60 dark:text-white/60">
+              Tổng hợp từ 3 giáo trình kinh điển: English Grammar in Use (Raymond Murphy), English Collocations in Use (Cambridge) &amp; 4000 Essential English Words (Paul Nation).
+            </p>
+            <input
+              value={themeSearch}
+              onChange={(event) => setThemeSearch(event.target.value)}
+              placeholder="Tìm theo tên bộ, chủ đề hoặc sách (ví dụ: Murphy, Collocation, 4000 từ...)"
+              className="mt-3.5 w-full rounded-xl border border-ink/10 bg-transparent px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500 dark:border-white/10"
+            />
+            <ul className="mt-3 max-h-[55vh] space-y-2 overflow-y-auto">
+              {themeDecks
+                .filter((deck) => {
+                  const query = themeSearch.trim().toLowerCase();
+                  if (!query) return true;
+                  return (
+                    deck.title.toLowerCase().includes(query) ||
+                    deck.description.toLowerCase().includes(query) ||
+                    (deck.tags && deck.tags.some((tag) => tag.toLowerCase().includes(query)))
+                  );
+                })
+                .map((deck) => (
+                  <li key={deck.id}>
+                    <button
+                      onClick={() => addThemeDeck(deck.id)}
+                      disabled={loading === `theme-${deck.id}`}
+                      className="flex w-full items-center gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink">
+                        <BookOpen size={17} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">{deck.title}</span>
+                        <span className="mt-0.5 block truncate text-xs text-ink/60 dark:text-white/60">{deck.description}</span>
+                      </span>
+                      <span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">
+                        {loading === `theme-${deck.id}` ? 'Đang thêm…' : deck.level}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        </div>
+      )}
       {trashOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel max-h-[85vh] w-full max-w-lg overflow-y-auto p-5"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Thùng rác</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ &amp; từ đã xoá</h2></div><button onClick={() => setTrashOpen(false)} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/60">Mọi thứ bạn xoá được giữ ở đây để khôi phục. “Dọn thùng rác” sẽ xoá vĩnh viễn.</p>{trashBusy && <p className="mt-4 flex items-center gap-2 text-xs text-ink/60 dark:text-white/60"><LoaderCircle size={14} className="animate-spin" />Đang xử lý…</p>}<div className="mt-4 space-y-2">{trashItems.decks.map((deck) => <div key={deck.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><BookOpen size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{deck.title}</span><span className="text-xs text-ink/50 dark:text-white/50">{deck.cardCount} từ · Bộ thẻ</span></span><button disabled={trashBusy} onClick={() => restoreTrashedDeck(deck)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{trashItems.cards.slice(0, trashCardLimit).map((card) => <div key={card.id} className="flex items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink/[0.06] dark:bg-white/10"><RotateCcw size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{card.word}</span><span className="block truncate text-xs text-ink/50 dark:text-white/50">{card.meaning}</span></span><button disabled={trashBusy} onClick={() => restoreTrashedCard(card)} className="btn-secondary shrink-0 px-3 text-xs"><ArchiveRestore size={14} />Khôi phục</button></div>)}{trashItems.cards.length > trashCardLimit && <button type="button" onClick={() => setTrashCardLimit((value) => value + TRASH_PAGE_SIZE)} className="btn-secondary mt-3 w-full">Xem thêm {Math.min(TRASH_PAGE_SIZE, trashItems.cards.length - trashCardLimit)} từ · còn {trashItems.cards.length - trashCardLimit}</button>}{!trashBusy && !trashItems.decks.length && !trashItems.cards.length && <p className="rounded-xl bg-ink/[0.04] p-4 text-center text-sm text-ink/50 dark:bg-white/[0.06] dark:text-white/50">Thùng rác đang trống.</p>}</div><div className="mt-5 flex justify-end gap-2"><button onClick={() => setTrashOpen(false)} className="btn-secondary px-4">Đóng</button><button disabled={trashBusy || (!trashItems.decks.length && !trashItems.cards.length)} onClick={emptyTrash} className="btn-ghost px-4 text-danger dark:text-dangerfgdark"><Trash2 size={16} />Dọn thùng rác</button></div></section></div>}
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
       {sharedDeck && <div className="fixed inset-0 z-[110] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm"><section className="panel w-full max-w-md p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="truncate">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="rounded-xl border border-ink/10 px-4 py-3 text-sm font-bold dark:border-white/10">Bỏ qua</button><button onClick={importSharedDeck} className="rounded-xl bg-ink px-5 py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink">Thêm vào thư viện</button></div></section></div>}

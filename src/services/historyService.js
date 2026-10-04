@@ -16,6 +16,7 @@ export const historyChangedEvent = "lingua:history-changed";
 
 let days = null;
 let loading = null;
+let updateQueue = Promise.resolve();
 
 const notifyChanged = () => {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(historyChangedEvent));
@@ -42,22 +43,25 @@ export const loadHistory = async () => {
 
 export const getHistoryDays = () => days || {};
 
-export const recordStudyEvent = async ({ reviewed = 0, correct = 0, sessions = 0 } = {}) => {
-  if (!reviewed && !sessions) return getHistoryDays();
-  const current = await loadHistory();
-  const key = dayKeyOf();
-  const today = current[key] || { reviewed: 0, correct: 0, sessions: 0 };
-  days = pruneDays({
-    ...current,
-    [key]: {
-      reviewed: today.reviewed + reviewed,
-      correct: today.correct + correct,
-      sessions: today.sessions + sessions,
-    },
+export const recordStudyEvent = ({ reviewed = 0, correct = 0, sessions = 0 } = {}) => {
+  if (!reviewed && !sessions) return Promise.resolve(getHistoryDays());
+  updateQueue = updateQueue.then(async () => {
+    const current = await loadHistory();
+    const key = dayKeyOf();
+    const today = current[key] || { reviewed: 0, correct: 0, sessions: 0 };
+    days = pruneDays({
+      ...current,
+      [key]: {
+        reviewed: today.reviewed + reviewed,
+        correct: today.correct + correct,
+        sessions: today.sessions + sessions,
+      },
+    });
+    syncer.schedule({ days });
+    notifyChanged();
+    return days;
   });
-  syncer.schedule({ days });
-  notifyChanged();
-  return days;
+  return updateQueue;
 };
 
 export const reloadHistory = async () => {

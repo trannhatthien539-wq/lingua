@@ -21,6 +21,7 @@ import Sidebar from './components/layout/Sidebar'
 import Topbar from './components/layout/Topbar'
 import { navigationItems } from './data/navigation'
 import { useTheme } from './hooks/useTheme'
+import useAppearance from './hooks/useAppearance'
 import { formatDate } from './lib/formatters'
 import MobileBottomNav from './components/MobileBottomNav'
 import MobileHeader from './components/MobileHeader'
@@ -65,6 +66,7 @@ export default function App() {
   const activeTab = pathTabs[location.pathname] || 'home'
   const isLoginRoute = location.pathname === '/login'
   const { theme, themeMode, setThemeMode, toggleTheme } = useTheme()
+  const { appearance } = useAppearance()
   const { settings: reminderSettings, updateSettings: updateReminder, native: reminderNative } = useStudyReminder(streak, user)
   // Widget màn hình chính (APK): đẩy thẻ đến hạn / chuỗi ngày / chủ điểm ngữ pháp ra widget.
   useWidgetSummary({ streak, user })
@@ -210,15 +212,80 @@ export default function App() {
 
   const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
-  return <div className="min-h-screen bg-mist pt-[env(safe-area-inset-top)] text-ink transition-colors dark:bg-dark1 dark:text-white"><MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><main className="min-h-screen pb-28 md:pb-0 lg:ml-[264px]"><div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12"><Topbar title={activeItem.label} eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} streak={streak} /><div className="animate-[fade-in_400ms_ease-out]" key={activeTab}><Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>{activeTab === 'settings' ? <div className="max-w-3xl space-y-4"><ModuleHero icon={Settings2} eyebrow="Cài đặt" title="Tùy chỉnh không gian học" description="Quản lý tài khoản, giao diện, dữ liệu và kết nối AI của bạn." accent="#8a9aa3" deep="#56666c" illustration="settings" stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]} /><AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} /><AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} /><InstallAppPanel /><AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} /><ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} /></div> : <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />}</Suspense></div></div></main><MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />
-    {/* Gia sư AI: một nút nổi duy nhất, dùng được ở mọi tab (thay cho nút “Thêm từ” cũ). */}
-    <button
-      type="button"
-      onClick={() => setTutorOpen(true)}
-      className="no-print fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#58cc02] text-white transition hover:bg-[#4cc002] md:bottom-6 md:right-6"
-      aria-label="Mở gia sư AI"
-      title="Gia sư AI — hỏi bất cứ lúc nào"
-    >
-      <Sparkles size={22} />
-    </button>{searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={() => { setSearchOpen(false); setTutorOpen(true) }} onSelect={(item) => { selectTab(item.tab); if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type }); setSearchOpen(false) }} />}{tutorOpen && <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />}{shortcutsOpen && <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />}<Toaster /></div>
+  const bgImage = appearance?.background?.image
+  const bgBlur = appearance?.background?.blur ?? 0
+  const bgOverlay = appearance?.background?.overlay ?? 25
+
+  return (
+    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'bg-mist dark:bg-dark1'} pt-[env(safe-area-inset-top)] text-ink transition-colors dark:text-white`}>
+      {/* Lớp hiển thị ảnh nền tuỳ chỉnh riêng biệt */}
+      {bgImage && (
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+            style={{
+              backgroundImage: `url(${bgImage})`,
+              filter: bgBlur > 0 ? `blur(${bgBlur}px)` : 'none',
+              transform: bgBlur > 0 ? 'scale(1.06)' : 'scale(1)',
+            }}
+          />
+          <div
+            className="absolute inset-0 transition-colors duration-300"
+            style={{
+              backgroundColor: theme === 'dark'
+                ? `rgba(11, 15, 23, ${bgOverlay / 100})`
+                : `rgba(248, 250, 252, ${bgOverlay / 100})`,
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10">
+        <MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
+        <Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
+        <main className="min-h-screen pb-28 md:pb-0 lg:ml-[264px]">
+          <div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12">
+            <Topbar title={activeItem.label} eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} streak={streak} />
+            <div className="animate-[fade-in_400ms_ease-out]" key={activeTab}>
+              <Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>
+                {activeTab === 'settings' ? (
+                  <div className="max-w-3xl space-y-4">
+                    <ModuleHero icon={Settings2} eyebrow="Cài đặt" title="Tùy chỉnh không gian học" accent="#64748B" deep="#334155" illustration="settings" stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]} />
+                    <AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
+                    <AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} />
+                    <InstallAppPanel />
+                    <AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} />
+                    <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />
+                  </div>
+                ) : (
+                  <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />
+                )}
+              </Suspense>
+            </div>
+          </div>
+        </main>
+        <MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />
+      </div>
+
+      {/* Gia sư AI: nút nổi kính Apple thích ứng theo màu chủ đề */}
+      <button
+        type="button"
+        onClick={() => setTutorOpen(true)}
+        className="no-print fixed bottom-24 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
+        style={{
+          background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
+          boxShadow: '0 8px 25px -4px rgba(var(--accent), 0.45)',
+        }}
+        aria-label="Mở gia sư AI"
+        title="Gia sư AI — hỏi bất cứ lúc nào"
+      >
+        <Sparkles size={22} />
+      </button>
+
+      {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={() => { setSearchOpen(false); setTutorOpen(true) }} onSelect={(item) => { selectTab(item.tab); if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type }); setSearchOpen(false) }} />}
+      {tutorOpen && <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />}
+      {shortcutsOpen && <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />}
+      <Toaster />
+    </div>
+  )
 }

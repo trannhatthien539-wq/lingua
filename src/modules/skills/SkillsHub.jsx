@@ -50,9 +50,8 @@ export default function SkillsHub({ onStudyActivity }) {
         icon={Headphones}
         eyebrow="Luyện kỹ năng · B1"
         title="Luyện 4 kỹ năng toàn diện"
-        description="Nghe, Đọc, Nói, Viết theo chủ đề B1, kèm luyện câu và thi thử có đồng hồ."
-        accent="#14b8d4"
-        deep="#087f9b"
+        accent="#06B6D4"
+        deep="#0891B2"
         illustration="skills"
         compact
         progress={Math.round(((listeningDone + readingDone) / Math.max(1, listeningLessons.length + readingPassages.length)) * 100)}

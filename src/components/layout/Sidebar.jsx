@@ -4,22 +4,31 @@ import NavIcon from '../ui/NavIcon'
 import useTodayProgress from '../../hooks/useTodayProgress'
 import { navigationItems } from '../../data/navigation'
 
-// Mục đang chọn giống Duolingo: nền xanh nhạt + viền xanh + chữ xanh.
-const ACTIVE_ITEM = 'border-2 border-[#84d8ff] bg-[#ddf4ff] text-[#1899d6] dark:border-[#1cb0f6]/50 dark:bg-[#1cb0f6]/20 dark:text-[#84d8ff]'
-const IDLE_ITEM = 'border-2 border-transparent text-ink/60 hover:bg-ink/[0.04] hover:text-ink dark:text-white/60 dark:hover:bg-white/[0.08] dark:hover:text-white'
+// Mục đang chọn phong cách Linear & Apple: dùng biến màu chủ đề tuỳ biến động
+const ACTIVE_ITEM = 'border shadow-sm'
+const IDLE_ITEM = 'border border-transparent text-slate-600 hover:border-slate-200/80 hover:bg-slate-100/70 hover:text-slate-900 dark:text-slate-400 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.05] dark:hover:text-white'
 
 export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, user, streak, onOpenAuth, onSignOut }) {
   const currentStreak = streak?.currentStreak || 0
   const streakProgress = Math.min(100, Math.round((currentStreak / 7) * 100))
   const { percent: todayPercent } = useTodayProgress()
   return (
-    <aside className="no-print hidden w-full shrink-0 flex-col border-b border-ink/[0.08] bg-slab px-4 py-4 dark:border-white/[0.08] dark:bg-dark2 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[264px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+    <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-2xl px-4 py-4 dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[264px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
       <div className="flex items-center justify-between gap-3 lg:block">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <ProgressAvatar user={user} percent={todayPercent} />
-          <p className="font-display text-2xl font-bold tracking-tight text-[#58cc02]">lingua<span className="text-ink/50 dark:text-white/45">.</span></p>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{
+                backgroundColor: 'rgb(var(--accent))',
+                boxShadow: '0 0 10px rgb(var(--accent))',
+              }}
+            />
+            <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span></p>
+          </div>
         </div>
-        <button onClick={onToggleTheme} className="icon-btn h-10 w-10 border border-ink/10 lg:mt-0 dark:border-white/15" aria-label="Đổi giao diện">
+        <button onClick={onToggleTheme} className="icon-btn h-10 w-10 border border-slate-200/80 lg:mt-0 dark:border-white/10" aria-label="Đổi giao diện">
           {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
         </button>
       </div>
@@ -32,29 +41,36 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
               type="button"
               onClick={() => onTabChange(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-[52px] min-w-max items-center gap-3 rounded-2xl px-3 py-2 text-left transition lg:w-full ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+              className={`flex h-11 min-w-max items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 lg:w-full ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+              style={
+                isActive
+                  ? {
+                      borderColor: 'rgba(var(--accent), 0.38)',
+                      backgroundColor: 'rgba(var(--accent), 0.12)',
+                      color: 'rgb(var(--accent))',
+                      boxShadow: '0 2px 14px -2px rgba(var(--accent), 0.22)',
+                    }
+                  : undefined
+              }
             >
-              <NavIcon icon={item.icon} color={item.color} size="sm" />
-              <span className="min-w-0">
-                <span className="block text-[13px] font-bold uppercase tracking-[0.06em]">{item.label}</span>
-                <span className={`hidden text-xs lg:block ${isActive ? 'text-[#1899d6]/80 dark:text-[#84d8ff]/80' : 'text-ink/55 dark:text-white/50'}`}>{item.description}</span>
-              </span>
+              <NavIcon icon={item.icon} color={item.color} size="sm" active={isActive} />
+              <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.label}</span>
             </button>
           )
         })}
       </nav>
-      <div className="panel-flat mt-auto hidden p-4 lg:block">
+      <div className="panel-flat mt-auto hidden p-4 lg:block border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#ff9600] text-white" style={{ boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.18)' }}><Flame size={20} /></span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.3)]"><Flame size={20} /></span>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55">Chuỗi ngày học</p>
-            <p className="metric text-xl">{currentStreak > 0 ? `${currentStreak} ngày` : 'Chưa bắt đầu'}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Chuỗi ngày học</p>
+            <p className="metric text-lg text-slate-900 dark:text-white">{currentStreak > 0 ? `${currentStreak} ngày` : 'Chưa bắt đầu'}</p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-ink/60 dark:text-white/55">Mục tiêu tuần: 7 ngày.</p>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15"><div className="h-full rounded-full bg-[#ff9600] transition-all" style={{ width: `${streakProgress}%` }} /></div>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Mục tiêu tuần: 7 ngày</p>
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"><div className="h-full rounded-full transition-all" style={{ width: `${streakProgress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} /></div>
       </div>
-      <div className="mt-5 hidden border-t border-ink/[0.08] pt-5 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><img src={user.photoURL || ''} alt="" className="h-9 w-9 shrink-0 rounded-full bg-sage/40 object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.displayName || user.email}</p><button onClick={onSignOut} className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-ink/60 hover:text-ink dark:text-white/60 dark:hover:text-white"><LogOut size={13} />Đăng xuất</button></div></div> : <div><p className="mb-2.5 text-xs leading-5 text-ink/60 dark:text-white/55">Đăng nhập để đồng bộ dữ liệu lên đám mây</p><button onClick={onOpenAuth} className="btn-primary w-full"><LogIn size={16} />Đăng nhập</button></div>}</div>
+      <div className="mt-4 hidden border-t border-slate-200/80 pt-4 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><img src={user.photoURL || ''} alt="" className="h-9 w-9 shrink-0 rounded-full bg-slate-200 object-cover ring-2 ring-emerald-500/20" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user.displayName || user.email}</p><button onClick={onSignOut} className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><LogOut size={13} />Đăng xuất</button></div></div> : <div><p className="mb-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Đăng nhập để đồng bộ dữ liệu đám mây</p><button onClick={onOpenAuth} className="btn-primary w-full text-xs min-h-[40px]"><LogIn size={15} />Đăng nhập</button></div>}</div>
     </aside>
   )
 }

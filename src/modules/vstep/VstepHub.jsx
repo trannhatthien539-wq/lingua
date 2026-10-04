@@ -126,9 +126,8 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
         icon={GraduationCap}
         eyebrow="VSTEP · B1 – B2 – C1"
         title="Sẵn sàng cho kỳ thi VSTEP"
-        description="Đi một chiều như thi thật, luyện cả 4 kỹ năng và theo dõi điểm số của bạn."
-        accent="#ff5a5f"
-        deep="#b62d3a"
+        accent="#F43F5E"
+        deep="#BE123C"
         illustration="exam"
         progress={Math.round((attempts.length / Math.max(1, examsByLevel('all').length)) * 100)}
         progressLabel="Số đề đã từng thử"

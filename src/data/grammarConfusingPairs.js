@@ -115,6 +115,27 @@ export const grammarConfusingPairs = [
     point: 'compare with = so sánh để tìm điểm khác biệt; compare to = ví như, so sánh giống như.',
     example: 'Compare your answer with the model. / Life is often compared to a journey.',
   },
+  {
+    id: 'must-vs-have-to',
+    left: 'must (chủ quan)',
+    right: 'have to (khách quan)',
+    point: 'must thể hiện cảm xúc, ý chí chủ quan của người nói; have to thể hiện luật lệ, nội quy hoặc hoàn cảnh bắt buộc bên ngoài.',
+    example: 'I must work harder. (tôi tự thấy thế) / I have to wear a uniform at school. (quy định trường học).',
+  },
+  {
+    id: 'ing-vs-ed-adjectives',
+    left: 'Tính từ đuôi -ing (bản chất)',
+    right: 'Tính từ đuôi -ed (cảm xúc)',
+    point: '-ing miêu tả tính chất của sự vật/sự việc khiến ai đó cảm thấy thế nào; -ed miêu tả cảm giác của con người.',
+    example: 'The movie is boring. / I feel bored with the movie.',
+  },
+  {
+    id: 'in-case-vs-if',
+    left: 'in case (phòng khi)',
+    right: 'if (nếu như)',
+    point: 'in case = làm việc gì trước để chuẩn bị phòng hờ; if = chỉ hành động khi điều kiện xảy ra.',
+    example: 'Take an umbrella in case it rains. (cứ mang theo dù có mưa hay không) / Take an umbrella if it rains.',
+  },
 ]
 
 export const grammarConfusingPairById = (id) => grammarConfusingPairs.find((pair) => pair.id === id) || null

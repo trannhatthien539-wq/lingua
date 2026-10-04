@@ -1,9 +1,11 @@
 /**
- * Tuỳ biến giao diện: chế độ sáng/tối, màu chủ đề và phông chữ.
+ * Tuỳ biến giao diện: chế độ sáng/tối, màu chủ đề toàn diện, phông chữ và ảnh nền riêng biệt.
  *
- * Màu được truyền vào CSS qua 2 biến `--accent` (màu nhấn, ví dụ nút chính, tab đang chọn)
- * và `--accent-2` (màu phụ, dùng cho chữ/viền/thanh tiến độ). Tailwind đọc 2 biến này ở
- * `tailwind.config.js` nên mọi class như `bg-lime`, `text-sage`, `bg-lime/20` đều tự đổi theo.
+ * Màu được truyền vào CSS qua biến:
+ * - `--accent` (RGB channel): ví dụ "99 102 241"
+ * - `--accent-2` (RGB channel): màu bổ trợ cho dải gradient
+ * - `--accent-hex`: mã hex trực tiếp
+ * - `--accent-2-hex`: mã hex màu phụ
  */
 
 export const APPEARANCE_STORAGE_KEY = 'lingua-appearance'
@@ -37,12 +39,12 @@ export const applyThemeMode = (mode) => {
   const root = document.documentElement
   root.classList.toggle('dark', isDark)
   root.style.colorScheme = isDark ? 'dark' : 'light'
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#141917' : '#f6f7f5')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#0B0F17' : '#F8FAFC')
   return isDark
 }
 
 /* ------------------------------------------------------------------ *
- * Tiện ích màu
+ * Tiện ích màu & Palette Derivation
  * ------------------------------------------------------------------ */
 
 export const normalizeHex = (value) => {
@@ -52,8 +54,8 @@ export const normalizeHex = (value) => {
   return `#${full.toLowerCase()}`
 }
 
-const hexToRgb = (value) => {
-  const hex = normalizeHex(value) || '#000000'
+export const hexToRgb = (value) => {
+  const hex = normalizeHex(value) || '#6366f1'
   return {
     r: parseInt(hex.slice(1, 3), 16),
     g: parseInt(hex.slice(3, 5), 16),
@@ -106,64 +108,102 @@ const hslToHex = (h, s, l) => {
 }
 
 /**
- * Từ một màu bất kỳ, suy ra cặp màu dùng được cho giao diện:
- * - accent: giữ nguyên tông, chỉnh độ sáng vào khoảng an toàn để chữ mực đậm vẫn rõ.
- * - accent2: cùng tông nhưng trầm hơn, dùng làm chữ/viền/thanh tiến độ.
+ * Tự động tạo dải màu đồng bộ chất lượng cao từ một màu bất kỳ:
+ * - accent: màu nhấn chính, cân bằng độ sáng và bão hoà
+ * - accent2: màu bổ trợ cho dải gradient cao cấp
  */
 export const derivePalette = (input) => {
-  const safe = normalizeHex(input) || '#d9f06d'
+  const safe = normalizeHex(input) || '#6366f1'
   const { r, g, b } = hexToRgb(safe)
   const { h, s, l } = rgbToHsl(r, g, b)
   return {
-    accent: hslToHex(h, clamp(s, 0.45, 0.92), clamp(l, 0.64, 0.8)),
-    accent2: hslToHex(h, clamp(s * 0.4, 0.14, 0.34), 0.56),
+    accent: hslToHex(h, clamp(s, 0.5, 0.95), clamp(l, 0.46, 0.64)),
+    accent2: hslToHex(h, clamp(s, 0.55, 0.95), clamp(l * 0.78, 0.32, 0.52)),
   }
 }
 
 /* ------------------------------------------------------------------ *
- * Bảng màu & phông chữ có sẵn
+ * Bảng màu, Phông chữ & Ảnh nền có sẵn
  * ------------------------------------------------------------------ */
 
 export const PALETTES = [
-  { id: 'lime', name: 'Chanh', accent: '#d9f06d', accent2: '#86a98f' },
-  { id: 'mint', name: 'Bạc hà', accent: '#a9ecd2', accent2: '#6f9c8c' },
-  { id: 'sky', name: 'Biển', accent: '#a9d8f5', accent2: '#6f93b2' },
-  { id: 'lavender', name: 'Oải hương', accent: '#cfc6f7', accent2: '#7f79ab' },
-  { id: 'peach', name: 'Đào', accent: '#ffd2b0', accent2: '#b08265' },
-  { id: 'rose', name: 'Hồng', accent: '#ffc6d3', accent2: '#b16f80' },
-  { id: 'sand', name: 'Cát', accent: '#f2e3b3', accent2: '#a08f5c' },
-  { id: 'stone', name: 'Đá', accent: '#d6dcd8', accent2: '#7c8a84' },
+  { id: 'indigo', name: 'Cyber Indigo', accent: '#6366F1', accent2: '#4F46E5' },
+  { id: 'emerald', name: 'Emerald Aurora', accent: '#10B981', accent2: '#059669' },
+  { id: 'sky', name: 'Electric Sky', accent: '#0EA5E9', accent2: '#0284C7' },
+  { id: 'violet', name: 'Royal Violet', accent: '#8B5CF6', accent2: '#7C3AED' },
+  { id: 'rose', name: 'Sunset Rose', accent: '#F43F5E', accent2: '#E11D48' },
+  { id: 'amber', name: 'Cosmic Amber', accent: '#F59E0B', accent2: '#D97706' },
+  { id: 'teal', name: 'Neon Mint', accent: '#14B8A6', accent2: '#0D9488' },
+  { id: 'slate', name: 'Titanium Slate', accent: '#64748B', accent2: '#475569' },
+  // Hỗ trợ tương thích ngược với các ID cũ:
+  { id: 'lime', name: 'Lime tươi', accent: '#84CC16', accent2: '#65A30D' },
+  { id: 'mint', name: 'Bạc hà dịu', accent: '#10B981', accent2: '#059669' },
+  { id: 'lavender', name: 'Oải hương', accent: '#A855F7', accent2: '#7E22CE' },
+  { id: 'peach', name: 'Đào san hô', accent: '#FB923C', accent2: '#EA580C' },
+]
+
+export const WALLPAPER_PRESETS = [
+  {
+    id: 'aurora',
+    name: 'Cực quang Aurora',
+    url: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'space',
+    name: 'Vũ trụ Deep Space',
+    url: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'cyberpunk',
+    name: 'Đêm Cyberpunk',
+    url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'study',
+    name: 'Góc học tập Cozy',
+    url: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0d0?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0d0?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'fluid',
+    name: 'Lụa kính Apple Silk',
+    url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop',
+  },
 ]
 
 export const FONTS = [
   {
-    id: 'dm-sans',
-    name: 'DM Sans',
-    note: 'Mặc định · gọn gàng',
-    sans: "'DM Sans'",
+    id: 'inter',
+    name: 'Inter',
+    note: 'Chuẩn Apple & Linear, cực kỳ sắc nét',
+    sans: "'Inter'",
     display: "'Space Grotesk'",
-    google: 'family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700',
+    google: 'family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700',
   },
   {
     id: 'be-vietnam',
     name: 'Be Vietnam Pro',
-    note: 'Tối ưu cho tiếng Việt',
+    note: 'Tối ưu dấu câu và nét chữ tiếng Việt',
     sans: "'Be Vietnam Pro'",
     display: "'Be Vietnam Pro'",
     google: 'family=Be+Vietnam+Pro:wght@400;500;600;700',
   },
   {
-    id: 'inter',
-    name: 'Inter',
-    note: 'Trung tính, dễ đọc',
-    sans: "'Inter'",
-    display: "'Inter'",
-    google: 'family=Inter:wght@400;500;600;700',
+    id: 'dm-sans',
+    name: 'DM Sans',
+    note: 'Gọn gàng, hình học hiện đại',
+    sans: "'DM Sans'",
+    display: "'Space Grotesk'",
+    google: 'family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700',
   },
   {
     id: 'nunito',
     name: 'Nunito',
-    note: 'Bo tròn, thân thiện',
+    note: 'Bo tròn, thân thiện và năng động',
     sans: "'Nunito'",
     display: "'Nunito'",
     google: 'family=Nunito:wght@400;600;700;800',
@@ -171,7 +211,7 @@ export const FONTS = [
   {
     id: 'work-sans',
     name: 'Work Sans',
-    note: 'Chắc chắn, hiện đại',
+    note: 'Chắc chắn, chuyên nghiệp',
     sans: "'Work Sans'",
     display: "'Work Sans'",
     google: 'family=Work+Sans:wght@400;500;600;700',
@@ -179,7 +219,7 @@ export const FONTS = [
   {
     id: 'lora',
     name: 'Lora',
-    note: 'Serif cho người thích đọc',
+    note: 'Serif thanh lịch cho bài đọc dài',
     sans: "'Lora'",
     display: "'Lora'",
     google: 'family=Lora:wght@400;500;600;700',
@@ -187,15 +227,63 @@ export const FONTS = [
 ]
 
 export const FONT_SCALES = [
-  { id: 'md', name: 'Vừa', value: 1 },
-  { id: 'lg', name: 'Lớn', value: 1.08 },
-  { id: 'xl', name: 'Rất lớn', value: 1.16 },
+  { id: 'md', name: 'Vừa (100%)', value: 1 },
+  { id: 'lg', name: 'Lớn (108%)', value: 1.08 },
+  { id: 'xl', name: 'Rất lớn (116%)', value: 1.16 },
 ]
 
-export const defaultAppearance = { paletteId: 'lime', customColor: '#d9f06d', fontId: 'dm-sans', fontScale: 'md' }
+export const defaultBackground = {
+  image: null,
+  blur: 0,
+  overlay: 25,
+  transparency: 55,
+}
+
+export const defaultAppearance = {
+  paletteId: 'indigo',
+  customColor: '#6366F1',
+  fontId: 'inter',
+  fontScale: 'md',
+  background: defaultBackground,
+}
 
 /* ------------------------------------------------------------------ *
- * Đọc / ghi / áp dụng
+ * Nén ảnh tải lên an toàn (Canvas Offscreen)
+ * ------------------------------------------------------------------ */
+
+export const compressImageFile = (file, maxWidth = 1920, quality = 0.82) => {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type?.startsWith('image/')) {
+      return reject(new Error('Vui lòng chọn một tệp hình ảnh hợp lệ (JPG, PNG, WEBP).'))
+    }
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Không thể đọc tệp hình ảnh.'))
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onerror = () => reject(new Error('Tệp hình ảnh bị hỏng hoặc không hỗ trợ.'))
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+        resolve(compressedDataUrl)
+      }
+      img.src = event.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * Đọc / Ghi / Chuẩn hóa / Áp dụng Appearance
  * ------------------------------------------------------------------ */
 
 export const normalizeAppearance = (input) => {
@@ -206,11 +294,20 @@ export const normalizeAppearance = (input) => {
       : defaultAppearance.paletteId
   const font = FONTS.find((item) => item.id === input?.fontId)
   const scale = FONT_SCALES.find((item) => item.id === input?.fontScale)
+
+  const background = {
+    image: typeof input?.background?.image === 'string' && input.background.image.trim() ? input.background.image : null,
+    blur: typeof input?.background?.blur === 'number' ? clamp(input.background.blur, 0, 30) : defaultBackground.blur,
+    overlay: typeof input?.background?.overlay === 'number' ? clamp(input.background.overlay, 0, 85) : defaultBackground.overlay,
+    transparency: typeof input?.background?.transparency === 'number' ? clamp(input.background.transparency, 15, 95) : defaultBackground.transparency,
+  }
+
   return {
     paletteId,
     customColor: normalizeHex(input?.customColor) || defaultAppearance.customColor,
     fontId: font ? font.id : defaultAppearance.fontId,
     fontScale: scale ? scale.id : defaultAppearance.fontScale,
+    background,
   }
 }
 
@@ -227,7 +324,14 @@ export const writeAppearance = (appearance) => {
   try {
     localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(normalizeAppearance(appearance)))
   } catch {
-    // Bỏ qua khi localStorage đầy hoặc bị chặn.
+    if (appearance?.background?.image) {
+      try {
+        const withoutImage = { ...appearance, background: { ...appearance.background, image: null } }
+        localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(normalizeAppearance(withoutImage)))
+      } catch {
+        // bỏ qua
+      }
+    }
   }
 }
 
@@ -247,7 +351,7 @@ const toChannels = (hex) => {
   return `${r} ${g} ${b}`
 }
 
-/** Nạp stylesheet của phông chữ đang chọn (chỉ tải khi thật sự cần). */
+/** Nạp stylesheet của phông chữ đang chọn (chỉ tải khi cần). */
 const ensureFontStylesheet = (font) => {
   if (!font?.google) return
   const href = `https://fonts.googleapis.com/css2?${font.google}&display=swap`
@@ -267,18 +371,27 @@ export const applyAppearance = (appearance) => {
   const root = document.documentElement
   root.style.setProperty('--accent', toChannels(resolved.colors.accent))
   root.style.setProperty('--accent-2', toChannels(resolved.colors.accent2))
+  root.style.setProperty('--accent-hex', resolved.colors.accent)
+  root.style.setProperty('--accent-2-hex', resolved.colors.accent2)
   root.style.setProperty('--font-sans', resolved.font.sans)
   root.style.setProperty('--font-display', resolved.font.display)
   root.style.fontSize = resolved.scale.value === 1 ? '' : `${Math.round(resolved.scale.value * 100)}%`
+
+  // Thiết lập biến nhìn xuyên và lớp nền
+  const hasBg = Boolean(resolved.background?.image)
+  root.classList.toggle('has-custom-bg', hasBg)
+  root.style.setProperty('--panel-opacity', `${(resolved.background?.transparency ?? 55) / 100}`)
+  root.style.setProperty('--bg-blur', `${resolved.background?.blur ?? 0}px`)
+  root.style.setProperty('--bg-overlay', `${(resolved.background?.overlay ?? 25) / 100}`)
+
   ensureFontStylesheet(resolved.font)
   return resolved
 }
 
-/** Gọi trước khi React render để tránh nháy màu/phông chữ mặc định. */
+/** Khởi động cài đặt giao diện trước khi React render để tránh giật/nháy giao diện. */
 export const bootstrapAppearance = () => {
   applyThemeMode(readThemeMode())
   applyAppearance(readAppearance())
-  // Tab khác đổi giao diện thì tab này cũng đổi theo.
   if (typeof window === 'undefined' || window.__linguaAppearanceBound) return
   window.__linguaAppearanceBound = true
   window.addEventListener('storage', (event) => {

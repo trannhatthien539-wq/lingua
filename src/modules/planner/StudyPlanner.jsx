@@ -768,9 +768,8 @@ export default function StudyPlanner({ onStudyActivity, user }) {
           icon={Target}
           eyebrow="Todo & Lịch học"
           title="Kế hoạch học hôm nay"
-          description="Chọn một việc cụ thể, bắt đầu phiên tập trung và hoàn thành kế hoạch từng bước."
-          accent="#ff86d0"
-          deep="#c84d93"
+          accent="#A855F7"
+          deep="#6D28D9"
           illustration="planner"
           progress={taskProgress}
           progressLabel="Việc học hôm nay"

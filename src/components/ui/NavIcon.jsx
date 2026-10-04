@@ -17,24 +17,34 @@ const needsDarkGlyph = (hex) => {
 }
 
 const SIZES = {
-  sm: { box: 'h-8 w-8 rounded-[10px]', glyph: 16 },
-  md: { box: 'h-10 w-10 rounded-xl', glyph: 20 },
-  lg: { box: 'h-12 w-12 rounded-2xl', glyph: 24 },
+  sm: { box: 'h-8 w-8 rounded-xl', glyph: 15 },
+  md: { box: 'h-10 w-10 rounded-xl', glyph: 19 },
+  lg: { box: 'h-12 w-12 rounded-2xl', glyph: 23 },
 }
 
-export default function NavIcon({ icon: Icon, color = '#58cc02', size = 'md', className = '' }) {
+export default function NavIcon({ icon: Icon, color = '#6366F1', size = 'md', active = false, className = '' }) {
   const current = SIZES[size] || SIZES.md
   return (
     <span
-      className={`grid shrink-0 place-items-center ${current.box} ${className}`}
-      style={{
-        backgroundColor: color,
-        color: needsDarkGlyph(color) ? '#3c3c3c' : '#ffffff',
-        boxShadow: 'inset 0 -3px 0 rgba(0,0,0,0.18)',
-      }}
+      className={`relative grid shrink-0 place-items-center border backdrop-blur-md transition-all duration-200 ${current.box} ${className}`}
+      style={
+        active
+          ? {
+              background: `linear-gradient(135deg, ${color}, ${color}ee)`,
+              color: needsDarkGlyph(color) ? '#0F172A' : '#FFFFFF',
+              borderColor: 'rgba(255,255,255,0.35)',
+              boxShadow: `0 4px 16px -2px ${color}66, inset 0 1px 1px 0 rgba(255,255,255,0.45)`,
+            }
+          : {
+              backgroundColor: `${color}18`,
+              borderColor: `${color}35`,
+              color: color,
+              boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08)',
+            }
+      }
       aria-hidden="true"
     >
-      <Icon size={current.glyph} strokeWidth={2.4} />
+      <Icon size={current.glyph} strokeWidth={2.2} />
     </span>
   )
 }

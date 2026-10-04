@@ -25,8 +25,8 @@ export default function MobileBottomNav({ activeTab, onTabChange }) {
     onTabChange(id);
   };
 
-  const tabClass = (active) => `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-0.5 py-1 text-[9px] font-bold uppercase tracking-normal transition ${active ? 'text-[#1899d6] dark:text-[#84d8ff]' : 'text-ink/50 dark:text-white/50'}`;
-  const iconClass = (active) => `grid h-10 w-11 place-items-center rounded-2xl transition ${active ? 'bg-[#ddf4ff] dark:bg-[#1cb0f6]/25' : ''}`;
+  const tabClass = (active) => `flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-0.5 py-1 text-[10px] font-bold tracking-tight transition-all duration-200 ${active ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`;
+  const iconClass = (active) => `grid h-9 w-10 place-items-center rounded-xl transition-all duration-200 ${active ? 'bg-indigo-50/90 text-indigo-600 shadow-sm dark:bg-indigo-500/20 dark:text-indigo-400' : ''}`;
 
   return (
     <>
@@ -49,13 +49,10 @@ export default function MobileBottomNav({ activeTab, onTabChange }) {
                     type="button"
                     onClick={() => selectTab(item.id)}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-[64px] items-center gap-3 rounded-2xl border-2 px-3 py-2.5 text-left transition ${active ? 'border-[#84d8ff] bg-[#ddf4ff] dark:border-[#1cb0f6]/50 dark:bg-[#1cb0f6]/20' : 'border-ink/[0.08] hover:bg-ink/[0.04] dark:border-white/[0.08] dark:hover:bg-white/[0.06]'}`}
+                    className={`flex h-12 items-center gap-3 rounded-xl border px-3 text-left transition-all ${active ? 'border-indigo-500/40 bg-indigo-50/90 text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-500/15 dark:text-indigo-400' : 'border-slate-200/80 bg-slate-50/60 text-slate-700 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-300'}`}
                   >
-                    <NavIcon icon={item.icon} color={item.color} size="sm" />
-                    <span className="min-w-0">
-                      <span className={`block truncate text-[13px] font-bold uppercase tracking-[0.04em] ${active ? 'text-[#1899d6] dark:text-[#84d8ff]' : ''}`}>{item.shortLabel || item.label}</span>
-                      <span className="block truncate text-xs text-ink/60 dark:text-white/55">{item.description}</span>
-                    </span>
+                    <NavIcon icon={item.icon} color={item.color} size="sm" active={active} />
+                    <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.shortLabel || item.label}</span>
                   </button>
                 );
               })}
@@ -65,14 +62,14 @@ export default function MobileBottomNav({ activeTab, onTabChange }) {
       )}
 
       <nav
-        className="no-print fixed inset-x-0 bottom-0 z-50 flex items-center gap-0.5 border-t border-ink/10 bg-slab/95 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] backdrop-blur-md dark:border-white/10 dark:bg-dark1/95 md:hidden"
+        className="no-print fixed inset-x-0 bottom-0 z-50 flex items-center gap-0.5 border-t border-slate-200/80 bg-white/80 px-2 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0B0F17]/85 md:hidden"
         aria-label="Điều hướng mobile"
       >
         {primary.map((item) => {
           const active = activeTab === item.id;
           return (
             <button key={item.id} type="button" onClick={() => selectTab(item.id)} className={tabClass(active)} aria-current={active ? 'page' : undefined}>
-              <span className={iconClass(active)}><NavIcon icon={item.icon} color={item.color} size="sm" /></span>
+              <span className={iconClass(active)}><NavIcon icon={item.icon} color={item.color} size="sm" active={active} /></span>
               <span className="max-w-full truncate">{item.shortLabel || item.label}</span>
             </button>
           );
@@ -84,7 +81,7 @@ export default function MobileBottomNav({ activeTab, onTabChange }) {
           aria-haspopup="menu"
           className={tabClass(extraActive)}
         >
-          <span className={iconClass(extraActive)}><NavIcon icon={LayoutGrid} color={MORE_COLOR} size="sm" /></span>
+          <span className={iconClass(extraActive)}><NavIcon icon={LayoutGrid} color={MORE_COLOR} size="sm" active={extraActive} /></span>
           <span className="max-w-full truncate">Thêm</span>
         </button>
       </nav>

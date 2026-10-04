@@ -29,18 +29,17 @@ const averageBySkill = (attempts = []) => {
     .sort((first, second) => first.value - second.value);
 };
 
-function PlanRow({ icon: Icon, toneClass = "bg-sage/15 text-sage", title, detail, action, onAction }) {
+function PlanRow({ icon: Icon, toneClass = "bg-indigo-500/15 text-indigo-400", title, action, onAction }) {
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${toneClass}`}>
-        <Icon size={16} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold">{title}</span>
-        <span className="block text-xs text-ink/60 dark:text-white/60">{detail}</span>
-      </span>
+    <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white/50 px-3.5 py-2.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111827]/50">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${toneClass}`}>
+          <Icon size={16} />
+        </span>
+        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</span>
+      </div>
       {action && (
-        <button type="button" onClick={onAction} className="btn-secondary min-h-[36px] px-3 text-xs">
+        <button type="button" onClick={onAction} className="btn-secondary h-8 px-3 text-xs font-semibold">
           <PlayCircle size={14} />{action}
         </button>
       )}
@@ -167,7 +166,6 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
               icon={row.icon}
               toneClass={row.toneClass}
               title={row.title}
-              detail={row.detail}
               action={row.action}
               onAction={row.onAction}
             />

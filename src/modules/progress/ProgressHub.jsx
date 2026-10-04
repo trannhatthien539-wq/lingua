@@ -117,9 +117,8 @@ export default function ProgressHub({ user, streak, onNavigate }) {
         icon={Trophy}
         eyebrow="Tiến độ & thành tích"
         title="Toàn cảnh hành trình học"
-        description="Theo dõi XP, chuỗi ngày, mục tiêu ôn tập và những kỷ lục bạn đã tạo."
-        accent="#ffc800"
-        deep="#b88900"
+        accent="#10B981"
+        deep="#059669"
         illustration="progress"
         progress={level.percent}
         progressLabel={`Tiến độ lên cấp ${level.level + 1}`}

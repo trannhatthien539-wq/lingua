@@ -4,29 +4,27 @@
 
 @layer base {
   :root {
-    /* Màu nhấn do người dùng chọn (Cài đặt → Màu sắc & phông chữ) ghi đè 2 biến này. */
-    --accent: 217 240 109;
-    --accent-2: 134 169 143;
-    --font-sans: 'DM Sans';
-    --font-display: 'Space Grotesk';
-    font-family: var(--font-sans), 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-    color: #18201d;
-    background: #f6f7f5;
+    --accent: 16 185 129;
+    --accent-2: 99 102 241;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
+    color: #0F172A;
+    background: #F8FAFC;
     font-synthesis: none;
     color-scheme: light;
   }
-  /* Nền của <html> cũng phải tối, nếu không vùng overscroll trên mobile sẽ nháy trắng */
   html.dark {
-    background: #141917;
+    background: #0B0F17;
     color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-  body { margin: 0; min-width: 320px; min-height: 100vh; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; overflow-x: hidden; }
+  body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; max-width: 100vw; }
   button, input, textarea, select { font: inherit; }
   h1, h2, h3 { text-wrap: balance; }
-  :focus-visible { outline: 2px solid rgb(var(--accent-2)); outline-offset: 2px; border-radius: 8px; }
-  ::selection { background: rgb(var(--accent)); color: #18201d; }
+  :focus-visible { outline: 2px solid rgb(var(--accent-2)); outline-offset: 2px; border-radius: 10px; }
+  ::selection { background: rgb(var(--accent)); color: #FFFFFF; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -38,51 +36,115 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.animate-toast-in { animation: toast-in 160ms ease-out; }
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+.animate-toast-in { animation: toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1); }
 
 @keyframes quiz-correct {
   0%, 100% { transform: scale(1); }
-  45% { transform: scale(1.04); }
-  70% { transform: scale(0.98); }
+  45% { transform: scale(1.03); }
+  70% { transform: scale(0.99); }
 }
 
 @keyframes quiz-shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
 }
 
-.quiz-correct { animation: quiz-correct 420ms ease-out; }
-.quiz-shake { animation: quiz-shake 360ms ease-in-out; }
+.quiz-correct { animation: quiz-correct 380ms ease-out; }
+.quiz-shake { animation: quiz-shake 320ms ease-in-out; }
 
 @layer components {
-  /* Khối nội dung nổi */
-  .panel { @apply rounded-2xl border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 dark:shadow-none; }
-  /* Khối phụ, phẳng: thống kê, thanh công cụ, khối lồng trong panel */
-  .panel-flat { @apply rounded-xl border border-ink/[0.06] bg-slab2 dark:border-white/[0.06] dark:bg-dark3; }
-  /* Nhãn nhỏ: tối thiểu 12px, tracking gọn để dễ đọc */
-  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55; }
+  /* Khối nổi Glassmorphism Apple/Linear đẳng cấp */
+  .panel {
+    @apply rounded-2xl border border-slate-200/80 bg-white/90 shadow-soft backdrop-blur-xl transition-all duration-200 dark:border-white/[0.08] dark:bg-[#111827]/80 dark:shadow-[0_8px_30px_rgb(0,0,0,0.12)];
+  }
 
-  .btn-primary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-lime px-5 text-sm font-bold text-ink transition hover:brightness-[1.04] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40; }
-  .btn-secondary { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-ink/10 px-4 text-sm font-bold text-ink transition hover:bg-ink/[0.05] disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/15 dark:text-white dark:hover:bg-white/10; }
-  .btn-ghost { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-ink/60 transition hover:bg-ink/[0.05] hover:text-ink disabled:opacity-40 dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white; }
-  /* Nút biểu tượng: vùng chạm 44px */
-  .icon-btn { @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/60 transition hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white; }
-  .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold; }
-  /* Mục trong menu/dropdown: vùng chạm 44px, chữ 14px */
-  .menu-item { @apply flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm font-semibold text-ink/80 transition hover:bg-ink/[0.06] disabled:cursor-not-allowed disabled:opacity-40 dark:text-white/80 dark:hover:bg-white/10; }
+  /* Khi có ảnh nền tuỳ chỉnh, các thẻ kính mờ sẽ nhìn xuyên thấu tinh tế */
+  html.has-custom-bg .panel {
+    background-color: rgb(255 255 255 / calc(var(--panel-opacity, 0.55) * 1.15));
+    border-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  html.dark.has-custom-bg .panel {
+    background-color: rgb(17 24 39 / var(--panel-opacity, 0.55));
+    border-color: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  html.has-custom-bg aside {
+    background-color: rgb(255 255 255 / calc(var(--panel-opacity, 0.55) * 1.1)) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  html.dark.has-custom-bg aside {
+    background-color: rgb(11 15 23 / var(--panel-opacity, 0.55)) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
 
-  .field { @apply w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none transition placeholder:text-ink/50 focus:border-sage dark:border-white/10 dark:placeholder:text-white/50; }
-  .metric { @apply font-display font-bold tabular-nums; }
+  /* Khối phụ / Thẻ con phẳng tinh tế */
+  .panel-flat {
+    @apply rounded-xl border border-slate-200/60 bg-slate-50/80 backdrop-blur-md dark:border-white/[0.05] dark:bg-white/[0.03];
+  }
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400;
+  }
+
+  /* Nút bấm Apple & Linear Style có chiều sâu cao cấp gắn theo màu chủ đề */
+  .btn-primary {
+    background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)));
+    box-shadow: 0 4px 16px -2px rgba(var(--accent), 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.35);
+    @apply relative inline-flex min-h-[44px] items-center justify-center gap-2 overflow-hidden rounded-xl px-5 text-sm font-bold text-white transition-all duration-200 hover:brightness-110 active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-4 text-sm font-bold text-slate-700 shadow-sm backdrop-blur-md transition-all duration-200 hover:bg-slate-100/80 hover:text-slate-900 active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.1] dark:hover:text-white;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.08] dark:hover:text-white;
+  }
+  .icon-btn {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.08] dark:hover:text-white;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-md;
+  }
+  .chip-brand {
+    background-color: rgba(var(--accent), 0.15);
+    color: rgb(var(--accent));
+    border: 1px solid rgba(var(--accent), 0.25);
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold backdrop-blur-md;
+  }
+  .menu-item {
+    @apply flex min-h-[44px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-300 dark:hover:bg-white/[0.08];
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-slate-200 bg-white/80 px-3.5 py-3 text-sm text-slate-900 outline-none backdrop-blur-md transition placeholder:text-slate-400 focus:ring-2 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:placeholder:text-slate-500;
+  }
+  .field:focus {
+    border-color: rgb(var(--accent));
+    --tw-ring-color: rgba(var(--accent), 0.25);
+  }
+  .metric {
+    @apply font-display font-bold tabular-nums tracking-tight;
+  }
 }
 
 
