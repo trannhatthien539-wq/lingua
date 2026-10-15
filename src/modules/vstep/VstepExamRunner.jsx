@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlarmClock, ChevronRight, Flag, X } from "lucide-react";
+import { AlarmClock, ChevronRight, Flag, Maximize2, Minimize2, X } from "lucide-react";
 import ListeningSection from "./sections/ListeningSection";
 import ReadingSection from "./sections/ReadingSection";
 import WritingSection from "./sections/WritingSection";
@@ -18,6 +18,7 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
   const isExam = mode === "exam";
   const sections = useMemo(() => skillOrder.filter((key) => (exam[key]?.parts?.length || exam[key]?.tasks?.length)), [exam]);
   const [sectionKey, setSectionKey] = useState(sections[0]);
+  const [zenMode, setZenMode] = useState(false);
   const [revealed, setRevealed] = useState({});
   const [responses, setResponses] = useState({});
   const [writings, setWritings] = useState({});
@@ -93,42 +94,68 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExam, sectionKey, index, isLast, sections, exam]);
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && zenMode) {
+        setZenMode(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [zenMode]);
+
   const sectionProps = { exam, answers: responses, onAnswer: answer, mode: revealed[sectionKey] ? "review" : "exam" };
   const listeningCount = examQuestions(exam, "listening").length;
 
   return (
-    <div className="space-y-4">
-      <section className="panel no-print sticky top-2 z-30 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">{isExam ? "Đang thi" : "Đang luyện"} · {exam.title}</p>
-            <p className="mt-1 font-display text-lg font-bold">{SECTION_LABELS[sectionKey]} ({index + 1}/{sections.length})</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {isExam ? (
-              <span className={`chip ${secondsLeft <= 300 ? "bg-danger/15 text-danger dark:text-dangerfgdark" : "bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70"}`}>
-                <AlarmClock size={13} className="mr-1" />Còn {formatClock(secondsLeft)}
-              </span>
-            ) : (
-              <button type="button" onClick={() => setRevealed((current) => ({ ...current, [sectionKey]: !current[sectionKey] }))} className="btn-secondary px-3 text-xs">
-                {revealed[sectionKey] ? "Tắt đáp án" : "Xem đáp án phần này"}
+    <div
+      className={
+        zenMode
+          ? "fixed inset-0 z-50 overflow-y-auto bg-slate-950 p-4 sm:p-6 text-slate-100 dark:bg-slate-950"
+          : "space-y-4"
+      }
+    >
+      <div className={zenMode ? "mx-auto max-w-5xl space-y-4" : "space-y-4"}>
+        <section className="panel no-print sticky top-2 z-30 p-3 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="eyebrow">{isExam ? "Đang thi" : "Đang luyện"} · {exam.title}</p>
+              <p className="mt-1 font-display text-lg font-bold">{SECTION_LABELS[sectionKey]} ({index + 1}/{sections.length})</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {isExam ? (
+                <span className={`chip ${secondsLeft <= 300 ? "bg-danger/15 text-danger dark:text-dangerfgdark" : "bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70"}`}>
+                  <AlarmClock size={13} className="mr-1" />Còn {formatClock(secondsLeft)}
+                </span>
+              ) : (
+                <button type="button" onClick={() => setRevealed((current) => ({ ...current, [sectionKey]: !current[sectionKey] }))} className="btn-secondary px-3 text-xs">
+                  {revealed[sectionKey] ? "Tắt đáp án" : "Xem đáp án phần này"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setZenMode((prev) => !prev)}
+                className={`icon-btn h-11 w-11 ${zenMode ? "border-lime bg-lime/20 text-lime" : ""}`}
+                title={zenMode ? "Thoát chế độ tập trung (Esc)" : "Bật chế độ tập trung toàn màn hình (Zen Mode)"}
+                aria-label={zenMode ? "Thoát chế độ tập trung" : "Bật chế độ tập trung"}
+              >
+                {zenMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
-            )}
-            <button type="button" onClick={confirmNext} className="btn-primary px-4 text-xs">
-              {isLast ? <><Flag size={15} />Nộp bài</> : <><ChevronRight size={15} />Phần tiếp theo</>}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Thoát bài thi? Kết quả sẽ không được lưu.")) onExit();
-              }}
-              className="icon-btn h-11 w-11"
-              aria-label="Thoát bài thi"
-            >
-              <X size={18} />
-            </button>
+              <button type="button" onClick={confirmNext} className="btn-primary px-4 text-xs">
+                {isLast ? <><Flag size={15} />Nộp bài</> : <><ChevronRight size={15} />Phần tiếp theo</>}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Thoát bài thi? Kết quả sẽ không được lưu.")) onExit();
+                }}
+                className="icon-btn h-11 w-11"
+                aria-label="Thoát bài thi"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
-        </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {sections.map((key, position) => {
             const done = position < index;
@@ -162,10 +189,11 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
       )}
       {sectionKey === "speaking" && <SpeakingSection exam={exam} speaking={speaking} onSpeak={speak} mode={isExam ? "exam" : "practice"} />}
 
-      <div className="no-print flex justify-end">
-        <button type="button" onClick={confirmNext} className="btn-primary px-5">
-          {isLast ? "Nộp bài thi" : `Sang phần ${SECTION_LABELS[sections[index + 1]]}`}
-        </button>
+        <div className="no-print flex justify-end">
+          <button type="button" onClick={confirmNext} className="btn-primary px-5">
+            {isLast ? "Nộp bài thi" : `Sang phần ${SECTION_LABELS[sections[index + 1]]}`}
+          </button>
+        </div>
       </div>
     </div>
   );

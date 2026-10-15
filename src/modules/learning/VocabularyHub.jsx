@@ -242,11 +242,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   );
   const today = dateKey();
   const dueCards = useMemo(() => deckCards.filter((card) => isDue(card, today)), [deckCards, today]);
+  const leechCards = useMemo(() => deckCards.filter((card) => isLeech(card)), [deckCards]);
   const statusCounts = useMemo(() => ({
     all: deckCards.length,
     unlearned: deckCards.filter((card) => card.status !== "mastered").length,
     mastered: deckCards.filter((card) => card.status === "mastered").length,
-  }), [deckCards]);
+    leech: leechCards.length,
+  }), [deckCards, leechCards]);
   // Số liệu cả thư viện + từng bộ, tính trong một lượt duyệt (thư viện mặc định có 1000 thẻ).
   const { libraryStats, deckStats } = useMemo(() => {
     const byDeck = new Map();
@@ -922,6 +924,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">{statusCounts.mastered}/{statusCounts.all} đã thuộc</span>
                 {dueCards.length > 0 && <span className="chip bg-warnbg text-warn">{dueCards.length} đến hạn ôn</span>}
+                {statusCounts.leech > 0 && <span className="chip bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">⚡ {statusCounts.leech} hay quên</span>}
                 <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">{statusCounts.unlearned} chưa thuộc</span>
                 {(selectedDeck?.tags || []).map((tag) => (
                   <span
@@ -933,7 +936,16 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 ))}
               </div>
             </div>
-            <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              {leechCards.length > 0 && (
+                <button
+                  onClick={() => openStudy(leechCards)}
+                  className="btn-ghost min-h-12 border border-amber-500/30 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400 px-3.5 text-xs font-bold"
+                  title="Ôn tập riêng các từ hay quên (quên ≥ 4 lần)"
+                >
+                  ⚡ Cấp cứu {sessionCount(leechCards)} từ khó
+                </button>
+              )}
               <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="btn-primary min-h-12 flex-1 px-5 disabled:cursor-not-allowed sm:flex-none">
                 <Sparkles size={17} />Bắt đầu học ngay
               </button>
@@ -969,8 +981,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <div className="flex gap-1 rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]" role="group" aria-label="Lọc theo trạng thái">
-                  {[["all", "Tất cả"], ["unlearned", "Chưa thuộc"], ["mastered", "Đã thuộc"]].map(([value, label]) => (
+                <div className="flex flex-wrap gap-1 rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]" role="group" aria-label="Lọc theo trạng thái">
+                  {[
+                    ["all", "Tất cả"],
+                    ["unlearned", "Chưa thuộc"],
+                    ["mastered", "Đã thuộc"],
+                    ...(statusCounts.leech > 0 ? [["leech", "Hay quên"]] : []),
+                  ].map(([value, label]) => (
                     <button
                       key={value}
                       onClick={() => setActiveFilter(value)}

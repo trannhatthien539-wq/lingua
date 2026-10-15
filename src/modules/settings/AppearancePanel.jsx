@@ -12,10 +12,13 @@ import {
   Trash2,
   Type,
   Upload,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useAppearance from '../../hooks/useAppearance'
 import useSectionState from '../../hooks/useSectionState'
+import { isSfxEnabled, setSfxEnabled, playCorrect } from '../../utils/soundEffects'
 import {
   FONTS,
   FONT_SCALES,
@@ -55,6 +58,15 @@ export default function AppearancePanel({ themeMode, onThemeMode }) {
     removeCustomWallpaper,
     resetAppearance,
   } = useAppearance()
+
+  const [sfxOn, setSfxOn] = useState(() => isSfxEnabled())
+
+  const handleToggleSfx = (enabled) => {
+    setSfxOn(enabled)
+    setSfxEnabled(enabled)
+    if (enabled) playCorrect()
+    toast.success(enabled ? 'Đã bật hiệu ứng âm thanh học tập.' : 'Đã tắt hiệu ứng âm thanh.')
+  }
 
   const activeFont = FONTS.find((font) => font.id === appearance.fontId) || FONTS[0]
   const resolved = resolveAppearance(appearance)
@@ -377,7 +389,35 @@ export default function AppearancePanel({ themeMode, onThemeMode }) {
         </div>
       </div>
 
-      {/* 6. Live Preview */}
+      {/* 6. Âm thanh tương tác học tập (SFX) */}
+      <div className="mt-6 border-t border-slate-200/60 pt-6 dark:border-white/[0.08]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
+              {sfxOn ? <Volume2 size={16} style={{ color: accentColor }} /> : <VolumeX size={16} className="text-slate-400" />}
+              Âm thanh tương tác (SFX)
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Hiệu ứng Web Audio sinh động khi lật thẻ flashcard, trả lời trắc nghiệm và hoàn thành mục tiêu
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleToggleSfx(!sfxOn)}
+            aria-pressed={sfxOn}
+            className={`flex min-h-[40px] items-center gap-2 rounded-xl border px-3.5 text-xs font-bold transition ${
+              sfxOn
+                ? 'border-indigo-500/40 bg-indigo-50/80 text-indigo-600 dark:border-indigo-400/40 dark:bg-indigo-500/15 dark:text-indigo-400'
+                : 'border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/[0.05]'
+            }`}
+          >
+            {sfxOn && <Check size={14} strokeWidth={3} />}
+            {sfxOn ? 'Đang bật' : 'Đang tắt'}
+          </button>
+        </div>
+      </div>
+
+      {/* 7. Live Preview */}
       <div className="panel mt-6 p-4 border border-white/20 shadow-md">
         <p className="eyebrow" style={{ color: accentColor }}>Xem trước giao diện thực tế</p>
         <p className="mt-2 text-sm text-slate-800 dark:text-slate-200">

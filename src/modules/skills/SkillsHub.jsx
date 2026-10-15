@@ -24,7 +24,7 @@ const TABS = [
 ]
 
 /** Trung tâm luyện 4 kỹ năng + luyện câu + thi thử B1. */
-export default function SkillsHub({ onStudyActivity }) {
+export default function SkillsHub({ onStudyActivity, apiKey, user, onNavigate }) {
   const [tab, setTab] = useState('listening')
   const [focusId, setFocusId] = useState(null)
   const { progress, recordSection, recordMock, recordSentence } = useSkillsProgress()
@@ -86,7 +86,7 @@ export default function SkillsHub({ onStudyActivity }) {
         />
       )}
       {tab === 'speaking' && <SpeakingView focusId={focusId} />}
-      {tab === 'writing' && <WritingView />}
+      {tab === 'writing' && <WritingView apiKey={apiKey} user={user} onStudyActivity={onStudyActivity} onNavigate={onNavigate} />}
       {tab === 'sentence' && <SentenceView onStats={(correct, total) => { recordSentence(correct, total); if (correct > 0) onStudyActivity?.() }} />}
       {tab === 'mock' && <MockTestView history={progress.mock} onFinish={(score, total, details) => { recordMock(score, total); recordMistakes(details, 'mock', 'mock'); onStudyActivity?.() }} />}
     </div>

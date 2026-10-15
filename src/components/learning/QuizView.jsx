@@ -3,6 +3,7 @@ import { Volume2, X } from "lucide-react";
 import StudySummary from "./StudySummary";
 import { getPlayableAudio, sanitizeCard } from "../../utils/sanitizeCard";
 import { addDaysKey, dateKey } from "../../utils/srs";
+import { playCorrect, playIncorrect, celebrateStudyCompletion } from "../../utils/soundEffects";
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
 const uniqueMeanings = (items) => items.filter((item, index, all) => all.findIndex((candidate) => candidate.trim().toLowerCase() === item.trim().toLowerCase()) === index);
@@ -27,13 +28,18 @@ export default function QuizView({ deck, cards, onClose, onChangeMode, onUpdateC
   const choose = (option) => {
     if (selected || !card) return;
     const correct = option === card.meaning;
+    if (correct) playCorrect();
+    else playIncorrect();
     setSelected(option);
     setResults((current) => [...current, { word: card.word, correct }]);
     const interval = correct ? 5 : 1;
     onUpdateCard(card.id, { status: correct ? "mastered" : "learning", interval, nextReviewDate: addDaysKey(interval), lastStudiedDate: dateKey(), repetition: correct ? Number(card.repetition || 0) + 1 : 0 }).catch(() => {});
     // Ghi nhận hoạt động học ngay khi trả lời câu cuối thay vì đặt trong setTimeout,
     // để đóng bài trong 800ms đầu cũng không mất tiến độ; timer chỉ hoãn chuyển câu.
-    if (index + 1 >= safeCards.length) Promise.resolve(onStudyActivity?.()).catch(() => {});
+    if (index + 1 >= safeCards.length) {
+      if (correct) celebrateStudyCompletion();
+      Promise.resolve(onStudyActivity?.()).catch(() => {});
+    }
     window.clearTimeout(advanceTimerRef.current);
     advanceTimerRef.current = window.setTimeout(() => {
       setIndex((current) => current + 1);

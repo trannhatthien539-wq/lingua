@@ -3,6 +3,7 @@ import { ArrowRight, Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
 import { celebrateStudyCompletion } from '../../utils/studyFeedback'
+import { playCorrect, playIncorrect } from '../../utils/soundEffects'
 import AiExplainButton from './AiExplainButton'
 
 const normalizeAnswer = (value) =>
@@ -89,6 +90,8 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
     // Báo từng câu để component cha lưu vào sổ câu sai.
     onAnswerResult?.(next[next.length - 1])
     if (immediate) {
+      if (correct) playCorrect()
+      else playIncorrect()
       setChecked(true)
       return
     }

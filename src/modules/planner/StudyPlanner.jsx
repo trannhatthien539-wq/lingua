@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Clock3,
@@ -18,10 +18,11 @@ import {
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
 import ModuleHero from "../../components/ui/ModuleHero";
-import ReactPlayer from "react-player";
 import useCloudDoc from "../../hooks/useCloudDoc";
 import { toast as notify } from "../../services/toast";
 import { userDocKeys } from "../../services/userDocService";
+
+const LazyReactPlayer = lazy(() => import("react-player"));
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -752,16 +753,18 @@ export default function StudyPlanner({ onStudyActivity, user }) {
       />
       <audio ref={audioRef} preload="auto" aria-hidden="true" />
       {audio.sound === "custom" && audio.customBackground?.type === "youtube" && (
-        <ReactPlayer
-          src={audio.customBackground.dataUrl}
-          playing={timer.isRunning && audio.volume > 0}
-          loop
-          volume={audio.volume / 100}
-          muted={audio.volume === 0}
-          width="0"
-          height="0"
-          style={{ display: "none" }}
-        />
+        <Suspense fallback={null}>
+          <LazyReactPlayer
+            src={audio.customBackground.dataUrl}
+            playing={timer.isRunning && audio.volume > 0}
+            loop
+            volume={audio.volume / 100}
+            muted={audio.volume === 0}
+            width="0"
+            height="0"
+            style={{ display: "none" }}
+          />
+        </Suspense>
       )}
       <div className="space-y-6">
         <ModuleHero
