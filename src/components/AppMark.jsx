@@ -1,6 +1,6 @@
 /**
- * Logo linh vật của app: cây cổ thụ (trùng với icon PWA).
- * Dùng chung một file SVG trong `public/icons` để mọi nơi hiển thị giống nhau.
+ * Logo linh vật của app: Cú Tri Thức Thông Thái (Wise Celestial Owl) nghệ thuật vẽ tay.
+ * Dùng chung một file SVG trong `public/icons` để mọi nơi hiển thị sắc nét, đồng bộ.
  */
 const TREE_SRC = `${import.meta.env.BASE_URL}icons/tree.svg`
 
