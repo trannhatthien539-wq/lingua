@@ -10,7 +10,7 @@ function Artwork({ children, className = "" }) {
   return (
     <svg
       viewBox="0 0 540 240"
-      className={`pointer-events-none absolute -bottom-4 -right-6 hidden h-[220px] w-[480px] text-white/20 lg:block ${className}`}
+      className={`pointer-events-none absolute -bottom-4 -right-6 hidden h-[220px] w-[480px] text-slate-900/10 dark:text-white/20 lg:block ${className}`}
       aria-hidden="true"
     >
       <defs>

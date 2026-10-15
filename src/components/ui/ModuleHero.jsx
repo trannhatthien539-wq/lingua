@@ -28,13 +28,13 @@ export default function ModuleHero({
 
   return (
     <section
-      className={`relative overflow-hidden rounded-3xl text-white backdrop-blur-2xl transition-all duration-300 ${
+      className={`relative overflow-hidden rounded-3xl text-slate-900 backdrop-blur-2xl transition-all duration-300 dark:text-white ${
         compact ? "p-4 sm:p-6" : "p-5 sm:p-7 lg:min-h-[220px] lg:p-8"
       } ${className}`}
       style={{
-        background: `radial-gradient(ellipse at 85% 15%, ${accent}2b 0%, transparent 58%), radial-gradient(ellipse at 15% 85%, ${deep}1a 0%, transparent 52%), linear-gradient(145deg, #0F172A 0%, #111827 50%, #0B0F17 100%)`,
+        background: `radial-gradient(ellipse at 85% 15%, ${accent}22 0%, transparent 58%), radial-gradient(ellipse at 15% 85%, ${deep}15 0%, transparent 52%), var(--hero-base-bg)`,
         border: `1px solid ${accent}38`,
-        boxShadow: `0 20px 50px -15px ${accent}25, inset 0 1px 1px 0 rgba(255,255,255,0.12)`,
+        boxShadow: `var(--hero-box-shadow), 0 20px 50px -15px ${accent}20`,
       }}
     >
       {/* Aurora Ambient Glow Orbs */}
@@ -60,7 +60,7 @@ export default function ModuleHero({
           <div className="flex items-center gap-3 sm:gap-4">
             {Icon && (
               <span
-                className={`grid shrink-0 place-items-center rounded-2xl border backdrop-blur-xl ${
+                className={`grid shrink-0 place-items-center rounded-2xl border text-white backdrop-blur-xl ${
                   compact ? "h-11 w-11 sm:h-12 sm:w-12" : "h-12 w-12 sm:h-14 sm:w-14"
                 }`}
                 style={{
@@ -90,7 +90,7 @@ export default function ModuleHero({
                 </div>
               )}
               <h2
-                className={`mt-1 line-clamp-2 font-display font-black leading-tight tracking-tight ${
+                className={`mt-1 line-clamp-2 font-display font-black leading-tight tracking-tight text-slate-900 dark:text-white ${
                   compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
                 }`}
               >
@@ -101,7 +101,7 @@ export default function ModuleHero({
 
           {description && (
             <p
-              className={`mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-300/90 sm:line-clamp-none sm:text-sm sm:leading-6 ${
+              className={`mt-2.5 line-clamp-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300/90 sm:line-clamp-none sm:text-sm sm:leading-6 ${
                 compact ? "max-w-2xl" : "max-w-3xl"
               }`}
             >
@@ -111,14 +111,14 @@ export default function ModuleHero({
 
           {progress !== undefined && (
             <div className="mt-3.5 max-w-xl sm:mt-5">
-              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold text-slate-300">
+              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span className="min-w-0 truncate">{progressLabel || "Tiến độ"}</span>
                 <span className="shrink-0 font-mono font-bold" style={{ color: accent }}>
                   {progress}%
                 </span>
               </div>
               <div
-                className={`overflow-hidden rounded-full bg-white/10 backdrop-blur-sm ${
+                className={`overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10 backdrop-blur-sm ${
                   compact ? "h-2" : "h-2.5 lg:h-3"
                 }`}
                 role="progressbar"
@@ -150,24 +150,24 @@ export default function ModuleHero({
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className={`min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] text-center backdrop-blur-xl transition-all duration-200 hover:border-white/20 sm:text-left ${
+              className={`min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 dark:border-white/10 dark:bg-white/[0.04] text-center backdrop-blur-xl transition-all duration-200 hover:border-slate-300 dark:hover:border-white/20 sm:text-left ${
                 compact
                   ? "px-3 py-2 sm:min-w-[104px] sm:px-3.5 sm:py-2.5"
                   : "min-w-[120px] px-3.5 py-3"
               }`}
             >
-              <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:text-[11px]">
+              <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 sm:text-[11px]">
                 {stat.label}
               </p>
               <p
-                className={`mt-0.5 break-words font-display font-bold tabular-nums text-white ${
+                className={`mt-0.5 break-words font-display font-bold tabular-nums text-slate-900 dark:text-white ${
                   compact ? "text-sm sm:mt-1 sm:text-base" : "text-lg"
                 }`}
               >
                 {stat.value}
               </p>
               {stat.note && (
-                <p className="hidden text-[10px] text-slate-400 sm:block">{stat.note}</p>
+                <p className="hidden text-[10px] text-slate-500 dark:text-slate-400 sm:block">{stat.note}</p>
               )}
             </div>
           ))}
@@ -177,7 +177,7 @@ export default function ModuleHero({
               type="button"
               onClick={onAction}
               disabled={actionDisabled}
-              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gradient-to-r from-white to-slate-100 font-bold text-slate-950 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-bold shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
                 compact
                   ? `col-span-full min-h-11 w-full px-4 text-xs sm:col-auto sm:w-auto sm:px-5 ${
                       action.length > 20 ? "sm:text-sm" : ""
@@ -188,7 +188,7 @@ export default function ModuleHero({
                 boxShadow: `0 4px 20px ${accent}40`,
               }}
             >
-              <Sparkles size={compact ? 15 : 17} style={{ color: deep }} />
+              <Sparkles size={compact ? 15 : 17} className="text-indigo-400 dark:text-indigo-600" />
               {action}
             </button>
           )}
@@ -197,7 +197,7 @@ export default function ModuleHero({
 
       {children && (
         <div
-          className={`relative z-10 border-t border-white/10 ${
+          className={`relative z-10 border-t border-slate-200/80 dark:border-white/10 ${
             compact ? "mt-3 pt-3" : "mt-4 pt-4 sm:mt-5"
           }`}
         >

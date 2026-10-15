@@ -266,22 +266,22 @@ export default function HomeHub({ user, streak, onNavigate }) {
   return (
     <div className="space-y-6">
       {/* Hero Banner: Không gian Chào Mừng & Động Lực Học Tập */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-xl backdrop-blur-2xl sm:p-7">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/70 p-5 text-slate-900 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:bg-gradient-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-white dark:shadow-xl sm:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-500/15" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
 
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           {/* Cột Trái: Lời chào, Sứ mệnh & Nút hành động nhanh */}
           <div className="min-w-0 max-w-xl flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-bold text-slate-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-3.5 py-1 text-xs font-bold text-slate-700 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/10 dark:text-slate-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
               {greetingByHour()}{displayName ? `, ${displayName}` : ''} • Hôm nay
             </div>
 
-            <h2 className="mt-3 font-display text-2xl font-black tracking-tight sm:text-4xl sm:leading-tight">
-              Học đều đặn. <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-300">Bứt phá mỗi ngày.</span>
+            <h2 className="mt-3 font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-4xl sm:leading-tight">
+              Học đều đặn. <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-sky-600 to-emerald-600 dark:from-indigo-300 dark:via-sky-300 dark:to-emerald-300">Bứt phá mỗi ngày.</span>
             </h2>
-            <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
+            <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-lg">
               Xây dựng thói quen tiếng Anh vững chắc theo chu kỳ ghi nhớ khoa học, từ từ vựng cốt lõi đến kỹ năng phản xạ VSTEP.
             </p>
 
@@ -296,14 +296,14 @@ export default function HomeHub({ user, streak, onNavigate }) {
               <button
                 type="button"
                 onClick={() => onNavigate?.("grammar")}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
+                className="btn-secondary min-h-[44px] px-4 text-xs font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98]"
               >
                 <GraduationCap size={16} />Bài ngữ pháp
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("vstep")}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
+                className="btn-secondary min-h-[44px] px-4 text-xs font-bold shadow-sm hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Award size={16} />Luyện VSTEP
               </button>
@@ -311,24 +311,24 @@ export default function HomeHub({ user, streak, onNavigate }) {
           </div>
 
           {/* Cột Phải: Thẻ Nhịp Điệu & Mục Tiêu Ngày */}
-          <div className="w-full lg:max-w-xs xl:max-w-sm rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-white backdrop-blur-md shadow-inner">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="w-full lg:max-w-xs xl:max-w-sm rounded-2xl border border-slate-200/80 bg-white/80 p-4 text-slate-900 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:shadow-inner">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-white/10">
               <div className="flex items-center gap-2">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
                   <Flame size={18} />
                 </span>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Chuỗi ngày</p>
-                  <p className="font-display text-sm font-bold text-white">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Chuỗi ngày</p>
+                  <p className="font-display text-sm font-bold text-slate-900 dark:text-white">
                     {stats.streak.current > 0 ? `${stats.streak.current} ngày liên tiếp` : 'Chưa kích hoạt'}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cấp độ</p>
-                <p className="font-mono text-sm font-bold text-indigo-300">Cấp {level.level} ({xp} XP)</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cấp độ</p>
+                <p className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-300">Cấp {level.level} ({xp} XP)</p>
                 {nextLevelTitle && (
-                  <p className="truncate text-[10px] text-slate-400" title={`Cấp kế tiếp: ${nextLevelTitle}`}>
+                  <p className="truncate text-[10px] text-slate-500 dark:text-slate-400" title={`Cấp kế tiếp: ${nextLevelTitle}`}>
                     Tiếp: {nextLevelTitle}
                   </p>
                 )}
@@ -336,16 +336,16 @@ export default function HomeHub({ user, streak, onNavigate }) {
             </div>
 
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-                <span className="inline-flex items-center gap-1.5"><Target size={14} className="text-emerald-400" />Mục tiêu hôm nay</span>
-                <span className="font-mono text-emerald-300">{goalToday}/{target} lượt ôn</span>
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span className="inline-flex items-center gap-1.5"><Target size={14} className="text-emerald-600 dark:text-emerald-400" />Mục tiêu hôm nay</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-300">{goalToday}/{target} lượt ôn</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10 backdrop-blur-sm">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10 backdrop-blur-sm">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${goalPercent}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                 <span>{goalPercent >= 100 ? '🎉 Đạt mục tiêu ngày!' : `Còn ${Math.max(0, target - goalToday)} lượt ôn`}</span>
-                <span className="font-mono font-bold text-slate-300">{goalPercent}%</span>
+                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{goalPercent}%</span>
               </div>
             </div>
           </div>
