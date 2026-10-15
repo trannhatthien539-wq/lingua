@@ -34,6 +34,42 @@ import { toast } from "../../services/toast";
 /** Các khu vực học hiện trên trang chủ (lấy icon + màu từ `navigationItems`). */
 const AREA_IDS = ["vocabulary", "grammar", "skills", "vstep", "writing", "progress"];
 
+const AREA_METADATA = {
+  vocabulary: {
+    badge: "1.000+ từ",
+    teaser: "1.000 từ cốt lõi · Lật thẻ SRS 3D · Phát âm chuẩn IPA",
+  },
+  grammar: {
+    badge: "30+ bài",
+    teaser: "Lộ trình A1–C1 · 12 thì & cấu trúc · Trắc nghiệm & Sơ đồ cây",
+  },
+  skills: {
+    badge: "4 kỹ năng",
+    teaser: "Luyện Nghe, Đọc, Nói có AI chấm phản xạ · Luyện câu đa dạng",
+  },
+  vstep: {
+    badge: "10 đề thi",
+    teaser: "Bộ đề 4 kỹ năng chuẩn B1–C1 · Hướng dẫn giải & chấm điểm chi tiết",
+  },
+  writing: {
+    badge: "AI Chữa bài",
+    teaser: "Phân tích ngữ pháp, chỉ rõ lỗi sai & câu mẫu nâng cấp điểm số",
+  },
+  progress: {
+    badge: "Thành tựu",
+    teaser: "Theo dõi cấp bậc XP · Chuỗi ngày liên tiếp & Bộ sưu tập huy hiệu",
+  },
+};
+
+const CEFR_LADDER = [
+  { id: "A1", label: "Vỡ lòng" },
+  { id: "A2", label: "Sơ cấp" },
+  { id: "B1", label: "Trung cấp" },
+  { id: "B2", label: "Trung cấp trên" },
+  { id: "C1", label: "Cao cấp" },
+  { id: "C2", label: "Thành thạo" },
+];
+
 const greetingByHour = () => {
   const hour = new Date().getHours();
   if (hour < 11) return "Chào buổi sáng";
@@ -202,12 +238,16 @@ export default function HomeHub({ user, streak, onNavigate }) {
       (cardsRemaining === 0 ? 1 : 0) +
       (vstepReached ? 1 : 0);
     const criteriaPercent = Math.round((criteriaCompletedCount / 3) * 100);
+    const currentLevelIndex = CEFR_LADDER.findIndex((lvl) => lvl.id === currentCefr);
+    const nextLevelIndex = CEFR_LADDER.findIndex((lvl) => lvl.id === nextCefr);
 
     return {
       currentCefr,
       currentCefrLabel,
       nextCefr,
       nextCefrLabel,
+      currentLevelIndex,
+      nextLevelIndex,
       targetGrammar,
       targetCards,
       targetVstep,
@@ -340,6 +380,41 @@ export default function HomeHub({ user, streak, onNavigate }) {
             <span className="chip bg-indigo-50 font-mono text-xs font-bold text-indigo-600 dark:bg-white/10 dark:text-indigo-400">
               {cefrInfo.criteriaCompletedCount}/3 tiêu chí đạt chuẩn ({cefrInfo.criteriaPercent}%)
             </span>
+          </div>
+        </div>
+
+        {/* Thước đo mốc CEFR Stepper trực quan */}
+        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/60 p-3.5 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.02]">
+          <div className="flex items-center justify-between gap-1 overflow-x-auto pb-1 sm:pb-0">
+            {CEFR_LADDER.map((step, idx) => {
+              const isPast = idx < cefrInfo.currentLevelIndex;
+              const isCurrent = idx === cefrInfo.currentLevelIndex;
+              const isTarget = idx === cefrInfo.nextLevelIndex;
+              return (
+                <div key={step.id} className="flex min-w-[64px] flex-1 flex-col items-center text-center">
+                  <div className="flex w-full items-center">
+                    <div className={`h-1 flex-1 rounded-full ${idx === 0 ? 'invisible' : idx <= cefrInfo.currentLevelIndex ? 'bg-emerald-500' : idx === cefrInfo.nextLevelIndex ? 'bg-indigo-300 dark:bg-indigo-700' : 'bg-slate-200 dark:bg-white/10'}`} />
+                    <span
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl font-mono text-xs font-black transition-all ${
+                        isCurrent
+                          ? 'border-2 border-emerald-400 bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)] scale-110'
+                          : isTarget
+                          ? 'border-2 border-indigo-400 bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 scale-105'
+                          : isPast
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                          : 'bg-slate-100 text-slate-400 dark:bg-white/[0.05] dark:text-slate-500'
+                      }`}
+                    >
+                      {step.id}
+                    </span>
+                    <div className={`h-1 flex-1 rounded-full ${idx === CEFR_LADDER.length - 1 ? 'invisible' : idx < cefrInfo.currentLevelIndex ? 'bg-emerald-500' : idx === cefrInfo.currentLevelIndex ? 'bg-gradient-to-r from-emerald-500 to-indigo-400' : 'bg-slate-200 dark:bg-white/10'}`} />
+                  </div>
+                  <span className={`mt-1.5 text-[11px] font-bold ${isCurrent ? 'text-emerald-600 dark:text-emerald-400' : isTarget ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {isCurrent ? 'Hiện tại' : isTarget ? 'Mục tiêu' : step.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -480,13 +555,19 @@ export default function HomeHub({ user, streak, onNavigate }) {
 
       {/* Bento Grid: Khu vực học tập chính */}
       <section className="space-y-3">
-        <h3 className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-          Khu vực học tập
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            Khu vực học tập
+          </h3>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            6 phân khu kiến thức cốt lõi
+          </span>
+        </div>
 
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {areas.map((area) => {
             const stat = areaStats[area.id] || { percent: 0, label: "" };
+            const meta = AREA_METADATA[area.id] || { badge: "", teaser: area.description };
             const Icon = area.icon;
             return (
               <button
@@ -495,16 +576,37 @@ export default function HomeHub({ user, streak, onNavigate }) {
                 onClick={() => onNavigate?.(area.id)}
                 className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-left shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-1 hover:border-indigo-400/50 hover:shadow-[0_12px_30px_-5px_rgba(99,102,241,0.15)] dark:border-white/[0.08] dark:bg-[#111827]/70 dark:hover:border-indigo-500/50 dark:hover:shadow-[0_12px_30px_-5px_rgba(0,0,0,0.5)]"
               >
-                <div className="relative z-10 flex items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/20 shadow-md transition-transform duration-200 group-hover:scale-105" style={{ backgroundColor: area.color, color: '#FFFFFF' }}>
-                    <Icon size={22} strokeWidth={2.2} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="font-display text-sm font-bold text-slate-900 dark:text-white">{area.label}</p>
-                      <ArrowRight size={14} className="text-slate-400 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-500" />
+                <div>
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/20 shadow-md transition-transform duration-200 group-hover:scale-105" style={{ backgroundColor: area.color, color: '#FFFFFF' }}>
+                        <Icon size={22} strokeWidth={2.2} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-display text-sm font-bold text-slate-900 dark:text-white">{area.label}</p>
+                          <ArrowRight size={13} className="text-slate-400 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:opacity-100 dark:text-slate-500" />
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{area.description}</p>
+                      </div>
                     </div>
+                    {meta.badge && (
+                      <span
+                        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        style={{
+                          backgroundColor: `${area.color}15`,
+                          color: area.color,
+                          border: `1px solid ${area.color}35`,
+                        }}
+                      >
+                        {meta.badge}
+                      </span>
+                    )}
                   </div>
+
+                  <p className="relative z-10 mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300 line-clamp-2">
+                    {meta.teaser}
+                  </p>
                 </div>
 
                 <div className="relative z-10 mt-4 border-t border-slate-100 pt-2.5 dark:border-white/[0.05]">

@@ -245,10 +245,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const leechCards = useMemo(() => deckCards.filter((card) => isLeech(card)), [deckCards]);
   const statusCounts = useMemo(() => ({
     all: deckCards.length,
+    due: dueCards.length,
     unlearned: deckCards.filter((card) => card.status !== "mastered").length,
     mastered: deckCards.filter((card) => card.status === "mastered").length,
     leech: leechCards.length,
-  }), [deckCards, leechCards]);
+  }), [deckCards, dueCards, leechCards]);
   // Số liệu cả thư viện + từng bộ, tính trong một lượt duyệt (thư viện mặc định có 1000 thẻ).
   const { libraryStats, deckStats } = useMemo(() => {
     const byDeck = new Map();
@@ -984,19 +985,34 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                 <div className="flex flex-wrap gap-1 rounded-xl bg-ink/[0.05] p-1 dark:bg-white/[0.08]" role="group" aria-label="Lọc theo trạng thái">
                   {[
                     ["all", "Tất cả"],
+                    ["due", "Cần ôn hôm nay"],
                     ["unlearned", "Chưa thuộc"],
                     ["mastered", "Đã thuộc"],
                     ...(statusCounts.leech > 0 ? [["leech", "Hay quên"]] : []),
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      onClick={() => setActiveFilter(value)}
-                      aria-pressed={activeFilter === value}
-                      className={`min-h-[44px] rounded-lg px-3.5 text-sm font-bold transition ${activeFilter === value ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 hover:text-ink dark:text-white/60 dark:hover:text-white"}`}
-                    >
-                      {label} ({statusCounts[value]})
-                    </button>
-                  ))}
+                  ].map(([value, label]) => {
+                    const count = statusCounts[value] ?? 0;
+                    const isDueFilter = value === "due";
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => setActiveFilter(value)}
+                        aria-pressed={activeFilter === value}
+                        className={`flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-sm font-bold transition ${
+                          activeFilter === value
+                            ? isDueFilter && count > 0
+                              ? "bg-amber-500 text-slate-950 shadow-md font-black"
+                              : "bg-slab shadow-raised dark:bg-dark3"
+                            : isDueFilter && count > 0
+                            ? "text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10"
+                            : "text-ink/60 hover:text-ink dark:text-white/60 dark:hover:text-white"
+                        }`}
+                      >
+                        {isDueFilter && count > 0 && <span className="text-xs">🔥</span>}
+                        <span>{label}</span>
+                        <span className="text-xs font-semibold opacity-75">({count})</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="relative">
                   <button

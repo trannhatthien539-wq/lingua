@@ -3,7 +3,7 @@ import ProgressAvatar from '../ui/ProgressAvatar'
 import NavIcon from '../ui/NavIcon'
 import AppMark from '../AppMark'
 import useTodayProgress from '../../hooks/useTodayProgress'
-import { navigationItems } from '../../data/navigation'
+import { navigationGroups, navigationItems } from '../../data/navigation'
 
 // Mục đang chọn phong cách Linear & Apple: dùng biến màu chủ đề tuỳ biến động
 const ACTIVE_ITEM = 'border shadow-sm'
@@ -39,7 +39,47 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
           </button>
         </div>
       </div>
-      <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:mt-7 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0" aria-label="Điều hướng chính">
+      {/* Menu trên desktop: phân nhóm tinh tế */}
+      <nav className="mt-4 hidden lg:block lg:space-y-4" aria-label="Điều hướng chính">
+        {navigationGroups.map((group) => {
+          const items = group.itemIds.map((id) => navigationItems.find((item) => item.id === id)).filter(Boolean)
+          return (
+            <div key={group.id} className="space-y-1">
+              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                {group.label}
+              </p>
+              {items.map((item) => {
+                const isActive = activeTab === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onTabChange(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+                    style={
+                      isActive
+                        ? {
+                            borderColor: 'rgba(var(--accent), 0.38)',
+                            backgroundColor: 'rgba(var(--accent), 0.12)',
+                            color: 'rgb(var(--accent))',
+                            boxShadow: '0 2px 14px -2px rgba(var(--accent), 0.22)',
+                          }
+                        : undefined
+                    }
+                  >
+                    <NavIcon icon={item.icon} color={item.color} size="sm" active={isActive} />
+                    <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* Menu trên tablet (ngang cuộn): giữ danh sách phẳng mượt mà */}
+      <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden" aria-label="Điều hướng tablet">
         {navigationItems.map((item) => {
           const isActive = activeTab === item.id
           return (
@@ -48,7 +88,7 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
               type="button"
               onClick={() => onTabChange(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex h-11 min-w-max items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 lg:w-full ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+              className={`flex h-10 min-w-max items-center gap-2.5 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
               style={
                 isActive
                   ? {

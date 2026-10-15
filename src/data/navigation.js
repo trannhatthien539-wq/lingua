@@ -19,5 +19,11 @@ export const navigationItems = [
   { id: 'settings', label: 'Cài đặt', shortLabel: 'Cài đặt', description: 'Giao diện & dữ liệu', icon: Settings2, color: '#64748B' },
 ]
 
+export const navigationGroups = [
+  { id: 'core', label: 'Học tập cốt lõi', itemIds: ['home', 'vocabulary', 'grammar', 'skills', 'vstep', 'writing'] },
+  { id: 'tools', label: 'Kế hoạch & Tư duy', itemIds: ['planner', 'mindmap'] },
+  { id: 'personal', label: 'Cá nhân & Cài đặt', itemIds: ['progress', 'settings'] },
+]
+
 export const navItemById = (id) => navigationItems.find((item) => item.id === id) || null
 

@@ -166,15 +166,90 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
             {examsByLevel(level).map((meta) => {
               const best = bestFor(meta.id);
               const last = attempts.filter((item) => item.examId === meta.id).slice(-1)[0];
+              const isB1 = meta.level === 'B1';
+              const isB2 = meta.level === 'B2';
+              const themeColor = isB1 ? '#10B981' : isB2 ? '#0EA5E9' : '#F43F5E';
+              const badgeStyle = isB1
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                : isB2
+                ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30'
+                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30';
+
               return (
-                <article key={meta.id} className="panel group flex h-full flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg" style={{ borderBottom: `4px solid #ff4b4b` }}>
-                  <div className="border-b border-ink/[0.08] bg-gradient-to-br from-[#fff0f0] via-[#fffafa] to-[#ffe5e5] p-5 dark:from-[#3a2022] dark:via-[#2d1a1c] dark:to-[#261516]">
-                    <div className="flex items-center justify-between gap-3"><span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/75 text-[#ff4b4b] shadow-sm"><GraduationCap size={28} /></span><span className="rounded-full bg-ink/65 px-2.5 py-1 text-xs font-bold text-white">{meta.level}</span></div>
-                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.1em] text-[#b62d3a] dark:text-[#ffb0b0]">{meta.tags.join(" · ")}</p><h3 className="mt-1 font-display text-lg font-bold text-ink dark:text-white">{meta.title}</h3><p className="mt-1 text-xs text-ink/60 dark:text-white/60">35 Nghe · 40 Đọc · 2 Viết · 3 Nói · 172 phút</p>
+                <article
+                  key={meta.id}
+                  className="panel group flex h-full flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/[0.08]"
+                  style={{ borderTop: `3px solid ${themeColor}` }}
+                >
+                  <div className="border-b border-slate-200/80 bg-gradient-to-br from-slate-50/80 via-white to-slate-100/50 p-5 dark:border-white/[0.08] dark:from-[#111827] dark:via-[#0F172A] dark:to-[#0B0F17]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span
+                        className="grid h-12 w-12 place-items-center rounded-2xl shadow-sm"
+                        style={{
+                          backgroundColor: `${themeColor}18`,
+                          color: themeColor,
+                          border: `1px solid ${themeColor}35`,
+                        }}
+                      >
+                        <GraduationCap size={24} />
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {best && (
+                          <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            Kỷ lục: {best.average}/10
+                          </span>
+                        )}
+                        <span className={`rounded-lg px-2.5 py-0.5 font-mono text-xs font-black ${badgeStyle}`}>
+                          {meta.level}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                      {meta.tags.join(" · ")}
+                    </p>
+                    <h3 className="mt-1 font-display text-lg font-bold text-slate-900 dark:text-white">
+                      {meta.title}
+                    </h3>
+
+                    {/* Skill Pills */}
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">35 Nghe</span>
+                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">40 Đọc</span>
+                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">2 Viết</span>
+                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">3 Nói</span>
+                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-slate-500 dark:bg-white/10 dark:text-slate-400">172′</span>
+                    </div>
                   </div>
-                  <div className="flex flex-1 flex-col p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-3"><p className="text-sm text-ink/65 dark:text-white/65">{last ? `Lần gần nhất: ${new Date(last.at).toLocaleDateString("vi-VN")}` : "Chưa có lần thi nào"}</p>{best ? <span className="shrink-0 text-right"><span className="metric block text-lg">{best.average}/10</span><span className="text-xs font-bold text-sage">{bandFor(best.average).label}</span></span> : <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">Chưa thi</span>}</div>
-                    <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => openExam(meta.id, "exam")} disabled={loadingId === meta.id} className="btn-primary flex-1 px-4">{loadingId === meta.id ? <LoaderCircle size={16} className="animate-spin" /> : <PlayCircle size={16} />}Thi thật</button><button type="button" onClick={() => openExam(meta.id, "practice")} disabled={loadingId === meta.id} className="btn-secondary flex-1 px-4"><BookOpen size={16} />Luyện từng kỹ năng</button></div>
+
+                  <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span>{last ? `Lần gần nhất: ${new Date(last.at).toLocaleDateString("vi-VN")}` : "Chưa có lần thi nào"}</span>
+                      {best ? (
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{bandFor(best.average).label}</span>
+                      ) : (
+                        <span className="chip bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400">Mới</span>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openExam(meta.id, "exam")}
+                        disabled={loadingId === meta.id}
+                        className="btn-primary flex-1 px-4 text-xs font-bold"
+                      >
+                        {loadingId === meta.id ? <LoaderCircle size={15} className="animate-spin" /> : <PlayCircle size={15} />}
+                        Thi thật
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openExam(meta.id, "practice")}
+                        disabled={loadingId === meta.id}
+                        className="btn-secondary flex-1 px-4 text-xs font-bold"
+                      >
+                        <BookOpen size={15} />
+                        Luyện kỹ năng
+                      </button>
+                    </div>
                   </div>
                 </article>
               );

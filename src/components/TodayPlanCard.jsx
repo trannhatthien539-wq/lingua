@@ -172,9 +172,33 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-ink/60 dark:text-white/60">
-          Chưa có gì đến hạn. Thêm từ vựng mới hoặc làm một đề để hệ thống gợi ý kế hoạch tiếp theo.
-        </p>
+        <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-transparent to-teal-500/10 p-5 text-center">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+            <CalendarCheck size={24} />
+          </div>
+          <h4 className="mt-3 font-display text-base font-bold text-slate-900 dark:text-white">
+            Bạn đã sẵn sàng cho hôm nay!
+          </h4>
+          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Không có thẻ nào bị quá hạn. Hãy khám phá thêm từ vựng mới hoặc làm một bài tập ngữ pháp nhé.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => onNavigate?.("vocabulary")}
+              className="btn-secondary text-xs h-9 font-bold px-3.5"
+            >
+              Học từ mới
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.("grammar")}
+              className="btn-secondary text-xs h-9 font-bold px-3.5"
+            >
+              Luyện ngữ pháp
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );
