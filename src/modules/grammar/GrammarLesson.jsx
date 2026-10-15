@@ -8,7 +8,7 @@ const Section = ({ icon: Icon, title, children, hint }) => (
   <section className="panel-flat p-4 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="flex items-center gap-2 text-sm font-bold">
-        <Icon size={16} className="text-sage" />
+        <Icon size={16} className="text-indigo-600 dark:text-indigo-400" />
         {title}
       </p>
       {hint && <span className="text-xs text-ink/60 dark:text-white/60">{hint}</span>}
@@ -59,7 +59,7 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
             <div key={form.label} className="rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08] sm:grid sm:grid-cols-[130px_1fr] sm:gap-3">
               <p className="text-xs font-bold uppercase tracking-[0.06em] text-ink/60 dark:text-white/60">{form.label}</p>
               <div className="mt-1 sm:mt-0">
-                <p className="font-mono text-sm font-semibold text-sage">{form.pattern}</p>
+                <p className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400">{form.pattern}</p>
                 {form.note && <p className="mt-1 text-xs text-ink/60 dark:text-white/60">{form.note}</p>}
                 <p className="mt-1 text-sm italic text-ink/80 dark:text-white/80">{form.example}</p>
               </div>
@@ -72,7 +72,7 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
         <ul className="space-y-2">
           {lesson.usage.map((item) => (
             <li key={item} className="flex gap-2.5 text-sm leading-6">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-lime" />
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
               <span>{item}</span>
             </li>
           ))}
@@ -80,7 +80,7 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
         <p className="mt-4 text-xs font-bold uppercase tracking-[0.06em] text-ink/60 dark:text-white/60">Dấu hiệu nhận biết</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {lesson.signals.map((signal) => (
-            <span key={signal} className="chip bg-sage/15 text-ink dark:text-white">{signal}</span>
+            <span key={signal} className="chip border border-indigo-500/25 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">{signal}</span>
           ))}
         </div>
       </Section>

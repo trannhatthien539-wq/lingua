@@ -33,10 +33,10 @@ export default function WritingSection({ exam, writings = {}, onWrite, mode = "e
               type="button"
               onClick={() => { setActiveId(item.id); setShowModel(false); }}
               aria-current={item.id === task.id ? "true" : undefined}
-              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === task.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
+              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === task.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08]"}`}
             >
               {item.title}
-              <span className={`chip ${ok ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60"}`}>{itemWords} từ</span>
+              <span className={`chip ${ok ? "border border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : activeId === item.id ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400"}`}>{itemWords} từ</span>
             </button>
           );
         })}
@@ -48,14 +48,14 @@ export default function WritingSection({ exam, writings = {}, onWrite, mode = "e
             <p className="eyebrow">Writing Task {task.task}</p>
             <p className="mt-2 text-sm font-semibold leading-6">{task.prompt}</p>
           </div>
-          <span className={`chip ${enough ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-warnbg text-warn"}`}>
+          <span className={`chip ${enough ? "border border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "border border-amber-500/25 bg-amber-500/15 text-amber-600 dark:text-amber-400"}`}>
             {words}/{task.minWords} từ
           </span>
         </div>
         {task.tips?.length > 0 && mode !== "exam" && (
-          <ul className="mt-4 space-y-1.5 rounded-xl bg-lime/15 p-3 text-xs leading-5">
+          <ul className="mt-4 space-y-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-xs leading-5 text-amber-950 dark:text-amber-200">
             {task.tips.map((tip) => (
-              <li key={tip} className="flex items-start gap-2"><Lightbulb size={14} className="mt-0.5 shrink-0" />{tip}</li>
+              <li key={tip} className="flex items-start gap-2"><Lightbulb size={14} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />{tip}</li>
             ))}
           </ul>
         )}
@@ -95,7 +95,7 @@ export default function WritingSection({ exam, writings = {}, onWrite, mode = "e
                       onChange={(event) => (onCheck
                         ? onCheck(key, event.target.checked)
                         : setLocalChecked((current) => ({ ...current, [key]: event.target.checked })))}
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-lime"
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-500"
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold">{item.label}</span>
@@ -150,8 +150,8 @@ export default function WritingSection({ exam, writings = {}, onWrite, mode = "e
             <Quote size={16} />{showModel ? "Ẩn bài mẫu" : "Xem bài mẫu"}
           </button>
           {showModel && (
-            <div className="mt-4 rounded-xl border border-sage/40 bg-sage/10 p-4">
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-ink/60 dark:text-white/60"><Check size={14} />Bài mẫu</p>
+            <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-400"><Check size={14} className="text-emerald-500" />Bài mẫu</p>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{task.model}</p>
             </div>
           )}

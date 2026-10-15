@@ -38,10 +38,10 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
               type="button"
               onClick={() => selectPart(item.id)}
               aria-current={item.id === part.id ? "true" : undefined}
-              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === part.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
+              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === part.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08]"}`}
             >
               {item.title}
-              <span className={`chip ${done === total ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60"}`}>{done}/{total}</span>
+              <span className={`chip ${done === total ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : item.id === part.id ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400"}`}>{done}/{total}</span>
             </button>
           );
         })}
@@ -55,7 +55,7 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
               type="button"
               onClick={() => setActivePassageId(entry.id)}
               aria-pressed={entry.id === passage.id}
-              className={`min-h-[40px] min-w-max rounded-xl border px-3 text-xs font-bold transition ${entry.id === passage.id ? "border-sage bg-sage/15" : "border-ink/[0.1] text-ink/65 hover:bg-ink/[0.04] dark:border-white/[0.1] dark:text-white/65"}`}
+              className={`min-h-[40px] min-w-max rounded-xl px-3 text-xs font-bold transition ${entry.id === passage.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-ink/[0.1] text-ink/65 hover:bg-ink/[0.04] dark:border-white/[0.1] dark:text-white/65"}`}
             >
               {passages.length > 1 ? `Văn bản ${index + 1}` : entry.title}
             </button>
@@ -71,7 +71,7 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="panel h-fit p-4 sm:p-5">
           <div className="flex items-center gap-2">
-            <BookMarked size={16} className="text-sage" />
+            <BookMarked size={16} className="text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-display text-base font-bold">{passage.title}</h3>
           </div>
           <div className="mt-3 space-y-3 text-sm leading-7">

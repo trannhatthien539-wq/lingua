@@ -24,7 +24,7 @@ export default function DocPhrases() {
               type="button"
               onClick={() => setTab(item.id)}
               aria-pressed={tab === item.id}
-              className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${tab === item.id ? "bg-lime text-ink" : "border border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70"}`}
+              className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${tab === item.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
             >
               <item.icon size={15} />{item.label}
             </button>
@@ -57,7 +57,7 @@ export default function DocPhrases() {
             {commonMistakes.map((item) => (
               <li key={item.wrong} className="rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
                 <p className="text-sm text-danger dark:text-dangerfgdark">✗ {item.wrong}</p>
-                <p className="mt-1 text-sm font-semibold text-sage">✓ {item.right}</p>
+                <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">✓ {item.right}</p>
                 {item.note && <p className="mt-1 text-xs leading-5 text-ink/70 dark:text-white/70">{item.note}</p>}
               </li>
             ))}

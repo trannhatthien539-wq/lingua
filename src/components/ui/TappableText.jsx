@@ -17,8 +17,8 @@ function WordButton({ word, active, onPick }) {
     <button
       type="button"
       onClick={(event) => onPick(word, event.currentTarget)}
-      className={`-mx-[1px] rounded px-[1px] text-left underline decoration-dotted decoration-ink/25 underline-offset-4 transition hover:bg-lime/25 hover:decoration-ink/60 dark:decoration-white/30 dark:hover:bg-lime/20 ${
-        active ? "bg-lime/40 font-semibold dark:bg-lime/30" : ""
+      className={`-mx-[1px] rounded px-[1px] text-left underline decoration-dotted decoration-ink/25 underline-offset-4 transition hover:bg-indigo-500/15 hover:decoration-indigo-500/60 dark:decoration-white/30 dark:hover:bg-indigo-500/20 ${
+        active ? "bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-semibold" : ""
       }`}
       title={`Tra nghĩa: ${word}`}
     >
@@ -170,7 +170,7 @@ export default function TappableText({ text = "", className = "", enableLookup =
 
         {!loading && entry && !entry.error && (
           <>
-            <p className="mt-2 text-sm font-bold text-sage dark:text-lime">{entry.meaning || entry.definition || "Chưa có nghĩa tiếng Việt."}</p>
+            <p className="mt-2 text-sm font-bold text-indigo-600 dark:text-indigo-400">{entry.meaning || entry.definition || "Chưa có nghĩa tiếng Việt."}</p>
             {entry.meaning && entry.definition && (
               <p className="mt-1 text-xs italic text-ink/60 dark:text-white/60">{entry.definition}</p>
             )}
@@ -283,7 +283,7 @@ export function GlossaryList({ items = [], showMeaning = true, emptyHint = "" })
             type="button"
             onClick={() => addWord(item)}
             disabled={busy === item.word}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sage transition hover:bg-sage/15 disabled:opacity-40"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-indigo-600 transition hover:bg-indigo-500/15 disabled:opacity-40 dark:text-indigo-400"
             aria-label={`Thêm ${item.word} vào bộ thẻ`}
             title="Thêm vào bộ thẻ"
           >

@@ -9,8 +9,8 @@ export default {
         ink: '#0F172A',
         mist: '#F8FAFC',
         // Dynamic Accent
-        sage: 'rgb(var(--accent-2, 99 102 241) / <alpha-value>)',
-        lime: 'rgb(var(--accent, 16 185 129) / <alpha-value>)',
+        sage: 'rgb(var(--accent-2, 79 70 229) / <alpha-value>)',
+        lime: 'rgb(var(--accent, 99 102 241) / <alpha-value>)',
         // Bề mặt: Sáng (Apple Frost)
         slab: '#FFFFFF',
         slab2: '#F1F5F9',

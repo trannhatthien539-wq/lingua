@@ -45,7 +45,7 @@ export default function StudyIllustration({ className = "" }) {
 
       {/* Dấu tích “đã hoàn thành” */}
       <circle cx="74" cy="100" r="14" fill="#ffffff" />
-      <path d="M67 100 l5 5 9 -10" stroke="#58cc02" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M67 100 l5 5 9 -10" stroke="#10b981" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* Ngôi sao lấp lánh */}
       <path d="M60 30 l3.2 8.8 8.8 3.2 -8.8 3.2 -3.2 8.8 -3.2 -8.8 -8.8 -3.2 8.8 -3.2 Z" fill="#ffffff" opacity="0.9" />

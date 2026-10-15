@@ -188,7 +188,7 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-bold">
-          <ShieldCheck size={15} className="text-sage" />
+          <ShieldCheck size={15} className="text-emerald-500" />
           Trạng thái đồng bộ
         </div>
         <div className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
             aria-label="Bật nhắc học hằng ngày"
             className="flex h-11 w-14 shrink-0 items-center"
           >
-            <span className={`relative h-7 w-12 rounded-full transition ${settings.enabled ? "bg-lime" : "bg-ink/15 dark:bg-white/25"}`}>
+            <span className={`relative h-7 w-12 rounded-full transition ${settings.enabled ? "bg-indigo-600 dark:bg-indigo-500" : "bg-ink/15 dark:bg-white/25"}`}>
               <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-slab shadow transition-all dark:bg-dark3 ${settings.enabled ? "left-[22px]" : "left-0.5"}`} />
             </span>
           </button>
@@ -265,14 +265,14 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
         {widgetSummary ? (
           <div className="mt-2 rounded-xl border border-ink/[0.08] bg-ink/[0.03] p-3 dark:border-white/[0.08] dark:bg-white/[0.05]">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink/55 dark:text-white/55">{widgetSummary.title}</p>
-            <p className="mt-1 font-display text-base font-bold text-sage">{widgetSummary.primary}</p>
+            <p className="mt-1 font-display text-base font-bold text-indigo-600 dark:text-indigo-400">{widgetSummary.primary}</p>
             <p className="mt-0.5 text-xs text-ink/80 dark:text-white/80">{widgetSummary.secondary}</p>
             <p className="text-xs text-ink/65 dark:text-white/65">{widgetSummary.tertiary}</p>
             {widgetSummary.progressMax > 0 && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
                   <span
-                    className="block h-full rounded-full bg-sage"
+                    className="block h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600"
                     style={{ width: `${Math.round((Math.min(widgetSummary.progressValue, widgetSummary.progressMax) / widgetSummary.progressMax) * 100)}%` }}
                   />
                 </span>

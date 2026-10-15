@@ -152,7 +152,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                 type="button"
                 onClick={() => setLevel(item)}
                 aria-pressed={level === item}
-                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${level === item ? "bg-ink text-white dark:bg-lime dark:text-ink" : "border border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70"}`}
+                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${level === item ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
               >
                 {item === "all" ? "Tất cả bậc" : item}
               </button>
@@ -291,7 +291,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                     </div>
                     <div className="text-right">
                       <p className="metric text-lg">{attempt.average}/10</p>
-                      <p className="text-xs font-bold text-sage">{bandFor(attempt.average).label}</p>
+                      <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{bandFor(attempt.average).label}</p>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">

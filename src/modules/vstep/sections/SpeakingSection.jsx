@@ -55,10 +55,10 @@ export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "
               type="button"
               onClick={() => setActiveId(item.id)}
               aria-current={item.id === part.id ? "true" : undefined}
-              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === part.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
+              className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${item.id === part.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08]"}`}
             >
               {item.title}
-              {answer?.seconds ? <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">{formatSeconds(answer.seconds)}</span> : null}
+              {answer?.seconds ? <span className="chip border border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">{formatSeconds(answer.seconds)}</span> : null}
             </button>
           );
         })}

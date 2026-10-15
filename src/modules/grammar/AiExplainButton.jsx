@@ -42,7 +42,7 @@ export default function AiExplainButton({ question, response, apiKey, provider =
         {state.loading ? 'Đang hỏi AI…' : 'Giải thích bằng AI'}
       </button>
       {state.text && (
-        <p className="mt-2 whitespace-pre-wrap rounded-xl bg-sage/10 p-3 text-xs leading-5">{state.text}</p>
+        <p className="mt-2 whitespace-pre-wrap rounded-xl border border-indigo-500/20 bg-indigo-500/[0.08] p-3 text-xs leading-5 text-ink/90 dark:text-white/90">{state.text}</p>
       )}
     </div>
   )

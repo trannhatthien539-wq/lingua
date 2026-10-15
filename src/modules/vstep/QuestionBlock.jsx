@@ -38,7 +38,7 @@ export default function QuestionBlock({ question, index, value = "", onChange, m
                         : isWrong
                           ? "border-danger bg-danger/10 text-danger dark:text-dangerfgdark"
                           : selected
-                            ? "border-sage bg-sage/15 font-bold"
+                            ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold"
                             : "border-ink/[0.1] hover:bg-ink/[0.04] dark:border-white/[0.1] dark:hover:bg-white/[0.06]"
                     }`}
                   >

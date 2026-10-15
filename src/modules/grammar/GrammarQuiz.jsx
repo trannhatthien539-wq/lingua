@@ -156,7 +156,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
               </p>
               {!item.correct && (
                 <p className="mt-1 pl-6 text-xs text-ink/70 dark:text-white/70">
-                  Đáp án: <span className="font-bold text-sage">{Array.isArray(item.question.answer) ? item.question.answer[0] : item.question.answer || item.question.answers?.[0]}</span>
+                  Đáp án: <span className="font-bold text-emerald-600 dark:text-emerald-400">{Array.isArray(item.question.answer) ? item.question.answer[0] : item.question.answer || item.question.answers?.[0]}</span>
                 </p>
               )}
               {item.question.explain && <p className="mt-1 pl-6 text-xs text-ink/60 dark:text-white/60">{item.question.explain}</p>}
@@ -186,14 +186,14 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
           Câu {index + 1}/{items.length}
         </span>
         {timeLimit > 0 && (
-          <span className={`chip ${secondsLeft <= 60 ? 'bg-dangerbg text-danger dark:bg-dangerdark dark:text-dangerfgdark' : 'bg-sage/15 text-ink dark:text-white'}`}>
+          <span className={`chip ${secondsLeft <= 60 ? 'bg-dangerbg text-danger dark:bg-dangerdark dark:text-dangerfgdark' : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'}`}>
             Còn {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:{String(secondsLeft % 60).padStart(2, '0')}
           </span>
         )}
       </div>
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-        <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${(index / items.length) * 100}%` }} />
+        <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all" style={{ width: `${(index / items.length) * 100}%` }} />
       </div>
 
       <p className="mt-4 text-sm font-bold leading-6">{question.prompt}</p>
@@ -221,7 +221,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
                     : showWrong
                       ? 'border-danger bg-dangerbg text-danger dark:bg-dangerdark dark:text-dangerfgdark'
                       : selected
-                        ? 'border-sage bg-sage/15'
+                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold'
                         : 'border-ink/10 hover:bg-ink/[0.04] dark:border-white/15 dark:hover:bg-white/10'
                 }`}
               >

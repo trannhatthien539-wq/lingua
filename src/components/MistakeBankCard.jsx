@@ -203,7 +203,7 @@ export default function MistakeBankCard({ apiKey = "", provider = "gemini" }) {
                   Bạn trả lời: <span className="font-bold">{item.response || "(bỏ trống)"}</span>
                 </p>
                 <p className="mt-0.5 text-xs text-ink/70 dark:text-white/70">
-                  Đáp án: <span className="font-bold text-sage">{item.answer || "(xem giải thích)"}</span>
+                  Đáp án: <span className="font-bold text-emerald-600 dark:text-emerald-400">{item.answer || "(xem giải thích)"}</span>
                 </p>
                 {item.explain && <p className="mt-1 text-xs text-ink/60 dark:text-white/60">{item.explain}</p>}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">

@@ -83,7 +83,7 @@ export default function NotificationBell({ streak, plain = false }) {
           <ul className="mt-2 space-y-1.5">
             {items.map((item, index) => (
               <li key={index} className="flex items-start gap-2.5 rounded-xl bg-slab2 p-2.5 dark:bg-dark3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-lime/30 text-ink dark:bg-lime/20 dark:text-lime">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-indigo-500/25 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
                   <item.icon size={15} />
                 </span>
                 <span className="text-xs leading-5 text-ink/70 dark:text-white/70">{item.text}</span>

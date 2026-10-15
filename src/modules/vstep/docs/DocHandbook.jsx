@@ -40,7 +40,7 @@ export default function DocHandbook() {
               type="button"
               onClick={() => setSkillId(item.id)}
               aria-pressed={skillId === item.id}
-              className={`min-h-[44px] min-w-max rounded-xl px-3.5 text-sm font-bold transition ${skillId === item.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70"}`}
+              className={`min-h-[44px] min-w-max rounded-xl px-3.5 text-sm font-bold transition ${skillId === item.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"}`}
             >
               {item.name}
             </button>
@@ -59,7 +59,7 @@ export default function DocHandbook() {
           <p className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-ink/60 dark:text-white/60"><Target size={13} />Mẹo làm bài</p>
           <ul className="mt-2 space-y-1.5 text-sm leading-6">
             {skill.tips.map((tip) => (
-              <li key={tip} className="flex items-start gap-2"><span className="text-sage">•</span>{tip}</li>
+              <li key={tip} className="flex items-start gap-2"><span className="font-bold text-indigo-500">•</span>{tip}</li>
             ))}
           </ul>
         </div>
@@ -69,7 +69,7 @@ export default function DocHandbook() {
         <p className="eyebrow flex items-center gap-2"><ListChecks size={14} />Cách tính điểm</p>
         <ul className="mt-2 space-y-1.5 text-sm leading-6">
           {scoringNotes.map((note) => (
-            <li key={note} className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-sage" />{note}</li>
+            <li key={note} className="flex items-start gap-2"><CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />{note}</li>
           ))}
         </ul>
       </section>
@@ -92,7 +92,7 @@ export default function DocHandbook() {
         <p className="eyebrow flex items-center gap-2"><CalendarCheck size={14} />Checklist ngày thi</p>
         <ul className="mt-2 space-y-1.5 text-sm leading-6">
           {examDayChecklist.map((item) => (
-            <li key={item} className="flex items-start gap-2"><span className="text-sage">✓</span>{item}</li>
+            <li key={item} className="flex items-start gap-2"><span className="font-bold text-emerald-500">✓</span>{item}</li>
           ))}
         </ul>
       </section>

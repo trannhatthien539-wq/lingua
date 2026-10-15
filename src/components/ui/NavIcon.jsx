@@ -6,15 +6,6 @@
  * Tailwind không sinh class động nên màu truyền qua style inline.
  */
 
-/** Nền sáng quá thì glyph phải là màu tối, nếu không sẽ khó đọc. */
-const needsDarkGlyph = (hex) => {
-  const value = String(hex).replace('#', '')
-  if (value.length !== 6) return false
-  const red = parseInt(value.slice(0, 2), 16)
-  const green = parseInt(value.slice(2, 4), 16)
-  const blue = parseInt(value.slice(4, 6), 16)
-  return 0.299 * red + 0.587 * green + 0.114 * blue > 186
-}
 
 const SIZES = {
   sm: { box: 'h-8 w-8 rounded-xl', glyph: 15 },
@@ -30,16 +21,16 @@ export default function NavIcon({ icon: Icon, color = '#6366F1', size = 'md', ac
       style={
         active
           ? {
-              background: `linear-gradient(135deg, ${color}, ${color}ee)`,
-              color: needsDarkGlyph(color) ? '#0F172A' : '#FFFFFF',
-              borderColor: 'rgba(255,255,255,0.35)',
-              boxShadow: `0 4px 16px -2px ${color}66, inset 0 1px 1px 0 rgba(255,255,255,0.45)`,
+              background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
+              color: '#FFFFFF',
+              borderColor: 'rgba(255,255,255,0.4)',
+              boxShadow: '0 4px 14px -2px rgba(var(--accent), 0.4), inset 0 1px 1px 0 rgba(255,255,255,0.45)',
             }
           : {
-              backgroundColor: `${color}18`,
-              borderColor: `${color}35`,
+              backgroundColor: `${color}14`,
+              borderColor: `${color}28`,
               color: color,
-              boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.08)',
+              boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06)',
             }
       }
       aria-hidden="true"

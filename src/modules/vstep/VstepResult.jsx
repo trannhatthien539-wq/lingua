@@ -119,7 +119,7 @@ export default function VstepResult({ exam, result, apiKey, provider, onRetry, o
           <div>
             <p className="eyebrow">Kết quả {result.reason === "time" ? "· hết giờ" : ""}</p>
             <h2 className="mt-1 flex items-center gap-2 font-display text-2xl font-bold">
-              <Award size={22} className="text-sage" />{band.label}
+              <Award size={22} className="text-amber-500" />{band.label}
             </h2>
             <p className="mt-1 text-sm text-ink/70 dark:text-white/70">{band.note}</p>
           </div>
@@ -185,7 +185,7 @@ export default function VstepResult({ exam, result, apiKey, provider, onRetry, o
             type="button"
             onClick={() => setView(key)}
             aria-pressed={view === key}
-            className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${view === key ? "bg-lime text-ink" : "border border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70"}`}
+            className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${view === key ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
           >
             {label}
           </button>

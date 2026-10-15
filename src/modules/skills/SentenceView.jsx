@@ -85,7 +85,7 @@ export default function SentenceView({ onStats }) {
                 type="button"
                 onClick={() => reset(item.id)}
                 aria-pressed={active}
-                className={`min-h-[44px] min-w-max rounded-xl px-4 text-sm font-bold transition ${active ? 'bg-lime text-ink' : 'text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
+                className={`min-h-[44px] min-w-max rounded-xl px-4 text-sm font-bold transition ${active ? 'bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08]'}`}
               >
                 {item.label} ({item.data.length})
               </button>
@@ -116,8 +116,8 @@ export default function SentenceView({ onStats }) {
               <span className="chip bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">Câu {index + 1}/{mode.data.length} · đúng {correctCount}</span>
             </div>
 
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-              <div className="h-full rounded-full bg-sage transition-all" style={{ width: `${(index / mode.data.length) * 100}%` }} />
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/15">
+              <div className="h-full rounded-full transition-all" style={{ width: `${(index / mode.data.length) * 100}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
             </div>
 
             {modeId === 'cloze' && (
@@ -142,7 +142,7 @@ export default function SentenceView({ onStats }) {
                 <div className="mt-2 flex min-h-[56px] flex-wrap items-center gap-2 rounded-xl border border-ink/10 p-3 dark:border-white/15">
                   {picked.length === 0 && <span className="text-xs text-ink/50 dark:text-white/50">Câu của bạn sẽ hiện ở đây…</span>}
                   {picked.map((word, position) => (
-                    <button key={`${word}-${position}`} type="button" onClick={() => removePicked(position)} className="chip bg-lime text-ink">{word}</button>
+                    <button key={`${word}-${position}`} type="button" onClick={() => removePicked(position)} className="chip-brand font-bold">{word}</button>
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

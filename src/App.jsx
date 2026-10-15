@@ -200,8 +200,8 @@ export default function App() {
     return (
       <div className="grid min-h-screen place-items-center bg-mist p-6 text-ink dark:bg-dark1 dark:text-white">
         <div className="text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-lime/25 dark:bg-lime/20"><AppMark className="h-10 w-10" /></div>
-          <p className="mt-3 font-display text-xl font-bold text-[#58cc02]">lingua<span className="text-ink/50 dark:text-white/45">.</span></p>
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"><AppMark className="h-10 w-10" /></div>
+          <p className="mt-3 font-display text-xl font-bold text-indigo-600 dark:text-indigo-400">lingua<span className="text-ink/50 dark:text-white/45">.</span></p>
           <p className="mt-1 text-sm text-ink/55 dark:text-white/55">Đang tải…</p>
         </div>
       </div>

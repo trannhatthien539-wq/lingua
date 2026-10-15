@@ -58,7 +58,7 @@ export default function SyncStatusBadge({ user, compact = false }) {
         title="Trạng thái đồng bộ dữ liệu"
         aria-label="Trạng thái đồng bộ dữ liệu"
       >
-        <span className={`h-2 w-2 rounded-full ${!status.online ? "bg-warn" : status.pending > 0 ? "animate-pulse bg-sage" : status.error ? "bg-danger" : "bg-ok"}`} />
+        <span className={`h-2 w-2 rounded-full ${!status.online ? "bg-warn" : status.pending > 0 ? "animate-pulse bg-indigo-500" : status.error ? "bg-danger" : "bg-ok"}`} />
         {compact ? null : <span className="whitespace-nowrap">{label}</span>}
       </button>
       {open && (

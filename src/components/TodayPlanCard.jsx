@@ -84,7 +84,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     due > 0 && {
       key: "due",
       icon: CalendarCheck,
-      toneClass: "bg-sage/15 text-sage",
+      toneClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
       title: `Ôn ${due} thẻ đã đến hạn`,
       detail: "Ôn hết thẻ đến hạn để không quên từ đã học.",
       action: "Ôn ngay",
@@ -93,7 +93,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     newest > 0 && {
       key: "new",
       icon: Layers,
-      toneClass: "bg-lime/25 text-ink dark:text-lime",
+      toneClass: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25",
       title: `Học ${Math.min(newest, 10)} thẻ mới`,
       detail: `${newest} từ chưa từng được học trong thư viện của bạn.`,
       action: "Học từ mới",
@@ -102,7 +102,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     leeches > 0 && {
       key: "leech",
       icon: AlertTriangle,
-      toneClass: "bg-warnbg text-warn",
+      toneClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
       title: `${leeches} từ hay quên cần chú ý`,
       detail: "Những từ này bạn đã quên nhiều lần — nên học bằng flashcard hoặc đặt câu.",
       action: "Xem lại",
@@ -111,7 +111,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     mistakeTotal > 0 && {
       key: "mistakes",
       icon: TrendingUp,
-      toneClass: "bg-dangerbg text-danger dark:text-dangerfgdark",
+      toneClass: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25",
       title: `Luyện lại ${mistakeTotal} câu sai`,
       detail: `Ngữ pháp ${grammarMistakes.length} · Nghe/Đọc/VSTEP ${bankMistakes.length}. Sổ câu sai nằm trong tab Tiến độ.`,
       action: "Luyện lại",
@@ -120,7 +120,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     weakest && weakest.value < 7 && {
       key: "vstep",
       icon: GraduationCap,
-      toneClass: "bg-sage/15 text-sage",
+      toneClass: "bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/25",
       title: `Kỹ năng ${DOMAIN_LABELS[weakest.skill] || weakest.skill} còn yếu (${weakest.value.toFixed(1)}/10)`,
       detail: "Làm thêm một đề VSTEP hoặc luyện riêng kỹ năng này.",
       action: "Thi thử",
@@ -129,7 +129,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     target > 0 && {
       key: "goal",
       icon: Target,
-      toneClass: "bg-lime/25 text-ink dark:text-lime",
+      toneClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
       title: goalPercent >= 100 ? "Đã đạt mục tiêu hôm nay 🎉" : `Mục tiêu hôm nay: ${goalToday}/${target} lượt ôn`,
       detail: goalPercent >= 100 ? "Giỏi lắm! Học thêm chút nữa nếu bạn còn thời gian." : `Còn ${Math.max(0, target - goalToday)} lượt nữa để đạt mục tiêu.`,
       action: goalPercent >= 100 ? null : "Học tiếp",
@@ -138,7 +138,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     streakDays > 0 && {
       key: "streak",
       icon: Flame,
-      toneClass: "bg-warnbg text-warn",
+      toneClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
       title: `Chuỗi ${streakDays} ngày học`,
       detail: streakDays >= 7 ? "Bạn đang giữ phong độ rất tốt!" : "Học hôm nay để giữ chuỗi nhé.",
       action: null,
@@ -153,7 +153,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
           <h3 className="mt-1 font-display text-lg font-bold">Hôm nay học gì?</h3>
         </div>
         {target > 0 && (
-          <span className={`chip ${goalPercent >= 100 ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-lime text-ink"}`}>
+          <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 font-bold"}`}>
             {goalToday}/{target} lượt ôn
           </span>
         )}

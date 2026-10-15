@@ -359,7 +359,7 @@ function RoadmapCard({
                 if (event.key === "Escape") onEdit(null);
               }}
               onBlur={(event) => onCommitEdit(id, event.currentTarget.value)}
-              className="w-full rounded border-2 border-sage bg-transparent px-1 text-sm font-bold outline-none"
+              className="w-full rounded border-2 border-indigo-500 bg-transparent px-1 text-sm font-bold outline-none"
             />
           ) : (
             <>
@@ -485,7 +485,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
       </label>
       <button
         onClick={() => onSaveNotes(node.id, notes)}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-bold text-white dark:bg-lime dark:text-ink"
+        className="mt-3 btn-primary w-full justify-center"
       >
         <Save size={15} />
         Lưu ghi chú
@@ -495,7 +495,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
           onPractice(node.data.label);
           onClose();
         }}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-b-4 border-sage py-3 text-sm font-bold text-sage active:translate-y-[2px]"
+        className="mt-3 btn-secondary w-full justify-center"
       >
         <Sparkles size={15} />
         Luyện tập chủ điểm này
@@ -775,7 +775,7 @@ export default function StudyMindmap({ apiKey }) {
             value={mapName}
             onChange={(event) => setMapName(event.target.value)}
             aria-label="Tên lộ trình"
-            className="w-full min-w-0 max-w-full border-b-2 border-transparent bg-transparent font-display text-2xl font-bold tracking-tight outline-none transition focus:border-sage sm:text-3xl"
+            className="w-full min-w-0 max-w-full border-b-2 border-transparent bg-transparent font-display text-2xl font-bold tracking-tight outline-none transition focus:border-indigo-500 sm:text-3xl"
           />
           <p className="mt-1 text-sm text-ink/45 dark:text-white/45">
             Bấm nhãn trạng thái để đổi · Bấm tên để mở ghi chú · Bấm đúp để đổi tên
@@ -806,7 +806,7 @@ export default function StudyMindmap({ apiKey }) {
           </button>
           <button
             onClick={saveMap}
-            className="flex items-center gap-2 rounded-xl bg-ink px-3 py-2.5 text-xs font-bold text-white dark:bg-lime dark:text-ink"
+            className="btn-primary h-10 px-3.5 text-xs"
           >
             <Save size={15} />
             Lưu
@@ -826,7 +826,7 @@ export default function StudyMindmap({ apiKey }) {
         <button
           onClick={generateRoadmap}
           disabled={loading}
-          className="flex items-center gap-2 rounded-xl bg-lime px-4 py-3 text-sm font-bold text-ink disabled:opacity-60"
+          className="btn-primary flex items-center gap-2 px-5 py-3 text-sm disabled:opacity-60"
         >
           {loading ? (
             <LoaderCircle size={16} className="animate-spin" />

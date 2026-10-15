@@ -48,7 +48,7 @@ export default function CollapsibleCard({
           className="flex min-h-[68px] w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-ink/[0.03] sm:px-5 dark:hover:bg-white/[0.04]"
         >
           {Icon && (
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime text-ink">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
               <Icon size={19} />
             </span>
           )}

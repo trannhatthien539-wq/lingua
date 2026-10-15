@@ -170,7 +170,7 @@ Trả về CHÍNH XÁC một JSON hợp lệ theo schema sau (không markdown, k
 
       <section className="panel p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-2 text-sm font-bold"><PenLine size={16} className="text-sage" />Bài viết của bạn</p>
+          <p className="flex items-center gap-2 text-sm font-bold"><PenLine size={16} className="text-indigo-600 dark:text-indigo-400" />Bài viết của bạn</p>
           <span className={`chip ${enough ? 'bg-okbg text-ok dark:bg-okdark dark:text-okfgdark' : 'bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70'}`}>
             {words}/{task.minWords} từ
           </span>
@@ -313,9 +313,9 @@ Trả về CHÍNH XÁC một JSON hợp lệ theo schema sau (không markdown, k
                   type="button"
                   onClick={() => setChecked((current) => ({ ...current, [item.label]: !current[item.label] }))}
                   aria-pressed={active}
-                  className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${active ? 'border-sage bg-sage/10' : 'border-ink/[0.08] hover:bg-ink/[0.03] dark:border-white/[0.08] dark:hover:bg-white/[0.05]'}`}
+                  className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${active ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-ink/[0.08] hover:bg-ink/[0.03] dark:border-white/[0.08] dark:hover:bg-white/[0.05]'}`}
                 >
-                  <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border ${active ? 'border-sage bg-sage text-ink' : 'border-ink/25 dark:border-white/30'}`}>
+                  <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border ${active ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-ink/25 dark:border-white/30'}`}>
                     {active && <Check size={13} strokeWidth={3} />}
                   </span>
                   <span className="min-w-0">

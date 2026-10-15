@@ -205,7 +205,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
                     <span className="chip shrink-0 bg-warnbg text-warn">sai {entry.count} lần</span>
                   </div>
                   <p className="mt-1.5 text-xs text-ink/70 dark:text-white/70">Bạn trả lời: <span className="font-bold">{entry.response || '(bỏ trống)'}</span></p>
-                  <p className="mt-0.5 text-xs text-ink/70 dark:text-white/70">Đáp án: <span className="font-bold text-sage">{entry.answer}</span></p>
+                  <p className="mt-0.5 text-xs text-ink/70 dark:text-white/70">Đáp án: <span className="font-bold text-emerald-600 dark:text-emerald-400">{entry.answer}</span></p>
                   {entry.explain && <p className="mt-1 text-xs text-ink/60 dark:text-white/60">{entry.explain}</p>}
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
                     <button type="button" onClick={() => openLesson(entry.lessonId)} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-ink/10 px-2.5 font-bold text-ink/70 transition hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70">
@@ -236,7 +236,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
           {grammarConfusingPairs.map((pair) => (
             <li key={pair.id} className="rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
               <p className="text-sm font-bold">
-                <span className="text-sage">{pair.left}</span>
+                <span className="text-indigo-600 dark:text-indigo-400">{pair.left}</span>
                 <span className="mx-2 text-ink/40 dark:text-white/40">vs</span>
                 <span className="text-warn">{pair.right}</span>
               </p>

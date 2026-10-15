@@ -266,20 +266,20 @@ export default function HomeHub({ user, streak, onNavigate }) {
   return (
     <div className="space-y-6">
       {/* Hero Banner: Không gian Chào Mừng & Động Lực Học Tập */}
-      <section className="relative overflow-hidden rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#0F172A] p-5 text-white shadow-[0_20px_60px_-15px_rgba(99,102,241,0.2)] backdrop-blur-2xl sm:p-7">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/15 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5 text-white shadow-xl backdrop-blur-2xl sm:p-7">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
 
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           {/* Cột Trái: Lời chào, Sứ mệnh & Nút hành động nhanh */}
           <div className="min-w-0 max-w-xl flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3.5 py-1 text-xs font-bold text-indigo-300">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1 text-xs font-bold text-slate-200">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34D399]" />
               {greetingByHour()}{displayName ? `, ${displayName}` : ''} • Hôm nay
             </div>
 
             <h2 className="mt-3 font-display text-2xl font-black tracking-tight sm:text-4xl sm:leading-tight">
-              Học đều đặn. <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-300">Bứt phá mỗi ngày.</span>
+              Học đều đặn. <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-300">Bứt phá mỗi ngày.</span>
             </h2>
             <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
               Xây dựng thói quen tiếng Anh vững chắc theo chu kỳ ghi nhớ khoa học, từ từ vựng cốt lõi đến kỹ năng phản xạ VSTEP.
@@ -289,21 +289,21 @@ export default function HomeHub({ user, streak, onNavigate }) {
               <button
                 type="button"
                 onClick={() => onNavigate?.("vocabulary")}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-500 px-5 text-xs font-bold text-slate-950 shadow-[0_0_16px_rgba(52,211,153,0.35)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="btn-primary min-h-[44px] px-5 text-xs font-bold shadow-md hover:scale-[1.02] active:scale-[0.98]"
               >
                 <PlayCircle size={16} />Ôn từ vựng ngay
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("grammar")}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
               >
                 <GraduationCap size={16} />Bài ngữ pháp
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("vstep")}
-                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-[0.98]"
               >
                 <Award size={16} />Luyện VSTEP
               </button>
@@ -341,7 +341,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
                 <span className="font-mono text-emerald-300">{goalToday}/{target} lượt ôn</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10 backdrop-blur-sm">
-                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 shadow-[0_0_12px_rgba(52,211,153,0.5)] transition-all duration-500" style={{ width: `${goalPercent}%` }} />
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${goalPercent}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
               </div>
               <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                 <span>{goalPercent >= 100 ? '🎉 Đạt mục tiêu ngày!' : `Còn ${Math.max(0, target - goalToday)} lượt ôn`}</span>
@@ -439,7 +439,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
             <div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
-                  <GraduationCap size={16} className="text-purple-500" />
+                  <GraduationCap size={16} className="text-violet-500" />
                   Ngữ pháp trọng điểm
                 </span>
                 {cefrInfo.grammarRemaining === 0 ? (
@@ -480,7 +480,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
             <div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
-                  <Layers size={16} className="text-teal-500" />
+                  <Layers size={16} className="text-sky-500" />
                   Kho từ vựng cốt lõi
                 </span>
                 {cefrInfo.cardsRemaining === 0 ? (
@@ -579,7 +579,14 @@ export default function HomeHub({ user, streak, onNavigate }) {
                 <div>
                   <div className="relative z-10 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/20 shadow-md transition-transform duration-200 group-hover:scale-105" style={{ backgroundColor: area.color, color: '#FFFFFF' }}>
+                      <div
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-transform duration-200 group-hover:scale-105"
+                        style={{
+                          backgroundColor: `${area.color}15`,
+                          borderColor: `${area.color}35`,
+                          color: area.color,
+                        }}
+                      >
                         <Icon size={22} strokeWidth={2.2} />
                       </div>
                       <div className="min-w-0">
@@ -647,10 +654,10 @@ export default function HomeHub({ user, streak, onNavigate }) {
 
           {/* Lưới 4 chỉ số tổng quan cốt lõi */}
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/80 dark:border-white/[0.08]">
-            <StatTile icon={Layers} color="#06b6d4" label="Từ vựng đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
-            <StatTile icon={GraduationCap} color="#a855f7" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
-            <StatTile icon={Award} color="#ef4444" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
-            <StatTile icon={Trophy} color="#10b981" label="Độ chính xác" value={`${stats.accuracy}%`} />
+            <StatTile icon={Layers} color="#0EA5E9" label="Từ vựng đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
+            <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
+            <StatTile icon={Award} color="#F43F5E" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
+            <StatTile icon={Trophy} color="#10B981" label="Độ chính xác" value={`${stats.accuracy}%`} />
           </div>
         </section>
       </div>

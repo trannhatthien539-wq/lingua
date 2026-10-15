@@ -35,7 +35,7 @@ export default function ProgressAvatar({ user, percent = 0, size = 44 }) {
           cy="22"
           r={radius}
           fill="none"
-          stroke="#58cc02"
+          stroke="rgb(var(--accent))"
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -44,8 +44,8 @@ export default function ProgressAvatar({ user, percent = 0, size = 44 }) {
         />
       </svg>
       <span
-        className="relative z-10 grid place-items-center overflow-hidden rounded-full bg-lime text-ink"
-        style={{ width: size - 10, height: size - 10 }}
+        className="relative z-10 grid place-items-center overflow-hidden rounded-full font-bold text-white shadow-inner"
+        style={{ width: size - 10, height: size - 10, background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))' }}
       >
         {user?.photoURL ? (
           <img src={user.photoURL} alt="" className="h-full w-full object-cover" />

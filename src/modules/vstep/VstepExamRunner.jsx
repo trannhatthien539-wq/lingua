@@ -135,7 +135,7 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
               <button
                 type="button"
                 onClick={() => setZenMode((prev) => !prev)}
-                className={`icon-btn h-11 w-11 ${zenMode ? "border-lime bg-lime/20 text-lime" : ""}`}
+                className={`icon-btn h-11 w-11 ${zenMode ? "border border-indigo-500/40 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" : ""}`}
                 title={zenMode ? "Thoát chế độ tập trung (Esc)" : "Bật chế độ tập trung toàn màn hình (Zen Mode)"}
                 aria-label={zenMode ? "Thoát chế độ tập trung" : "Bật chế độ tập trung"}
               >
@@ -163,7 +163,7 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
             return (
               <span
                 key={key}
-                className={`chip ${active ? "bg-lime text-ink" : done ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-ink/[0.06] text-ink/55 dark:bg-white/10 dark:text-white/55"}`}
+                className={`chip ${active ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : done ? "border border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400"}`}
               >
                 {SECTION_LABELS[key]} · {exam[key].minutes}′
               </span>

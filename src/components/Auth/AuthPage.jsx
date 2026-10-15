@@ -77,15 +77,15 @@ export default function AuthPage({ onGuest }) {
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-ink/[0.08] bg-slab shadow-soft dark:border-white/[0.08] dark:bg-dark2 lg:grid-cols-[1.05fr_0.95fr] lg:min-h-[calc(100vh-5rem)]">
         {/* Cột giới thiệu chỉ hiện trên màn hình lớn; điện thoại (và app APK) vào là thấy form đăng nhập. */}
         <section className="relative hidden overflow-hidden bg-ink p-8 text-white sm:p-12 lg:block lg:p-16">
-          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-lime/20 blur-3xl" />
-          <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[#8bc5a1]/20 blur-3xl" />
+          <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
+          <div className="absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-violet-600/20 blur-3xl" />
           <div className="relative flex h-full flex-col">
             <div className="flex items-center gap-3"><AppMark className="h-11 w-11" /><span className="font-display text-lg font-bold">lingua.</span></div>
             <div className="my-auto max-w-lg py-16">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime/70">Không gian học tập</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-400">Không gian học tập</p>
               <h1 className="mt-5 font-display text-4xl font-bold leading-tight sm:text-5xl">Học đều đặn. Tiến bộ có chủ đích.</h1>
               <p className="mt-6 max-w-md text-base leading-7 text-white/60">Một nơi yên tĩnh để xây thói quen, luyện từ vựng và nhìn thấy tiến bộ mỗi ngày.</p>
-              <div className="mt-10 space-y-5">{features.map(({ icon: Icon, title, text }) => <div key={title} className="flex gap-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-lime"><Icon size={18} /></div><div><p className="font-bold">{title}</p><p className="mt-1 text-sm leading-5 text-white/50">{text}</p></div></div>)}</div>
+              <div className="mt-10 space-y-5">{features.map(({ icon: Icon, title, text }) => <div key={title} className="flex gap-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-indigo-400"><Icon size={18} /></div><div><p className="font-bold">{title}</p><p className="mt-1 text-sm leading-5 text-white/50">{text}</p></div></div>)}</div>
             </div>
             <p className="text-xs text-white/35">Lingua Study Hub · học theo cách của bạn</p>
           </div>
@@ -110,7 +110,7 @@ export default function AuthPage({ onGuest }) {
               <label className="block"><span className="mb-2 block text-xs font-bold text-ink/60 dark:text-white/60">Mật khẩu</span><input required minLength={6} type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-ink/10 bg-transparent px-3 py-3 text-sm outline-none dark:border-white/10" placeholder="Ít nhất 6 ký tự" /></label>
               <button disabled={loading} className="btn-primary w-full">{loading ? "Đang xử lý..." : mode === "signin" ? "Đăng nhập" : "Tạo tài khoản"}<ArrowRight size={16} /></button>
             </form>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-sage hover:underline">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 text-xs"><button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="font-bold text-indigo-600 hover:underline dark:text-indigo-400">{mode === "signin" ? "Tạo tài khoản mới" : "Đã có tài khoản? Đăng nhập"}</button><button onClick={onGuest} className="font-bold text-ink/45 hover:text-ink dark:text-white/45 dark:hover:text-white">Dùng thử với tư cách Khách</button></div>
             <button type="button" onClick={forgotPassword} disabled={loading} className="mt-3 text-xs font-bold text-ink/55 underline disabled:opacity-50 dark:text-white/55">Quên mật khẩu?</button>
             {error && <p className="mt-4 rounded-xl bg-red-500/10 px-3 py-2.5 text-xs leading-5 text-red-600 dark:text-red-300" role="alert">{error}</p>}
             {notice && <p className="mt-4 rounded-xl bg-amber-400/15 px-3 py-2.5 text-xs leading-5 text-amber-700 dark:text-amber-200" role="status">{notice}</p>}

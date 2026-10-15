@@ -14,10 +14,10 @@ const PartTabs = ({ parts, activeId, onChange, answers }) => (
           type="button"
           onClick={() => onChange(part.id)}
           aria-current={activeId === part.id ? "true" : undefined}
-          className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${activeId === part.id ? "bg-lime text-ink" : "text-ink/70 hover:bg-ink/[0.05] dark:text-white/70 dark:hover:bg-white/[0.08]"}`}
+          className={`flex min-h-[44px] min-w-max items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition ${activeId === part.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08]"}`}
         >
           {part.title}
-          <span className={`chip ${done === total ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60"}`}>{done}/{total}</span>
+          <span className={`chip ${done === total ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : activeId === part.id ? "bg-white/20 text-white dark:bg-slate-900/20 dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400"}`}>{done}/{total}</span>
         </button>
       );
     })}
@@ -64,7 +64,7 @@ export default function ListeningSection({ exam, answers = {}, onAnswer, mode = 
             <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-ink/60 dark:text-white/60">Xem transcript</summary>
             <div className="mt-2 space-y-1">
               {(part.transcript || []).map((line, index) => (
-                <p key={`${line.line}-${index}`}><span className="font-bold text-sage">{line.speaker}:</span> {line.line}</p>
+                <p key={`${line.line}-${index}`}><span className="font-bold text-indigo-600 dark:text-indigo-400">{line.speaker}:</span> {line.line}</p>
               ))}
             </div>
           </details>

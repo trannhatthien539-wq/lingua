@@ -19,10 +19,10 @@ export default function InstallAppPanel() {
   return (
     <CollapsibleCard id="install" title="Cài app lên thiết bị" description="Dùng offline, mở nhanh như app thật" open={open} onToggle={toggleSection}>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-lime text-ink"><Smartphone size={19} /></span>
+        <span className="grid h-11 w-11 place-items-center rounded-xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"><Smartphone size={19} /></span>
         <div className="min-w-0 flex-1">
           {installed ? (
-            <p className="text-sm font-semibold text-sage">Lingua đang chạy ở chế độ ứng dụng đã cài đặt.</p>
+            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Lingua đang chạy ở chế độ ứng dụng đã cài đặt.</p>
           ) : canInstall ? (
             <p className="text-sm text-ink/70 dark:text-white/70">Thiết bị hỗ trợ cài đặt — thêm Lingua vào màn hình chính để mở nhanh và dùng khi mạng yếu.</p>
           ) : isIos ? (

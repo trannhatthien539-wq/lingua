@@ -81,10 +81,10 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink/[0.08] pt-5 dark:border-white/[0.08]">
-        <span className="flex items-center gap-2 text-xs font-semibold text-sage"><Check size={15} /> Key chỉ lưu trên thiết bị này</span>
+        <span className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"><Check size={15} /> Key chỉ lưu trên thiết bị này</span>
         <button onClick={saveSettings} className="btn-primary px-4"><Save size={15} />Lưu thay đổi</button>
       </div>
-      {saved && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-sage"><CheckCircle2 size={14} />Đã lưu cấu hình AI.</p>}
+      {saved && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"><CheckCircle2 size={14} />Đã lưu cấu hình AI.</p>}
     </CollapsibleCard>
   )
 }
