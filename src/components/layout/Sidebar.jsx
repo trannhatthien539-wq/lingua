@@ -1,6 +1,7 @@
 import { Flame, LogIn, LogOut, Moon, Sun } from 'lucide-react'
 import ProgressAvatar from '../ui/ProgressAvatar'
 import NavIcon from '../ui/NavIcon'
+import AppMark from '../AppMark'
 import useTodayProgress from '../../hooks/useTodayProgress'
 import { navigationItems } from '../../data/navigation'
 
@@ -15,22 +16,28 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
   return (
     <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-2xl px-4 py-4 dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[264px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
       <div className="flex items-center justify-between gap-3 lg:block">
-        <div className="flex items-center gap-3">
-          <ProgressAvatar user={user} percent={todayPercent} />
-          <div className="flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{
-                backgroundColor: 'rgb(var(--accent))',
-                boxShadow: '0 0 10px rgb(var(--accent))',
-              }}
-            />
-            <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span></p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-slate-900/40 p-1 shadow-sm backdrop-blur-md">
+              <AppMark className="h-8 w-8 drop-shadow-sm transition-transform duration-200 hover:scale-105" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: 'rgb(var(--accent))',
+                    boxShadow: '0 0 10px rgb(var(--accent))',
+                  }}
+                />
+                <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span></p>
+              </div>
+            </div>
           </div>
+          <button onClick={onToggleTheme} className="icon-btn h-9 w-9 border border-slate-200/80 dark:border-white/10" aria-label="Đổi giao diện">
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
-        <button onClick={onToggleTheme} className="icon-btn h-10 w-10 border border-slate-200/80 lg:mt-0 dark:border-white/10" aria-label="Đổi giao diện">
-          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
       </div>
       <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:mt-7 lg:block lg:space-y-1.5 lg:overflow-visible lg:pb-0" aria-label="Điều hướng chính">
         {navigationItems.map((item) => {
@@ -70,7 +77,24 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Mục tiêu tuần: 7 ngày</p>
         <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"><div className="h-full rounded-full transition-all" style={{ width: `${streakProgress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} /></div>
       </div>
-      <div className="mt-4 hidden border-t border-slate-200/80 pt-4 lg:block dark:border-white/[0.08]">{user ? <div className="flex items-center gap-3"><img src={user.photoURL || ''} alt="" className="h-9 w-9 shrink-0 rounded-full bg-slate-200 object-cover ring-2 ring-emerald-500/20" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user.displayName || user.email}</p><button onClick={onSignOut} className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><LogOut size={13} />Đăng xuất</button></div></div> : <div><p className="mb-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Đăng nhập để đồng bộ dữ liệu đám mây</p><button onClick={onOpenAuth} className="btn-primary w-full text-xs min-h-[40px]"><LogIn size={15} />Đăng nhập</button></div>}</div>
+      <div className="mt-4 hidden border-t border-slate-200/80 pt-4 lg:block dark:border-white/[0.08]">
+        {user ? (
+          <div className="flex items-center gap-3">
+            <ProgressAvatar user={user} percent={todayPercent} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user.displayName || user.email}</p>
+              <button onClick={onSignOut} className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                <LogOut size={13} />Đăng xuất
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="mb-2 text-xs leading-5 text-slate-500 dark:text-slate-400">Đăng nhập để đồng bộ dữ liệu đám mây</p>
+            <button onClick={onOpenAuth} className="btn-primary w-full text-xs min-h-[40px]"><LogIn size={15} />Đăng nhập</button>
+          </div>
+        )}
+      </div>
     </aside>
   )
 }

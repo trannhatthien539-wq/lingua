@@ -1,38 +1,205 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" fill="none" role="img" aria-label="Lingua - Tree of Knowledge">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f4fbe6" />
-      <stop offset="1" stop-color="#d9f06d" />
+    <!-- Background Gradients -->
+    <linearGradient id="appBgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#091E19" />
+      <stop offset="45%" stop-color="#061813" />
+      <stop offset="100%" stop-color="#0B132B" />
     </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#c8e878" />
-      <stop offset="1" stop-color="#7ea94b" />
+    <linearGradient id="appBorderGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6EE7B7" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#10B981" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.5" />
     </linearGradient>
-    <linearGradient id="bark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8f6c46" />
-      <stop offset="1" stop-color="#6b4f32" />
+    <radialGradient id="innerAura" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#34D399" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#10B981" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Foliage Painterly Multi-Tones -->
+    <linearGradient id="foliageShadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#065F46" />
+      <stop offset="100%" stop-color="#022C22" />
     </linearGradient>
+    <linearGradient id="foliageMid" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="foliageVibrant" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="foliageSunlight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FEF08A" />
+      <stop offset="40%" stop-color="#A3E635" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+
+    <!-- Bark & Trunk Hand-Drawn Wood -->
+    <linearGradient id="trunkBark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9A3412" />
+      <stop offset="40%" stop-color="#7C2D12" />
+      <stop offset="100%" stop-color="#431407" />
+    </linearGradient>
+    <linearGradient id="trunkHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+
+    <!-- Open Book of Knowledge -->
+    <linearGradient id="bookCover" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#064E3B" />
+      <stop offset="50%" stop-color="#0F766E" />
+      <stop offset="100%" stop-color="#064E3B" />
+    </linearGradient>
+    <linearGradient id="pageParchment" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="40%" stop-color="#FEF9C3" />
+      <stop offset="100%" stop-color="#FDE68A" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Glow Filter for Starlight Blossoms -->
+    <filter id="starGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
-  <rect width="192" height="192" rx="42" fill="url(#bg)" />
-  <g transform="translate(96 96) scale(1.5) translate(-48 -50)">
-    <g stroke="#1e2a24" stroke-linejoin="round" stroke-linecap="round">
-      <ellipse cx="35" cy="86" rx="7.5" ry="3.4" fill="url(#bark)" stroke-width="2.8" />
-      <ellipse cx="61" cy="86" rx="7.5" ry="3.4" fill="url(#bark)" stroke-width="2.8" />
-      <path d="M41 86V57c0-5-2-8-6-11l6 2 7-2 7 2 6-2c-4 3-6 6-6 11v29Z" fill="url(#bark)" stroke-width="3" />
+
+  
+    <!-- Nền Squircle cao cấp với viền kính và hiệu ứng chiều sâu -->
+    <rect width="192" height="192" rx="42.24" fill="url(#appBgGradient)" />
+    <rect x="1" y="1" width="190" height="190" rx="41.24" fill="none" stroke="url(#appBorderGlow)" stroke-width="1.5" stroke-opacity="0.6" />
+    <circle cx="96" cy="80.64" r="76.80000000000001" fill="url(#innerAura)" />
+  
+
+  <g transform="scale(1.5)">
+    <!-- Ambient Halo Behind Tree Crown -->
+    <circle cx="64" cy="50" r="44" fill="url(#innerAura)" />
+
+    <!-- 1. Cuốn sách mở tri thức ở chân cây (Artistic Open Book Foundation) -->
+    <g id="openBook">
+      <!-- Bìa sách gáy cong nghệ thuật -->
+      <path d="M22 108 C36 104 52 104 64 110 C76 104 92 104 106 108 C108 112 107 115 104 116 C90 112 76 112 64 117 C52 112 38 112 24 116 C21 115 20 112 22 108 Z" fill="url(#bookCover)" stroke="#042F2E" stroke-width="1.2" stroke-linejoin="round" />
+      
+      <!-- Trang sách uốn lượn (Left page) -->
+      <path d="M25 106 C38 101 52 101 63 107 L63 99 C52 93 38 93 25 98 Z" fill="url(#pageParchment)" stroke="#B45309" stroke-width="0.8" stroke-linejoin="round" />
+      <path d="M26 104 C38 100 50 100 62 105" stroke="#D97706" stroke-width="0.7" stroke-linecap="round" stroke-dasharray="1.5 2" />
+      <path d="M28 101 C38 97 48 97 60 102" stroke="#D97706" stroke-width="0.7" stroke-linecap="round" stroke-dasharray="1.5 2" />
+
+      <!-- Trang sách uốn lượn (Right page) -->
+      <path d="M65 107 C76 101 90 101 103 106 L103 98 C90 93 76 93 65 99 Z" fill="url(#pageParchment)" stroke="#B45309" stroke-width="0.8" stroke-linejoin="round" />
+      <path d="M66 105 C78 100 90 100 102 104" stroke="#D97706" stroke-width="0.7" stroke-linecap="round" stroke-dasharray="1.5 2" />
+      <path d="M68 102 C78 97 88 97 100 101" stroke="#D97706" stroke-width="0.7" stroke-linecap="round" stroke-dasharray="1.5 2" />
+
+      <!-- Ruy băng đánh dấu trang mạ vàng rơi xuống -->
+      <path d="M64 108 C64 113 61 118 63 121 L65.5 119 L68 121 C67 117 64 113 64 108 Z" fill="url(#goldAccent)" />
     </g>
-    <g fill="none" stroke="#1e2a24" stroke-width="3.2">
-      <circle cx="30" cy="43" r="17" />
-      <circle cx="66" cy="43" r="17" />
-      <circle cx="48" cy="28" r="19" />
-      <circle cx="48" cy="52" r="16" />
+
+    <!-- 2. Thân cây cổ thụ & Rễ nghệ thuật (Organic Hand-Drawn Trunk & Roots) -->
+    <g id="trunkAndBranches">
+      <!-- Rễ cây bám duyên dáng vào trang sách -->
+      <path d="M57 99 C53 102 46 104 38 103" stroke="url(#trunkBark)" stroke-width="2.2" stroke-linecap="round" fill="none" />
+      <path d="M71 99 C75 102 82 104 90 103" stroke="url(#trunkBark)" stroke-width="2.2" stroke-linecap="round" fill="none" />
+      <path d="M64 100 C64 104 62 106 58 107" stroke="url(#trunkBark)" stroke-width="1.8" stroke-linecap="round" fill="none" />
+
+      <!-- Thân cây chính với nét uốn tự nhiên hội họa -->
+      <path d="M57 99 C55 86 52 76 43 67 C41 65 39 65 38 66 C35 70 30 73 26 71 C24 70 25 67 27 65 C32 60 38 56 46 59 C52 61 54 66 56 71 C58 64 61 58 64 52 C65 50 67 48 68 46 C69 48 71 52 72 55 C74 62 76 66 82 62 C89 57 95 62 101 66 C103 67 103 70 101 71 C97 73 92 69 90 66 C88 64 86 64 84 66 C76 75 73 86 71 99 Z" fill="url(#trunkBark)" stroke="#270F04" stroke-width="1.2" stroke-linejoin="round" />
+
+      <!-- Vân gỗ & Điểm sáng nét vẽ tay (Woodgrain & Texture Streaks) -->
+      <path d="M60 96 C58 87 56 80 50 73 C46 68 41 66 35 68" stroke="url(#trunkHighlight)" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.8" />
+      <path d="M68 96 C68 88 70 81 76 74 C80 69 85 67 92 68" stroke="url(#trunkHighlight)" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.8" />
+      <path d="M64 94 C63 85 64 78 66 68 C67 62 67 56 65 53" stroke="url(#trunkHighlight)" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.85" />
+      <circle cx="64" cy="85" r="1.5" fill="#270F04" opacity="0.7" />
     </g>
-    <g fill="url(#leaf)">
-      <circle cx="30" cy="43" r="15.6" />
-      <circle cx="66" cy="43" r="15.6" />
-      <circle cx="48" cy="28" r="17.6" />
-      <circle cx="48" cy="52" r="14.6" />
+
+    <!-- 3. Tán lá hội họa đa tầng (Multi-Layered Painterly Foliage Canopy) -->
+    <g id="canopyFoliage">
+      <!-- Tầng 1: Bóng tán sâu (Deep Emerald/Viridian Silhouette) -->
+      <g fill="url(#foliageShadow)" opacity="0.95">
+        <path d="M29 65 C18 64 12 52 18 41 C22 34 31 32 38 36 C42 27 53 23 62 27 C68 18 80 17 88 23 C97 20 108 27 109 37 C117 44 116 57 107 64 C99 70 88 68 83 62 C78 67 69 68 64 64 C58 68 49 68 44 63 C39 68 33 67 29 65 Z" />
+      </g>
+
+      <!-- Tầng 2: Tán lá trung gian (Rich Midtone Jade & Emerald Clouds) -->
+      <g fill="url(#foliageMid)">
+        <!-- Cụm trái dưới -->
+        <circle cx="28" cy="52" r="14" />
+        <!-- Cụm phải dưới -->
+        <circle cx="100" cy="52" r="14" />
+        <!-- Cụm trái trên -->
+        <circle cx="43" cy="38" r="17" />
+        <!-- Cụm phải trên -->
+        <circle cx="85" cy="38" r="17" />
+        <!-- Cụm đỉnh trung tâm -->
+        <circle cx="64" cy="27" r="19" />
+        <!-- Cụm giữa thân -->
+        <circle cx="64" cy="46" r="16" />
+      </g>
+
+      <!-- Tầng 3: Tán lá đón nắng & độ tươi (Vibrant Emerald & Mint Volumes) -->
+      <g fill="url(#foliageVibrant)">
+        <path d="M43 35 C43 27 52 21 60 25 C64 18 74 17 81 22 C88 27 88 36 84 41 C80 47 72 48 66 45 C60 49 52 48 47 44 C43 41 43 37 43 35 Z" />
+        <circle cx="31" cy="49" r="10.5" />
+        <circle cx="97" cy="49" r="10.5" />
+        <circle cx="50" cy="48" r="11" />
+        <circle cx="78" cy="48" r="11" />
+        <circle cx="64" cy="32" r="13" />
+      </g>
+
+      <!-- Tầng 4: Điểm nhấn cọ vẽ tay & Vệt nắng vàng chanh (Painterly Brush Strokes & Highlights) -->
+      <g fill="none" stroke-linecap="round">
+        <!-- Vòng xoáy cọ vẽ tay nghệ thuật (Hand-drawn swirls) -->
+        <path d="M58 20 C62 17 68 18 70 22 C72 26 69 29 65 29 C63 29 61 27 62 25" stroke="#FEF08A" stroke-width="1.8" />
+        <path d="M37 32 C41 29 47 30 49 35 C50 39 46 42 42 41" stroke="#BEF264" stroke-width="1.6" />
+        <path d="M89 31 C85 28 79 30 78 35 C77 39 81 42 85 41" stroke="#BEF264" stroke-width="1.6" />
+        <path d="M26 44 C28 41 33 42 35 45 C36 48 33 51 30 50" stroke="#A7F3D0" stroke-width="1.4" />
+        <path d="M102 44 C100 41 95 42 93 45 C92 48 95 51 98 50" stroke="#A7F3D0" stroke-width="1.4" />
+        <path d="M57 40 C60 37 66 38 68 42 C69 45 66 48 63 47" stroke="#FEF08A" stroke-width="1.5" />
+
+        <!-- Nét cọ viền gợn sóng tự nhiên của lá -->
+        <path d="M50 17 C58 13 70 13 78 17" stroke="#FEF9C3" stroke-width="1.8" opacity="0.9" />
+        <path d="M33 27 C38 23 45 24 48 26" stroke="#FEF9C3" stroke-width="1.4" opacity="0.8" />
+        <path d="M80 25 C84 23 91 23 96 27" stroke="#FEF9C3" stroke-width="1.4" opacity="0.8" />
+      </g>
+
+      <!-- Mảng sáng màu nước trong trẻo trên vòm ngọn -->
+      <ellipse cx="64" cy="22" rx="14" ry="7" fill="url(#foliageHighlight)" />
+      <ellipse cx="43" cy="33" rx="9" ry="5" fill="url(#foliageHighlight)" />
+      <ellipse cx="85" cy="33" rx="9" ry="5" fill="url(#foliageHighlight)" />
     </g>
-    <circle cx="46" cy="25" r="13" fill="#e2f5a3" opacity=".5" />
-    <circle cx="48" cy="73" r="2.2" fill="#1e2a24" opacity=".55" />
+
+    <!-- 4. Quả ngọt & Tinh tú tri thức phát sáng (Golden Wisdom Fruit Blossoms & Sparkles) -->
+    <g id="wisdomStars" filter="url(#starGlow)">
+      <!-- Ngôi sao đỉnh tháp tri thức -->
+      <g transform="translate(64, 13)">
+        <path d="M0 -4.5 Q0 0 4.5 0 Q0 0 0 4.5 Q0 0 -4.5 0 Q0 0 0 -4.5 Z" fill="#FEF08A" />
+        <circle cx="0" cy="0" r="1.3" fill="#FFFFFF" />
+      </g>
+
+      <!-- Các quả vàng / đốm hoa tri thức điểm xuyết tự nhiên trên tán -->
+      <circle cx="48" cy="26" r="2.2" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="80" cy="26" r="2.2" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="34" cy="39" r="2" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="94" cy="39" r="2" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="64" cy="38" r="2.4" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="52" cy="53" r="1.8" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="76" cy="53" r="1.8" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="23" cy="56" r="1.7" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+      <circle cx="105" cy="56" r="1.7" fill="#FDE047" stroke="#B45309" stroke-width="0.5" />
+
+      <!-- Đốm sáng đom đóm / tri thức lơ lửng ngoài tán -->
+      <circle cx="21" cy="38" r="1" fill="#FEF08A" opacity="0.9" />
+      <circle cx="107" cy="36" r="1.1" fill="#FEF08A" opacity="0.9" />
+      <circle cx="38" cy="18" r="1.2" fill="#FEF08A" opacity="0.8" />
+      <circle cx="90" cy="18" r="1.2" fill="#FEF08A" opacity="0.8" />
+      <circle cx="16" cy="50" r="0.8" fill="#A7F3D0" opacity="0.9" />
+      <circle cx="112" cy="48" r="0.8" fill="#A7F3D0" opacity="0.9" />
+    </g>
   </g>
 </svg>
