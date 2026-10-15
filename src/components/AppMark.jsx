@@ -1,5 +1,5 @@
 /**
- * Logo linh vật của app: Cú Tri Thức Thông Thái (Wise Celestial Owl) nghệ thuật vẽ tay.
+ * Logo linh vật của app: Chiếc Lông Vũ Tri Thức (The Celestial Quill Feather) nghệ thuật vẽ tay.
  * Dùng chung một file SVG trong `public/icons` để mọi nơi hiển thị sắc nét, đồng bộ.
  */
 const TREE_SRC = `${import.meta.env.BASE_URL}icons/tree.svg`
