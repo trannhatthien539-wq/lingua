@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Check, RotateCcw, Volume2, X } from 'lucide-react'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
@@ -47,23 +47,23 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
   const [secondsLeft, setSecondsLeft] = useState(timeLimit)
   const [timedOut, setTimedOut] = useState(false)
 
-  // Đồng hồ cho bài thi thử: hết giờ thì tự nộp bài.
+  // Đồng hồ cho bài thi thử: đếm ngược an toàn không gọi side-effect trong state updater
   useEffect(() => {
-    if (!timeLimit || finished) return undefined
+    if (!timeLimit || finished) return undefined;
     const timer = window.setInterval(() => {
-      setSecondsLeft((value) => {
-        if (value <= 1) {
-          window.clearInterval(timer)
-          setTimedOut(true)
-          setFinished(true)
-          onTimeUp?.()
-          return 0
-        }
-        return value - 1
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [timeLimit, finished, onTimeUp])
+      setSecondsLeft((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [timeLimit, finished]);
+
+  // Kích hoạt khi hết giờ
+  useEffect(() => {
+    if (timeLimit > 0 && secondsLeft === 0 && !finished) {
+      setTimedOut(true);
+      setFinished(true);
+      onTimeUp?.();
+    }
+  }, [timeLimit, secondsLeft, finished, onTimeUp]);
 
   const question = items[index]
   const correctCount = results.filter((item) => item.correct).length
@@ -82,7 +82,7 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
     setFinished(false)
   }
 
-  const submit = () => {
+  const submit = useCallback(() => {
     if (!response) return
     const correct = isCorrect(question, response)
     const next = [...results, { id: index, correct, response, question }]
@@ -103,9 +103,9 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       setFinished(true)
       onFinish?.(next.filter((item) => item.correct).length, items.length, false, next)
     }
-  }
+  }, [response, question, results, index, onAnswerResult, immediate, items.length, onFinish])
 
-  const nextQuestion = () => {
+  const nextQuestion = useCallback(() => {
     if (index + 1 < items.length) {
       setIndex(index + 1)
       setResponse('')
@@ -114,7 +114,41 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
     }
     setFinished(true)
     onFinish?.(results.filter((item) => item.correct).length, items.length, false, results)
-  }
+  }, [index, items.length, onFinish, results])
+
+  // Phím tắt bàn phím: Enter để nộp / sang câu, 1-4 hoặc A-D để chọn đáp án
+  useEffect(() => {
+    if (finished) return undefined
+    const handleKeyDown = (event) => {
+      if (event.target.tagName === 'INPUT') return
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        if (checked) nextQuestion()
+        else if (response) submit()
+        return
+      }
+
+      if (!checked && question?.type === 'choice' && question.options?.length) {
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F']
+        const key = event.key.toUpperCase()
+        let targetIdx = -1
+        if (letters.includes(key)) {
+          targetIdx = letters.indexOf(key)
+        } else if (['1', '2', '3', '4', '5', '6'].includes(event.key)) {
+          targetIdx = Number.parseInt(event.key, 10) - 1
+        }
+
+        if (targetIdx >= 0 && targetIdx < question.options.length) {
+          event.preventDefault()
+          setResponse(question.options[targetIdx])
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [finished, checked, response, question, nextQuestion, submit])
 
   if (finished) {
     const total = items.length
@@ -204,8 +238,13 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
       )}
 
       {question.type === 'choice' ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {question.options.map((option) => {
+        <div
+          role="radiogroup"
+          aria-label={question.prompt}
+          className="mt-3.5 grid gap-2.5 sm:grid-cols-2"
+        >
+          {question.options.map((option, optIdx) => {
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F']
             const selected = response === option
             const showRight = checked && option === question.answer
             const showWrong = checked && selected && option !== question.answer
@@ -213,21 +252,26 @@ export default function GrammarQuiz({ questions, immediate = false, title, subti
               <button
                 key={option}
                 type="button"
+                role="radio"
+                disabled={checked}
+                aria-checked={selected}
                 onClick={() => { if (!checked) setResponse(option) }}
-                aria-pressed={selected}
-                className={`flex min-h-[44px] items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition ${
+                className={`flex min-h-[46px] items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
                   showRight
                     ? 'border-ok bg-okbg text-ok dark:bg-okdark dark:text-okfgdark'
                     : showWrong
                       ? 'border-danger bg-dangerbg text-danger dark:bg-dangerdark dark:text-dangerfgdark'
                       : selected
-                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold'
-                        : 'border-ink/10 hover:bg-ink/[0.04] dark:border-white/15 dark:hover:bg-white/10'
+                        ? 'border-indigo-600 bg-indigo-50/90 text-indigo-900 font-bold ring-1 ring-indigo-500/30 dark:border-indigo-400 dark:bg-indigo-950/40 dark:text-indigo-200'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:hover:border-white/20 dark:hover:bg-white/[0.05]'
                 }`}
               >
-                {showRight && <Check size={15} className="shrink-0" />}
-                {showWrong && <X size={15} className="shrink-0" />}
-                <span>{option}</span>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-xs font-bold ${selected ? 'bg-indigo-600 text-white dark:bg-indigo-500' : 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300'}`}>
+                  {letters[optIdx]}
+                </span>
+                <span className="min-w-0 flex-1 leading-snug">{option}</span>
+                {showRight && <Check size={16} className="shrink-0 text-ok" />}
+                {showWrong && <X size={16} className="shrink-0 text-danger" />}
               </button>
             )
           })}

@@ -13,6 +13,8 @@ import {
 import { speakText, stopSpeech } from "../../utils/speech";
 import { intervalLabel, previewIntervals, schedulePayload } from "../../utils/srs";
 import { celebrateStudyCompletion, playStudySound } from "../../utils/studyFeedback";
+import WordAvatar from "../WordAvatar";
+import { toast } from "../../services/toast";
 
 // Thời gian khớp với transition xoay 3D (ms) để tráo nội dung đúng nhịp
 const FLIP_DURATION_MS = 450;
@@ -30,13 +32,35 @@ export default function FlashcardModal({
   onStudyActivity,
   streak,
 }) {
+  const sessionKey = deck?.id ? `lingua_flashcard_session_${deck.id}` : null;
+
+  // Khôi phục phiên học dở dang từ sessionStorage (nếu người dùng lỡ tay F5)
+  const [initialSession] = useState(() => {
+    if (!sessionKey) return null;
+    try {
+      const saved = sessionStorage.getItem(sessionKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.queue) && typeof parsed.index === "number") {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignored
+    }
+    return null;
+  });
+
   // 1. Quản lý hàng đợi thẻ (Queue) & Vòng đời học tập
-  const [queue, setQueue] = useState(() => (Array.isArray(cards) ? cards.map((c) => ({ ...c })) : []));
-  const [index, setIndex] = useState(0);
+  const [queue, setQueue] = useState(() => {
+    if (initialSession?.queue?.length) return initialSession.queue;
+    return Array.isArray(cards) ? cards.map((c) => ({ ...c })) : [];
+  });
+  const [index, setIndex] = useState(() => initialSession?.index || 0);
   const [flipped, setFlipped] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [results, setResults] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [results, setResults] = useState(() => initialSession?.results || []);
+  const [history, setHistory] = useState(() => initialSession?.history || []);
   const [speaking, setSpeaking] = useState("");
   const [imageError, setImageError] = useState(false);
 
@@ -68,13 +92,47 @@ export default function FlashcardModal({
     }
   }, [isComplete, results.length]);
 
-  // Phát âm chuẩn bản ngữ cho từ hoặc câu ví dụ
+  // Lưu tiến độ phiên học vào sessionStorage để tránh mất dữ liệu khi vô tình F5
+  useEffect(() => {
+    if (!sessionKey || isComplete) return;
+    try {
+      sessionStorage.setItem(
+        sessionKey,
+        JSON.stringify({ queue, index, results, history })
+      );
+    } catch {
+      // Bỏ qua nếu storage đầy
+    }
+  }, [sessionKey, isComplete, queue, index, results, history]);
+
+  // Xoá bản nháp khi đã hoàn thành phiên học
+  useEffect(() => {
+    if (isComplete && sessionKey) {
+      try {
+        sessionStorage.removeItem(sessionKey);
+      } catch {
+        // Ignored
+      }
+    }
+  }, [isComplete, sessionKey]);
+
+  // Phát âm chuẩn bản ngữ cho từ hoặc câu ví dụ với cơ chế bắt lỗi an toàn
   const handleSpeak = (text, targetId) => {
     if (!text?.trim()) return;
+    stopSpeech();
     setSpeaking(targetId);
-    speakText(text, {
-      onEnd: () => setSpeaking(""),
-    });
+    try {
+      speakText(text, {
+        onEnd: () => setSpeaking(""),
+        onError: () => {
+          setSpeaking("");
+          toast.warning("Không thể phát âm thanh. Vui lòng kiểm tra thiết bị phát âm.");
+        },
+      });
+    } catch {
+      setSpeaking("");
+      toast.warning("Không thể phát âm thanh trên trình duyệt.");
+    }
   };
 
   // Cơ chế tráo nội dung sau khi lật úp để không lộ đáp án thẻ sau
@@ -214,12 +272,18 @@ export default function FlashcardModal({
         event.preventDefault();
         const ratingMap = { "1": "again", "2": "soon", "3": "mastered" };
         rateCard(ratingMap[event.key]);
+      } else if (event.key.toLowerCase() === "r" && currentCard) {
+        event.preventDefault();
+        handleSpeak(
+          flipped ? (currentCard.example || currentCard.meaning) : currentCard.word,
+          `${currentCard.id}-shortcut`
+        );
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [flipped, goPrevious, isComplete, locked, onClose, rateCard]);
+  }, [currentCard, flipped, goPrevious, isComplete, locked, onClose, rateCard]);
 
   // 2. EDGE CASE 1: Bộ thẻ rỗng (Empty State)
   if (!cards || cards.length === 0) {
@@ -336,7 +400,12 @@ export default function FlashcardModal({
   const intervals = previewIntervals(currentCard);
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col justify-between overflow-y-auto bg-slate-950/85 p-4 text-slate-900 backdrop-blur-xl dark:text-white sm:p-7">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Ôn tập thẻ ghi nhớ: ${deck?.title || "Từ vựng"}`}
+      className="fixed inset-0 z-[90] flex flex-col justify-between overflow-y-auto bg-slate-950/85 p-4 text-slate-900 backdrop-blur-xl dark:text-white sm:p-7"
+    >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-between">
         {/* Header điều hướng & Phím tắt */}
         <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-3.5">
@@ -397,11 +466,11 @@ export default function FlashcardModal({
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             onClick={() => !locked && setFlipped((v) => !v)}
-            onKeyDown={(e) => e.key === "Enter" && !locked && setFlipped((v) => !v)}
+            onKeyDown={(e) => (e.key === "Enter" || e.code === "Space") && !locked && setFlipped((v) => !v)}
             className={`relative min-h-[360px] w-full cursor-pointer touch-pan-y [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] sm:min-h-[400px] ${
               flipped ? "[transform:rotateY(180deg)]" : ""
             } ${locked ? "pointer-events-none" : ""}`}
-            aria-label="Lật thẻ ghi nhớ"
+            aria-label={flipped ? "Mặt sau thẻ ghi nhớ, chạm để lật lại mặt trước" : "Mặt trước thẻ ghi nhớ, chạm hoặc nhấn Space để lật"}
           >
             {/* MẶT TRƯỚC (Front Face) */}
             <div className="absolute inset-0 flex flex-col items-center justify-between rounded-3xl border border-white/20 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-2xl [backface-visibility:hidden] dark:border-white/10 dark:bg-slate-900/95 sm:p-10">
@@ -411,13 +480,21 @@ export default function FlashcardModal({
               </div>
 
               <div className="my-auto flex flex-col items-center">
-                {currentCard.imageUrl && !imageError && (
+                {currentCard.imageUrl && !imageError ? (
                   <img
                     src={currentCard.imageUrl}
                     alt={currentCard.word}
                     className="mb-4 h-32 w-44 rounded-2xl border border-slate-200/80 object-contain shadow-xs dark:border-white/10"
                     onError={() => setImageError(true)}
                   />
+                ) : (
+                  <div className="mb-4">
+                    <WordAvatar
+                      word={currentCard.word}
+                      alt={currentCard.word}
+                      className="h-20 w-20 rounded-2xl shadow-md sm:h-24 sm:w-24"
+                    />
+                  </div>
                 )}
 
                 <h1 className="font-display text-5xl font-black tracking-tight text-slate-900 sm:text-7xl dark:text-white">
