@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Check, X } from "lucide-react";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -19,12 +19,14 @@ export default function QuestionBlock({
 }) {
   const locked = mode === "review";
   const isChoice = question.type === "choice";
+  const options = useMemo(() => question.options || [], [question.options]);
   const correctAnswer = isChoice ? question.answer : (question.answers || [])[0];
+  const selectedIndex = options.findIndex((option) => option === value);
 
-  // Hỗ trợ phím tắt A-F hoặc 1-6 để chọn đáp án nhanh
+  // Phím tắt A-F / 1-6 và điều hướng bằng mũi tên (chuẩn radiogroup) để chọn đáp án nhanh.
   const handleKeyDown = useCallback(
     (event) => {
-      if (locked || !isChoice || !question.options?.length) return;
+      if (locked || !isChoice || !options.length) return;
       const key = event.key.toUpperCase();
 
       let targetIndex = -1;
@@ -32,14 +34,18 @@ export default function QuestionBlock({
         targetIndex = LETTERS.indexOf(key);
       } else if (["1", "2", "3", "4", "5", "6"].includes(event.key)) {
         targetIndex = Number.parseInt(event.key, 10) - 1;
+      } else if (["ArrowDown", "ArrowRight"].includes(event.key)) {
+        targetIndex = selectedIndex < 0 ? 0 : Math.min(options.length - 1, selectedIndex + 1);
+      } else if (["ArrowUp", "ArrowLeft"].includes(event.key)) {
+        targetIndex = selectedIndex < 0 ? options.length - 1 : Math.max(0, selectedIndex - 1);
       }
 
-      if (targetIndex >= 0 && targetIndex < question.options.length) {
+      if (targetIndex >= 0 && targetIndex < options.length) {
         event.preventDefault();
-        onChange(question.id, question.options[targetIndex]);
+        onChange(question.id, options[targetIndex]);
       }
     },
-    [locked, isChoice, question.options, question.id, onChange]
+    [locked, isChoice, options, selectedIndex, question.id, onChange]
   );
 
   return (
@@ -81,10 +87,12 @@ export default function QuestionBlock({
               aria-label={`Lựa chọn cho câu ${index}`}
               className="mt-3.5 grid gap-2.5"
             >
-              {(question.options || []).map((option, optionIndex) => {
+              {options.map((option, optionIndex) => {
                 const selected = value === option;
                 const isRight = mode === "review" && option === correctAnswer;
                 const isWrong = mode === "review" && selected && option !== correctAnswer;
+                // Roving tabindex: chỉ một đáp án nằm trong luồng Tab, di chuyển bằng mũi tên.
+                const tabIndex = selected || (selectedIndex === -1 && optionIndex === 0) ? 0 : -1;
 
                 return (
                   <button
@@ -93,6 +101,7 @@ export default function QuestionBlock({
                     role="radio"
                     disabled={locked}
                     aria-checked={selected}
+                    tabIndex={tabIndex}
                     onClick={() => onChange(question.id, option)}
                     className={`flex min-h-[46px] w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all duration-150 ${
                       isRight
@@ -121,6 +130,9 @@ export default function QuestionBlock({
                   </button>
                 );
               })}
+              <span className="sr-only" aria-live="polite">
+                {selectedIndex >= 0 ? `Đã chọn đáp án ${LETTERS[selectedIndex]}.` : ""}
+              </span>
             </div>
           ) : (
             <div className="mt-3.5">

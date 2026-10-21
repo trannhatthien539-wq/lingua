@@ -35,10 +35,10 @@ const buildExamQuestions = () => {
 export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
   const [round, setRound] = useState(0)
   const [result, setResult] = useState(null)
-  // Đề được tạo trong state (không dùng useMemo theo biến đếm) để "Làm đề mới" đổi câu một cách rõ ràng.
+  // Đề được tạo lại thật sự khi bấm "Làm đề mới" (không chỉ đổi key để remount).
   const [questions, setQuestions] = useState(() => buildExamQuestions().slice(0, QUESTION_COUNT))
 
-  const startNewExam = () => {
+  const startNewRound = () => {
     setResult(null)
     setQuestions(buildExamQuestions().slice(0, QUESTION_COUNT))
     setRound((value) => value + 1)
@@ -58,7 +58,7 @@ export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
           <div className="min-w-0">
             <p className="eyebrow">Thi tổng hợp ngữ pháp</p>
             <h3 className="mt-1 flex items-center gap-2 font-display text-lg font-bold">
-              <GraduationCap size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <GraduationCap size={18} className="text-sage" />
               {QUESTION_COUNT} câu · {QUESTION_COUNT ? TIME_LIMIT / 60 : 0} phút
             </h3>
             <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">Trộn 12 thì, cấu trúc B1 và C1 · đạt {Math.round(PASS_RATIO_EXAM * 100)}% là nắm chắc.</p>
@@ -90,7 +90,7 @@ export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
             <div>
               <p className="eyebrow">Kết quả</p>
               <p className="mt-1 flex items-center gap-2 font-display text-2xl font-bold">
-                <Trophy size={20} className="text-amber-500" />
+                <Trophy size={20} className="text-sage" />
                 {result.correct}/{result.total} câu · {result.percent}%
               </p>
               <p className="mt-1 text-sm text-ink/70 dark:text-white/70">
@@ -104,7 +104,7 @@ export default function GrammarExam({ apiKey, provider, onFinish, onExit }) {
             </span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={startNewExam} className="btn-primary px-4">
+            <button type="button" onClick={startNewRound} className="btn-primary px-4">
               <RotateCcw size={15} />Làm đề mới
             </button>
             <button type="button" onClick={onExit} className="btn-secondary px-4">Về danh sách bài</button>

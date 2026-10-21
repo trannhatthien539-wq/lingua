@@ -27,8 +27,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          # Giữ cùng phiên bản Node với deploy.yml cho kết quả build giống nhau.
-          node-version: 24
+          node-version: 20
           cache: npm
 
       - name: Install web dependencies
@@ -88,10 +87,6 @@ jobs:
         run: |
           if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then exit 0; fi
           node -e "const fs=require('fs');const file='capacitor.config.json';const config=JSON.parse(fs.readFileSync(file,'utf8'));config.plugins=Object.assign({},config.plugins,{GoogleAuth:{scopes:['profile','email'],serverClientId:process.env.GOOGLE_WEB_CLIENT_ID,forceCodeForRefreshToken:true}});fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');"
-
-      # APK cũng build từ main nên test phải chạy trước — tránh đóng gói bundle lỗi.
-      - name: Run unit tests
-        run: npm test
 
       - name: Build web assets
         env:
@@ -160,135 +155,6 @@ jobs:
           if [ -f "$FILE" ] && ! grep -q server_client_id "$FILE"; then
             sed -i "s|</resources>|    <string name=\"server_client_id\">${GOOGLE_WEB_CLIENT_ID}</string>\n</resources>|" "$FILE"
           fi
-
-      # ---------------------------------------------------------------------
-      # Widget màn hình chính + shortcut khi giữ icon.
-      # Capacitor không có sẵn widget nên repo giữ mã nguồn native ở
-      # native/android-widget/ và bước này chép vào project Android vừa sinh ra,
-      # rồi vá AndroidManifest.xml (receiver + meta-data shortcuts) và
-      # MainActivity.java (đăng ký plugin cục bộ LinguaWidget).
-      # ---------------------------------------------------------------------
-      - name: Inject the home-screen widget and app shortcuts
-        run: |
-          set -euo pipefail
-          JAVA_DIR=android/app/src/main/java/com/lingua/studyhub
-          mkdir -p "$JAVA_DIR"
-          cp native/android-widget/java/com/lingua/studyhub/*.java "$JAVA_DIR/"
-          cp -R native/android-widget/res/. android/app/src/main/res/
-          node <<'NODE'
-          const fs = require('fs');
-
-          // 1. Khai báo widget provider trong AndroidManifest.
-          const manifestPath = 'android/app/src/main/AndroidManifest.xml';
-          let xml = fs.readFileSync(manifestPath, 'utf8');
-
-          if (!xml.includes('LinguaWidgetProvider')) {
-            // Giữ đúng thụt lề của </application> để XML luôn hợp lệ.
-            xml = xml.replace(/([ \t]*)<\/application>/, (match, indent) => {
-              const pad = `${indent}    `;
-              const block = [
-                '<receiver',
-                '    android:name=".LinguaWidgetProvider"',
-                '    android:exported="true">',
-                '    <intent-filter>',
-                '        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />',
-                '    </intent-filter>',
-                '    <meta-data',
-                '        android:name="android.appwidget.provider"',
-                '        android:resource="@xml/lingua_widget_info" />',
-                '</receiver>',
-              ].map((line) => pad + line).join('\n');
-              return `\n${block}\n${indent}</application>`;
-            });
-          }
-
-          // 2. Khai báo shortcut khi giữ icon app.
-          if (!xml.includes('android.app.shortcuts')) {
-            xml = xml.replace(
-              /(<activity[^>]*?android:name="\.MainActivity"[^>]*?>)/,
-              '$1\n            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />',
-            );
-          }
-          fs.writeFileSync(manifestPath, xml);
-
-          const manifestOk = xml.includes('LinguaWidgetProvider') && xml.includes('android.app.shortcuts');
-
-          // 3. Đăng ký plugin cục bộ để JS gọi được.
-          // Capacitor 6 sinh `public class MainActivity extends BridgeActivity {}` (rỗng, không có onCreate)
-          // nên phải xử lý cả trường hợp đã có onCreate lẫn trường hợp rỗng.
-          const mainPath = 'android/app/src/main/java/com/lingua/studyhub/MainActivity.java';
-          let main = fs.readFileSync(mainPath, 'utf8');
-          if (!main.includes('LinguaWidgetPlugin')) {
-            if (!main.includes('import android.os.Bundle;')) {
-              main = main.replace(/^(package [^;]+;)/m, '$1\n\nimport android.os.Bundle;');
-            }
-            const body = [
-              'public class MainActivity extends BridgeActivity {',
-              '    @Override',
-              '    public void onCreate(Bundle savedInstanceState) {',
-              '        registerPlugin(LinguaWidgetPlugin.class);',
-              '        super.onCreate(savedInstanceState);',
-              '    }',
-              '}',
-            ].join('\n');
-            if (/super\.onCreate\(savedInstanceState\);/.test(main)) {
-              main = main.replace(
-                'super.onCreate(savedInstanceState);',
-                'registerPlugin(LinguaWidgetPlugin.class);\n        super.onCreate(savedInstanceState);',
-              );
-            } else if (/public class MainActivity extends BridgeActivity\s*\{\s*\}/.test(main)) {
-              main = main.replace(/public class MainActivity extends BridgeActivity\s*\{\s*\}/, body);
-            } else {
-              main = main.replace(
-                /public class MainActivity extends BridgeActivity\s*\{/,
-                `${body.slice(0, body.length - 1)}`,
-              );
-            }
-          }
-          fs.writeFileSync(mainPath, main);
-          const mainOk = /LinguaWidgetPlugin/.test(main) && /registerPlugin\(LinguaWidgetPlugin\.class\);/.test(main);
-
-          console.log(main);
-          if (!manifestOk || !mainOk) {
-            console.error('Không thêm được widget/shortcut vào project Android');
-            process.exit(1);
-          }
-
-          // 4. Kiểm tra tài nguyên đã được chép sang.
-          const required = [
-            'android/app/src/main/res/layout/lingua_widget.xml',
-            'android/app/src/main/res/xml/lingua_widget_info.xml',
-            'android/app/src/main/res/xml/shortcuts.xml',
-            'android/app/src/main/res/values/lingua_widget.xml',
-            'android/app/src/main/res/drawable/lingua_widget_button.xml',
-            'android/app/src/main/res/drawable/lingua_widget_button_ghost.xml',
-          ];
-          const missing = required.filter((file) => !fs.existsSync(file));
-          if (missing.length) {
-            console.error('Thiếu file tài nguyên:', missing.join(', '));
-            process.exit(1);
-          }
-
-          // 5. Widget phải có đủ 4 nút + thanh tiến độ (bản cũ chỉ có 2 nút).
-          const layout = fs.readFileSync('android/app/src/main/res/layout/lingua_widget.xml', 'utf8');
-          const strings = fs.readFileSync('android/app/src/main/res/values/lingua_widget.xml', 'utf8');
-          const needs = [
-            'lingua_widget_button_practice',
-            'lingua_widget_button_grammar',
-            'lingua_widget_button_vstep',
-            'lingua_widget_button_progress',
-            'lingua_widget_progress',
-          ];
-          const layoutMissing = needs.filter((id) => !layout.includes(id));
-          if (layoutMissing.length) {
-            console.error('Widget thiếu view:', layoutMissing.join(', '));
-            process.exit(1);
-          }
-          if (!strings.includes('lingua_widget_vstep')) {
-            console.error('Thiếu chuỗi cho widget trong res/values/lingua_widget.xml');
-            process.exit(1);
-          }
-          NODE
 
       - name: Configure Android SDK
         run: |

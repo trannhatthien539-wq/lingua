@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Clock3, GraduationCap, History, LoaderCircle, PlayCircle, Sparkles, Target, Trash2 } from "lucide-react";
-import ModuleHero from "../../components/ui/ModuleHero";
-import ModuleTabs from "../../components/ui/ModuleTabs";
 import VstepExamRunner from "./VstepExamRunner";
 import VstepResult from "./VstepResult";
 import DocHandbook from "./docs/DocHandbook";
@@ -122,26 +120,43 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
 
   return (
     <div className="space-y-5">
-      <ModuleHero
-        icon={GraduationCap}
-        eyebrow="VSTEP · B1 – B2 – C1"
-        title="Sẵn sàng cho kỳ thi VSTEP"
-        accent="#F43F5E"
-        deep="#BE123C"
-        illustration="exam"
-        progress={Math.round((attempts.length / Math.max(1, examsByLevel('all').length)) * 100)}
-        progressLabel="Số đề đã từng thử"
-        stats={[{ label: 'Đã thi', value: attempts.length }, { label: 'Điểm gần nhất', value: attempts.length ? `${attempts[attempts.length - 1].average}/10` : '—' }, { label: 'Bản nháp', value: draftCount }]}
-        action="Thử đề đầu tiên"
-        onAction={() => examsByLevel('all')[0] && openExam(examsByLevel('all')[0].id, 'exam')}
-        actionDisabled={loadingId === examsByLevel('all')[0]?.id}
-      >
-        <ModuleTabs items={VIEWS} value={view} onChange={setView} ariaLabel="Chọn nội dung VSTEP" />
-      </ModuleHero>
-
-      <div className="hidden grid-cols-2 gap-2 sm:grid sm:grid-cols-4">
-        {SKILL_SUMMARY.map((item) => <div key={item.label} className="rounded-xl border border-ink/[0.08] bg-white px-3 py-2 shadow-sm dark:border-white/[0.08] dark:bg-dark1"><p className="text-xs font-bold">{item.label}</p><p className="text-xs text-ink/50 dark:text-white/50">{item.detail}</p></div>)}
-      </div>
+      <section className="panel p-4 sm:p-5 print-report">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow">VSTEP · B1 – B2 – C1</p>
+            <h2 className="mt-1 font-display text-xl font-bold">Thi thử 4 kỹ năng</h2>
+            <p className="mt-1 text-xs text-ink/60 dark:text-white/60">Đi một chiều như thi thật · không xem đáp án trước khi nộp</p>
+          </div>
+          {attempts.length > 0 && (
+            <div className="rounded-xl bg-ink/[0.04] p-3 text-right dark:bg-white/[0.06]">
+              <p className="text-xs text-ink/60 dark:text-white/60">Lần thi gần nhất</p>
+              <p className="metric text-xl">{attempts[attempts.length - 1].average}/10</p>
+              <p className="text-xs font-bold text-sage">{bandFor(attempts[attempts.length - 1].average).label}</p>
+            </div>
+          )}
+        </div>
+        <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SKILL_SUMMARY.map((item) => (
+            <li key={item.label} className="panel-flat px-3 py-2">
+              <p className="text-xs font-bold">{item.label}</p>
+              <p className="text-xs text-ink/60 dark:text-white/60">{item.detail}</p>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {VIEWS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setView(item.id)}
+              aria-pressed={view === item.id}
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${view === item.id ? "bg-lime text-ink" : "text-ink/65 hover:bg-ink/[0.05] dark:text-white/65 dark:hover:bg-white/[0.08]"}`}
+            >
+              <item.icon size={14} />{item.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {view === "exams" && (
         <>
@@ -152,106 +167,55 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                 type="button"
                 onClick={() => setLevel(item)}
                 aria-pressed={level === item}
-                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${level === item ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
+                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${level === item ? "bg-ink text-white dark:bg-lime dark:text-ink" : "border border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70"}`}
               >
                 {item === "all" ? "Tất cả bậc" : item}
               </button>
             ))}
-            <span className="text-xs font-semibold text-ink/60 sm:ml-auto dark:text-white/60">
+            <span className="ml-auto text-xs font-semibold text-ink/60 dark:text-white/60">
               {examsByLevel(level).length} đề · 75 câu Nghe + Đọc, 2 Viết, 3 Nói
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-2">
             {examsByLevel(level).map((meta) => {
               const best = bestFor(meta.id);
               const last = attempts.filter((item) => item.examId === meta.id).slice(-1)[0];
-              const isB1 = meta.level === 'B1';
-              const isB2 = meta.level === 'B2';
-              const themeColor = isB1 ? '#10B981' : isB2 ? '#0EA5E9' : '#F43F5E';
-              const badgeStyle = isB1
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                : isB2
-                ? 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30'
-                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30';
-
               return (
-                <article
-                  key={meta.id}
-                  className="panel group flex h-full flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/[0.08]"
-                  style={{ borderTop: `3px solid ${themeColor}` }}
-                >
-                  <div className="border-b border-slate-200/80 bg-gradient-to-br from-slate-50/80 via-white to-slate-100/50 p-5 dark:border-white/[0.08] dark:from-[#111827] dark:via-[#0F172A] dark:to-[#0B0F17]">
-                    <div className="flex items-center justify-between gap-3">
-                      <span
-                        className="grid h-12 w-12 place-items-center rounded-2xl shadow-sm"
-                        style={{
-                          backgroundColor: `${themeColor}18`,
-                          color: themeColor,
-                          border: `1px solid ${themeColor}35`,
-                        }}
-                      >
-                        <GraduationCap size={24} />
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {best && (
-                          <span className="rounded-lg bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                            Kỷ lục: {best.average}/10
-                          </span>
-                        )}
-                        <span className={`rounded-lg px-2.5 py-0.5 font-mono text-xs font-black ${badgeStyle}`}>
-                          {meta.level}
-                        </span>
-                      </div>
+                <section key={meta.id} className="panel p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="eyebrow">{meta.level} · {meta.tags.join(" · ")}</p>
+                      <h3 className="mt-1 font-display text-base font-bold">{meta.title}</h3>
+                      <p className="mt-1 text-xs text-ink/60 dark:text-white/60">
+                        35 Nghe · 40 Đọc · 2 Viết · 3 Nói · 172 phút
+                      </p>
                     </div>
-                    <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                      {meta.tags.join(" · ")}
-                    </p>
-                    <h3 className="mt-1 font-display text-lg font-bold text-slate-900 dark:text-white">
-                      {meta.title}
-                    </h3>
-
-                    {/* Skill Pills */}
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">35 Nghe</span>
-                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">40 Đọc</span>
-                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">2 Viết</span>
-                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 dark:bg-white/10">3 Nói</span>
-                      <span className="rounded-md bg-slate-200/70 px-2 py-0.5 text-slate-500 dark:bg-white/10 dark:text-slate-400">172′</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>{last ? `Lần gần nhất: ${new Date(last.at).toLocaleDateString("vi-VN")}` : "Chưa có lần thi nào"}</span>
+                    <div className="text-right">
                       {best ? (
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{bandFor(best.average).label}</span>
+                        <>
+                          <p className="metric text-lg">{best.average}/10</p>
+                          <p className="text-xs font-bold text-sage">Cao nhất · {bandFor(best.average).id}</p>
+                        </>
                       ) : (
-                        <span className="chip bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400">Mới</span>
+                        <span className="chip bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60">Chưa thi</span>
                       )}
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openExam(meta.id, "exam")}
-                        disabled={loadingId === meta.id}
-                        className="btn-primary flex-1 px-4 text-xs font-bold"
-                      >
-                        {loadingId === meta.id ? <LoaderCircle size={15} className="animate-spin" /> : <PlayCircle size={15} />}
-                        Thi thật
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openExam(meta.id, "practice")}
-                        disabled={loadingId === meta.id}
-                        className="btn-secondary flex-1 px-4 text-xs font-bold"
-                      >
-                        <BookOpen size={15} />
-                        Luyện kỹ năng
-                      </button>
-                    </div>
                   </div>
-                </article>
+                  {last && (
+                    <p className="mt-2 text-xs text-ink/55 dark:text-white/55">
+                      Lần gần nhất: {new Date(last.at).toLocaleDateString("vi-VN")} · {SECTION_LABELS.listening} {last.scores?.listening ?? "—"} · {SECTION_LABELS.reading} {last.scores?.reading ?? "—"}
+                    </p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => openExam(meta.id, "exam")} disabled={loadingId === meta.id} className="btn-primary px-4">
+                      {loadingId === meta.id ? <LoaderCircle size={16} className="animate-spin" /> : <PlayCircle size={16} />}Thi thật
+                    </button>
+                    <button type="button" onClick={() => openExam(meta.id, "practice")} disabled={loadingId === meta.id} className="btn-secondary px-4">
+                      <BookOpen size={16} />Luyện từng kỹ năng
+                    </button>
+                  </div>
+                </section>
               );
             })}
           </div>
@@ -291,7 +255,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
                     </div>
                     <div className="text-right">
                       <p className="metric text-lg">{attempt.average}/10</p>
-                      <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{bandFor(attempt.average).label}</p>
+                      <p className="text-xs font-bold text-sage">{bandFor(attempt.average).label}</p>
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">

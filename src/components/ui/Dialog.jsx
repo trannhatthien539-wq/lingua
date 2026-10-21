@@ -15,6 +15,7 @@ export default function Dialog({
   onClose,
   ariaLabel,
   ariaLabelledBy,
+  ariaDescribedBy,
   className = "",
   overlayClassName = "fixed inset-0 z-[100] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm",
   closeOnBackdrop = true,
@@ -71,7 +72,16 @@ export default function Dialog({
 
   return (
     <div className={overlayClassName} onMouseDown={(event) => closeOnBackdrop && event.target === event.currentTarget && onCloseRef.current()}>
-      <section ref={panelRef} tabIndex={-1} className={className} role="dialog" aria-modal="true" aria-label={ariaLabel} aria-labelledby={ariaLabelledBy}>
+      <section
+        ref={panelRef}
+        tabIndex={-1}
+        className={className}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
+      >
         {children}
       </section>
     </div>

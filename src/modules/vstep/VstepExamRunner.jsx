@@ -5,24 +5,27 @@ import {
   CheckCircle2,
   ChevronRight,
   Flag,
+  Keyboard,
   Maximize2,
   Minimize2,
   WifiOff,
   X,
 } from "lucide-react";
+import Dialog from "../../components/ui/Dialog";
 import ListeningSection from "./sections/ListeningSection";
 import ReadingSection from "./sections/ReadingSection";
 import WritingSection from "./sections/WritingSection";
 import SpeakingSection from "./sections/SpeakingSection";
 import { SECTION_LABELS, examQuestions, skillOrder } from "../../services/vstepService";
 import { toast } from "../../services/toast";
+import { DRAFT_VERSION, draftKeyFor, parseExamDraft } from "../../utils/examDraft";
 
 const formatClock = (seconds) =>
-  `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
+  `${String(Math.floor(Math.max(0, seconds) / 60)).padStart(2, "0")}:${String(
     Math.max(0, seconds) % 60
   ).padStart(2, "0")}`;
 
-const DRAFT_PREFIX = "lingua_vstep_draft_";
+const sectionSeconds = (exam, key) => (exam?.[key]?.minutes || 40) * 60;
 
 /**
  * VstepExamRunner - Máy chạy đề thi & luyện tập VSTEP chuẩn EdTech:
@@ -33,7 +36,7 @@ const DRAFT_PREFIX = "lingua_vstep_draft_";
  */
 export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit }) {
   const isExam = mode === "exam";
-  const draftKey = `${DRAFT_PREFIX}${exam.id}_${mode}`;
+  const draftKey = draftKeyFor(exam.id, mode);
 
   const sections = useMemo(
     () =>
@@ -43,62 +46,99 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
     [exam]
   );
 
-  // 1. Phục hồi bản nháp từ LocalStorage nếu có
+  // 1. Phục hồi bản nháp từ LocalStorage nếu có (đã kiểm tra đúng đề/chế độ/phần thi)
   const [initialDraft] = useState(() => {
+    if (typeof localStorage === "undefined") return null;
     try {
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === "object") return parsed;
-      }
+      return parseExamDraft(localStorage.getItem(draftKey), {
+        examId: exam.id,
+        mode,
+        availableSections: sections,
+        minutesFor: (key) => sectionSeconds(exam, key),
+      });
     } catch {
-      // Bỏ qua nếu dữ liệu storage hỏng
+      // Chế độ riêng tư có thể chặn storage — bỏ qua và bắt đầu bài mới.
+      return null;
     }
-    return null;
   });
 
-  const [sectionKey, setSectionKey] = useState(
-    () => initialDraft?.sectionKey || sections[0]
-  );
+  const [sectionKey, setSectionKey] = useState(() => initialDraft?.sectionKey || sections[0]);
   const [zenMode, setZenMode] = useState(false);
   const [revealed, setRevealed] = useState({});
   const [responses, setResponses] = useState(() => initialDraft?.responses || {});
   const [writings, setWritings] = useState(() => initialDraft?.writings || {});
   const [writingChecks, setWritingChecks] = useState(() => initialDraft?.writingChecks || {});
   const [speaking, setSpeaking] = useState(() => initialDraft?.speaking || {});
-  const [secondsLeft, setSecondsLeft] = useState(
-    () => initialDraft?.secondsLeft ?? (exam[sections[0]]?.minutes || 40) * 60
-  );
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const fallback = sectionSeconds(exam, initialDraft?.sectionKey || sections[0]);
+    return typeof initialDraft?.secondsLeft === "number" ? initialDraft.secondsLeft : fallback;
+  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(null); // { title, message, onConfirm }
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [timeAnnouncement, setTimeAnnouncement] = useState("");
+  const [savedAt, setSavedAt] = useState(null);
 
   const startedAt = useRef(initialDraft?.startedAt || Date.now());
   const submittedRef = useRef(false);
+  const mountedRef = useRef(false);
+  /** Mốc thời gian kết thúc phần thi hiện tại (chống lệch giờ khi tab bị throttle/ngủ). */
+  const deadlineRef = useRef(Date.now() + secondsLeft * 1000);
+  /** Ảnh chụp mới nhất của bài làm, dùng cho autosave để không phụ thuộc deps từng giây. */
+  const snapshotRef = useRef(null);
 
   const index = sections.indexOf(sectionKey);
   const isLast = index === sections.length - 1;
 
-  // 2. Tự động lưu nháp định kỳ & khi trạng thái bài làm thay đổi
-  useEffect(() => {
-    if (submittedRef.current) return;
+  snapshotRef.current = {
+    version: DRAFT_VERSION,
+    examId: exam.id,
+    mode,
+    sectionKey,
+    responses,
+    writings,
+    writingChecks,
+    speaking,
+    secondsLeft,
+    startedAt: startedAt.current,
+    timestamp: Date.now(),
+  };
+
+  const saveDraft = useCallback(() => {
+    if (submittedRef.current || typeof localStorage === "undefined") return;
+    const snapshot = snapshotRef.current;
+    if (!snapshot) return;
     try {
-      const payload = {
-        sectionKey,
-        responses,
-        writings,
-        writingChecks,
-        speaking,
-        secondsLeft,
-        startedAt: startedAt.current,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem(draftKey, JSON.stringify(payload));
+      localStorage.setItem(draftKey, JSON.stringify({ ...snapshot, timestamp: Date.now() }));
+      if (mountedRef.current) setSavedAt(Date.now());
     } catch {
-      // Storage có thể đầy, không ngắt luồng học sinh
+      // Storage có thể đầy hoặc bị chặn (chế độ riêng tư) — không ngắt luồng làm bài.
     }
-  }, [draftKey, sectionKey, responses, writings, writingChecks, speaking, secondsLeft]);
+  }, [draftKey]);
+
+  // 2a. Lưu nháp có debounce khi nội dung thay đổi (không ghi localStorage mỗi giây).
+  useEffect(() => {
+    if (submittedRef.current) return undefined;
+    const timer = window.setTimeout(saveDraft, 700);
+    return () => window.clearTimeout(timer);
+  }, [saveDraft, sectionKey, responses, writings, writingChecks, speaking]);
+
+  // 2b. Chốt giờ định kỳ + khi tab bị ẩn/đóng để không mất dữ liệu.
+  useEffect(() => {
+    if (submittedRef.current) return undefined;
+    const checkpoint = window.setInterval(saveDraft, 5000);
+    const flush = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") saveDraft();
+    };
+    window.addEventListener("pagehide", saveDraft);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.clearInterval(checkpoint);
+      window.removeEventListener("pagehide", saveDraft);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, [saveDraft]);
 
   // Thông báo khi khôi phục bản nháp
   useEffect(() => {
@@ -126,18 +166,26 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
     };
   }, []);
 
-  // 4. Ngăn ngừa đóng tab/tải lại vô tình (BeforeUnload)
+  // 4. Ngăn ngừa đóng tab/tải lại vô tình (BeforeUnload) và chốt bản nháp cuối cùng
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!isExam) return undefined;
     const handleBeforeUnload = (event) => {
       if (submittedRef.current) return;
+      saveDraft();
       event.preventDefault();
       event.returnValue = "";
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isExam]);
+  }, [isExam, saveDraft]);
 
   // 5. Cập nhật câu trả lời an toàn
   const answer = useCallback((questionId, value) => {
@@ -159,41 +207,59 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
     }));
   }, []);
 
-  // 6. Nộp bài thi có bảo vệ chống Double-Submit
+  // 6. Nộp bài thi có bảo vệ chống Double-Submit + xử lý lỗi khi nộp thất bại
   const submit = useCallback(
-    (reason) => {
+    async (reason) => {
       if (submittedRef.current) return;
       submittedRef.current = true;
       setIsSubmitting(true);
 
       try {
-        localStorage.removeItem(draftKey);
-      } catch {
-        // Ignored
+        await onSubmit?.({
+          responses,
+          writings,
+          writingChecks,
+          speaking,
+          durationSeconds: Math.round((Date.now() - startedAt.current) / 1000),
+          reason,
+        });
+        // Chỉ xoá nháp khi đã nộp thành công, để có thể thử lại nếu lỗi.
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // Ignored
+        }
+      } catch (error) {
+        submittedRef.current = false;
+        saveDraft();
+        toast.error(error?.message || "Không thể nộp bài lúc này. Bài làm vẫn được lưu trên máy, vui lòng thử lại.");
+      } finally {
+        if (mountedRef.current) setIsSubmitting(false);
       }
-
-      onSubmit({
-        responses,
-        writings,
-        writingChecks,
-        speaking,
-        durationSeconds: Math.round((Date.now() - startedAt.current) / 1000),
-        reason,
-      });
     },
-    [draftKey, onSubmit, responses, writings, writingChecks, speaking]
+    [draftKey, onSubmit, responses, writings, writingChecks, speaking, saveDraft]
+  );
+
+  /** Chuyển phần thi và đặt lại đồng hồ đếm ngược theo thời lượng phần mới. */
+  const startSection = useCallback(
+    (nextKey) => {
+      const nextSeconds = sectionSeconds(exam, nextKey);
+      setSectionKey(nextKey);
+      setSecondsLeft(nextSeconds);
+      deadlineRef.current = Date.now() + nextSeconds * 1000;
+      setTimeAnnouncement(`Đã chuyển sang phần ${SECTION_LABELS[nextKey]}.`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [exam]
   );
 
   const goNext = useCallback(() => {
     if (!isLast) {
-      const nextKey = sections[index + 1];
-      setSectionKey(nextKey);
-      setSecondsLeft((exam[nextKey]?.minutes || 40) * 60);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      startSection(sections[index + 1]);
       return;
     }
-    submit("manual");
-  }, [exam, index, isLast, sections, submit]);
+    void submit("manual");
+  }, [index, isLast, sections, startSection, submit]);
 
   // 7. Thống kê số câu đã làm trong phần hiện tại
   const currentQuestions = useMemo(() => {
@@ -240,16 +306,37 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
     });
   }, [currentAnsweredCount, currentQuestions.length, goNext, index, isExam, isLast, sectionKey, sections]);
 
-  // 9. Đồng hồ đếm ngược từng giây (Không gọi side-effect bên trong state updater)
+  // 9. Đồng hồ đếm ngược dựa trên MỐC THỜI GIAN THẬT thay vì trừ dần mỗi giây:
+  //    khi tab bị ẩn/ngủ, trình duyệt throttle setInterval và cách trừ dần sẽ làm học
+  //    sinh được thêm thời gian. Tính theo deadline giữ đúng giờ thi thật.
   useEffect(() => {
-    if (!isExam || isSubmitting) return undefined;
+    if (!isExam) return undefined;
 
-    const timer = window.setInterval(() => {
-      setSecondsLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
+    const sync = () => {
+      const remaining = Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+      setSecondsLeft((prev) => (prev === remaining ? prev : remaining));
+    };
+    const timer = window.setInterval(sync, 1000);
+    const onVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") sync();
+    };
 
-    return () => window.clearInterval(timer);
-  }, [isExam, isSubmitting]);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [isExam]);
+
+  // Thông báo mốc giờ quan trọng cho trình đọc màn hình.
+  useEffect(() => {
+    if (!isExam || secondsLeft <= 0) return;
+    if (secondsLeft === 300 || secondsLeft === 60 || secondsLeft === 30) {
+      setTimeAnnouncement(`Còn ${formatClock(secondsLeft)} cho phần ${SECTION_LABELS[sectionKey]}.`);
+    }
+  }, [isExam, secondsLeft, sectionKey]);
 
   // Hiệu ứng chuyển phần tự động khi hết giờ
   useEffect(() => {
@@ -257,30 +344,38 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
 
     if (isLast) {
       toast.info("Hết giờ làm bài! Bài thi đang được nộp tự động.");
-      submit("time");
+      setTimeAnnouncement("Hết giờ làm bài. Bài thi đang được nộp tự động.");
+      void submit("time");
     } else {
       const nextKey = sections[index + 1];
       toast.info(`Hết giờ phần ${SECTION_LABELS[sectionKey]}. Tự động chuyển sang phần ${SECTION_LABELS[nextKey]}.`);
-      setSectionKey(nextKey);
-      setSecondsLeft((exam[nextKey]?.minutes || 40) * 60);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeAnnouncement(`Hết giờ phần ${SECTION_LABELS[sectionKey]}. Chuyển sang phần ${SECTION_LABELS[nextKey]}.`);
+      startSection(nextKey);
     }
-  }, [exam, index, isExam, isLast, isSubmitting, secondsLeft, sectionKey, sections, submit]);
+  }, [index, isExam, isLast, isSubmitting, secondsLeft, sectionKey, sections, startSection, submit]);
 
-  // 10. Phím tắt bàn phím: Esc thoát Zen mode hoặc đóng modal
+  // 10. Phím tắt: Ctrl/⌘ + Enter để chuyển phần/nộp bài, Esc để thoát Zen mode.
+  //     (Esc của hộp thoại xác nhận do <Dialog> đảm nhiệm — có focus trap chuẩn.)
   useEffect(() => {
+    const isEditable = (target) =>
+      Boolean(target?.isContentEditable) || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName);
+
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        if (confirmDialog) {
-          setConfirmDialog(null);
-        } else if (zenMode) {
-          setZenMode(false);
-        }
+      if (confirmDialog) return;
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        confirmNext();
+        return;
+      }
+      if (event.key === "Escape" && zenMode && !isEditable(event.target)) {
+        event.preventDefault();
+        setZenMode(false);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [confirmDialog, zenMode]);
+  }, [confirmDialog, confirmNext, zenMode]);
 
   const sectionProps = useMemo(
     () => ({
@@ -303,6 +398,11 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
       }
     >
       <div className={zenMode ? "mx-auto max-w-5xl space-y-4" : "space-y-4"}>
+        {/* Vùng thông báo cho trình đọc màn hình (không chiếm chỗ trên giao diện) */}
+        <p aria-live="polite" aria-atomic="true" className="sr-only">
+          {timeAnnouncement}
+        </p>
+
         {/* Banner cảnh báo mất mạng */}
         {!isOnline && (
           <aside
@@ -333,8 +433,8 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
               {isExam ? (
                 <div
                   role="timer"
-                  aria-live={secondsLeft <= 300 ? "polite" : "off"}
-                  className={`chip font-mono font-bold transition-all ${
+                  aria-label={`Thời gian còn lại ${formatClock(secondsLeft)}`}
+                  className={`chip font-mono font-bold tabular-nums transition-all ${
                     secondsLeft <= 120
                       ? "bg-rose-500/20 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 animate-pulse border border-rose-500/40"
                       : secondsLeft <= 300
@@ -449,15 +549,27 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
               })}
             </div>
 
-            {currentQuestions.length > 0 && (
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                Đã trả lời:{" "}
-                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                  {currentAnsweredCount}
-                </span>
-                /{currentQuestions.length} câu
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="hidden items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:inline-flex">
+                <CheckCircle2 size={12} className="text-emerald-500" aria-hidden="true" />
+                {savedAt
+                  ? `Đã lưu nháp lúc ${new Date(savedAt).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}`
+                  : "Bản nháp được lưu tự động"}
               </span>
-            )}
+              {currentQuestions.length > 0 && (
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  Đã trả lời:{" "}
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    {currentAnsweredCount}
+                  </span>
+                  /{currentQuestions.length} câu
+                </span>
+              )}
+            </div>
           </div>
         </header>
 
@@ -490,11 +602,25 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
         </main>
 
         {/* Nút hành động đáy trang */}
-        <footer className="no-print flex justify-end pb-8">
+        <footer className="no-print flex flex-wrap items-center justify-end gap-3 pb-8">
+          <p className="mr-auto hidden items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 sm:flex">
+            <Keyboard size={14} aria-hidden="true" />
+            <span>
+              <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold dark:border-white/20 dark:bg-white/10">
+                Ctrl/⌘
+              </kbd>{" "}
+              +{" "}
+              <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold dark:border-white/20 dark:bg-white/10">
+                Enter
+              </kbd>{" "}
+              để {isLast ? "nộp bài" : "chuyển phần"}
+            </span>
+          </p>
           <button
             type="button"
             onClick={confirmNext}
             disabled={isSubmitting}
+            aria-busy={isSubmitting}
             className="btn-primary min-h-[46px] px-6 text-sm font-bold shadow-md hover:scale-[1.01] active:scale-[0.99]"
           >
             {isSubmitting ? (
@@ -513,50 +639,52 @@ export default function VstepExamRunner({ exam, mode = "exam", onExit, onSubmit 
         </footer>
       </div>
 
-      {/* 11. Modal Xác Nhận Thanh Lịch (Thay thế window.confirm để không chặn luồng timer) */}
+      {/* 11. Hộp thoại xác nhận dùng <Dialog> chung: focus trap, Esc, trả focus, khoá scroll nền */}
       {confirmDialog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-modal-title"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+        <Dialog
+          onClose={() => setConfirmDialog(null)}
+          ariaLabelledBy="vstep-confirm-title"
+          ariaDescribedBy="vstep-confirm-message"
+          closeOnBackdrop={false}
+          className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900 sm:p-7"
         >
-          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900 sm:p-7">
-            <div className="flex items-center gap-3 text-amber-500 dark:text-amber-400">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 dark:bg-amber-400/10">
-                <AlertTriangle size={20} />
-              </span>
-              <h2 id="confirm-modal-title" className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                {confirmDialog.title}
-              </h2>
-            </div>
-
-            <p className="mt-3 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              {confirmDialog.message}
-            </p>
-
-            <div className="mt-6 flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setConfirmDialog(null)}
-                className="btn-secondary px-4 py-2.5 text-xs font-semibold"
-              >
-                Tiếp tục làm bài
-              </button>
-              <button
-                type="button"
-                onClick={confirmDialog.onConfirm}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 ${
-                  confirmDialog.confirmVariant === "danger"
-                    ? "bg-rose-600 hover:bg-rose-500"
-                    : "bg-indigo-600 hover:bg-indigo-500 shadow-sm"
-                }`}
-              >
-                {confirmDialog.confirmLabel}
-              </button>
-            </div>
+          <div className="flex items-center gap-3 text-amber-500 dark:text-amber-400">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-500/10 dark:bg-amber-400/10">
+              <AlertTriangle size={20} aria-hidden="true" />
+            </span>
+            <h2 id="vstep-confirm-title" className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              {confirmDialog.title}
+            </h2>
           </div>
-        </div>
+
+          <p
+            id="vstep-confirm-message"
+            className="mt-3 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300"
+          >
+            {confirmDialog.message}
+          </p>
+
+          <div className="mt-6 flex justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setConfirmDialog(null)}
+              className="btn-secondary px-4 py-2.5 text-xs font-semibold"
+            >
+              Tiếp tục làm bài
+            </button>
+            <button
+              type="button"
+              onClick={confirmDialog.onConfirm}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 ${
+                confirmDialog.confirmVariant === "danger"
+                  ? "bg-rose-600 hover:bg-rose-500"
+                  : "bg-indigo-600 hover:bg-indigo-500 shadow-sm"
+              }`}
+            >
+              {confirmDialog.confirmLabel}
+            </button>
+          </div>
+        </Dialog>
       )}
     </div>
   );

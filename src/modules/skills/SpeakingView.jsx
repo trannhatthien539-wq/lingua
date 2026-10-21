@@ -233,7 +233,7 @@ export default function SpeakingView({ focusId }) {
         <div className="mt-4 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
           <p className="text-xs font-bold text-ink/60 dark:text-white/60">{practice.label}</p>
           <p className="mt-1.5 text-sm leading-6">{practice.text}</p>
-          <button type="button" onClick={() => speakText(practice.text)} className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+          <button type="button" onClick={() => speakText(practice.text)} className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 text-xs font-bold text-sage">
             <Volume2 size={14} />Nghe mẫu
           </button>
         </div>
@@ -254,7 +254,7 @@ export default function SpeakingView({ focusId }) {
           </p>
         )}
         {speechScore && (
-          <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+          <div className="mt-4 rounded-xl border border-sage/40 bg-sage/10 p-4">
             <div className="flex flex-wrap items-center gap-4">
               <p className="metric text-3xl">{speechScore.score}<span className="text-base">%</span></p>
               <div className="min-w-0">
@@ -302,13 +302,13 @@ export default function SpeakingView({ focusId }) {
         <ul className="mt-3 space-y-1.5 text-sm">
           {topic.cue.bullets.map((bullet) => (
             <li key={bullet} className="flex items-center gap-2 text-ink/70 dark:text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />{bullet}
+              <span className="h-1.5 w-1.5 rounded-full bg-lime" />{bullet}
             </li>
           ))}
         </ul>
         <div className="panel-flat mt-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="flex items-center gap-2 text-sm font-bold"><Quote size={15} className="text-indigo-500" />Bài mẫu</p>
+            <p className="flex items-center gap-2 text-sm font-bold"><Quote size={15} className="text-sage" />Bài mẫu</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => speakText(topic.cue.model, { rate: 0.95 })} className="btn-secondary px-3"><Volume2 size={15} />Nghe</button>
               <button type="button" onClick={() => setOpenSample(openSample === 'cue' ? null : 'cue')} className="btn-ghost px-3">{openSample === 'cue' ? 'Ẩn' : 'Hiện'}</button>

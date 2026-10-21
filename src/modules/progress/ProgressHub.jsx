@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, BookOpen, CalendarCheck, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
-import ModuleHero from "../../components/ui/ModuleHero";
+import { Award, BookOpen, CalendarCheck, Download, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
 import MistakeBankCard from "../../components/MistakeBankCard";
@@ -113,20 +112,15 @@ export default function ProgressHub({ user, streak, onNavigate }) {
 
   return (
     <div className="space-y-5">
-      <ModuleHero
-        icon={Trophy}
-        eyebrow="Tiến độ & thành tích"
-        title="Toàn cảnh hành trình học"
-        accent="#10B981"
-        deep="#059669"
-        illustration="progress"
-        progress={level.percent}
-        progressLabel={`Tiến độ lên cấp ${level.level + 1}`}
-        stats={[{ label: 'Cấp hiện tại', value: `${level.level}` }, { label: 'XP tích lũy', value: xp }, { label: 'Huy hiệu', value: `${earnedCount}/${achievements.length}` }]}
-        action="Xuất báo cáo"
-        onAction={() => window.print()}
-        className="no-print"
-      />
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="eyebrow">Tiến độ &amp; thành tích</p>
+          <h2 className="mt-1 font-display text-xl font-bold">Toàn cảnh tiến độ</h2>
+        </div>
+        <button onClick={() => window.print()} className="btn-secondary px-4 no-print">
+          <Download size={16} />Xuất báo cáo
+        </button>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <TodayPlanCard
@@ -142,12 +136,12 @@ export default function ProgressHub({ user, streak, onNavigate }) {
               <p className="eyebrow">Mục tiêu hôm nay</p>
               <h3 className="mt-1 font-display text-lg font-bold">{stats.goal.today}/{target} lượt ôn</h3>
             </div>
-            <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25"}`}>
+            <span className={`chip ${goalPercent >= 100 ? "bg-okbg text-ok dark:bg-okdark dark:text-okfgdark" : "bg-lime text-ink"}`}>
               {goalPercent}%
             </span>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${goalPercent}%`, background: goalPercent >= 100 ? '#10B981' : 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+            <div className={`h-full rounded-full transition-all duration-500 ${goalPercent >= 100 ? "bg-ok" : "bg-sage"}`} style={{ width: `${goalPercent}%` }} />
           </div>
           <p className="mt-3 text-xs text-ink/60 dark:text-white/60">
             {goalPercent >= 100
@@ -160,7 +154,7 @@ export default function ProgressHub({ user, streak, onNavigate }) {
                 key={preset}
                 onClick={() => setGoal(preset)}
                 aria-pressed={target === preset}
-                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${target === preset ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
+                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${target === preset ? "bg-lime text-ink" : "border border-ink/10 text-ink/70 hover:bg-ink/[0.05] dark:border-white/15 dark:text-white/70 dark:hover:bg-white/10"}`}
               >
                 {preset} lượt/ngày
               </button>
@@ -194,10 +188,10 @@ export default function ProgressHub({ user, streak, onNavigate }) {
               <p className="eyebrow">Cấp độ</p>
               <h3 className="mt-1 font-display text-lg font-bold">Cấp {level.level} · {level.title}</h3>
             </div>
-            <span className="chip bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-bold">{xp} XP</span>
+            <span className="chip bg-lime text-ink">{xp} XP</span>
           </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${level.percent}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-ink/10 dark:bg-white/10">
+            <div className="h-full rounded-full bg-lime transition-all duration-500" style={{ width: `${level.percent}%` }} />
           </div>
           <p className="mt-3 text-xs text-ink/60 dark:text-white/60">
             {level.nextAt ? `Còn ${level.toNext} XP để lên cấp ${level.level + 1}.` : "Bạn đã đạt cấp cao nhất — quá đỉnh!"}
@@ -224,7 +218,7 @@ export default function ProgressHub({ user, streak, onNavigate }) {
       <section className="panel p-5 print-report">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Trophy size={18} className="text-amber-500" />
+            <Trophy size={18} className="text-sage" />
             <h3 className="font-display text-lg font-bold">Huy hiệu ({earnedCount}/{achievements.length})</h3>
           </div>
           <p className="text-xs text-ink/55 dark:text-white/55">Mở khoá bằng cách học đều mỗi ngày</p>
@@ -233,8 +227,8 @@ export default function ProgressHub({ user, streak, onNavigate }) {
           {achievements.map((achievement) => {
             const Icon = ACHIEVEMENT_ICONS[achievement.icon] || Award;
             return (
-              <li key={achievement.id} className={`rounded-xl border p-3 transition-colors ${achievement.earned ? "border-amber-500/30 bg-amber-500/[0.06]" : "border-ink/[0.08] opacity-60 dark:border-white/[0.08]"}`}>
-                <span className={`grid h-9 w-9 place-items-center rounded-lg ${achievement.earned ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30" : "bg-ink/[0.06] text-ink/50 dark:bg-white/10 dark:text-white/50"}`}>
+              <li key={achievement.id} className={`rounded-xl border p-3 ${achievement.earned ? "border-sage/50 bg-sage/10" : "border-ink/[0.08] opacity-60 dark:border-white/[0.08]"}`}>
+                <span className={`grid h-9 w-9 place-items-center rounded-lg ${achievement.earned ? "bg-lime text-ink" : "bg-ink/[0.06] text-ink/50 dark:bg-white/10 dark:text-white/50"}`}>
                   <Icon size={17} />
                 </span>
                 <p className="mt-2 text-sm font-bold">{achievement.label}</p>

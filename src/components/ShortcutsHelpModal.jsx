@@ -4,12 +4,15 @@ import Dialog from "./ui/Dialog";
 const SHORTCUTS = [
   { keys: ["Ctrl", "K"], detail: "Mở tìm kiếm toàn cục (từ vựng, ngữ pháp, bài học)" },
   { keys: ["?"], detail: "Mở bảng phím tắt này" },
-  { keys: ["Esc"], detail: "Đóng hộp thoại đang mở" },
+  { keys: ["Esc"], detail: "Đóng hộp thoại đang mở / thoát chế độ tập trung" },
   { keys: ["Space"], detail: "Lật thẻ flashcard" },
   { keys: ["1", "2", "3"], detail: "Đánh giá thẻ: chưa nhớ · nhớ vừa · đã thuộc" },
+  { keys: ["R"], detail: "Phát âm từ hoặc câu ví dụ đang xem" },
   { keys: ["←", "Z"], detail: "Quay lại thẻ trước" },
-  { keys: ["→", "Vuốt trái"], detail: "Sang thẻ kế tiếp" },
-  { keys: ["Enter"], detail: "Câu tiếp theo khi làm trắc nghiệm / luyện câu" },
+  { keys: ["Vuốt trái"], detail: "Sang thẻ kế tiếp (trên thiết bị cảm ứng)" },
+  { keys: ["1", "2", "3", "4"], detail: "Chọn đáp án trong bài trắc nghiệm" },
+  { keys: ["A", "F"], detail: "Chọn đáp án nhanh khi làm bài Nghe/Đọc VSTEP" },
+  { keys: ["Ctrl", "Enter"], detail: "Chuyển phần hoặc nộp bài thi VSTEP" },
 ];
 
 export default function ShortcutsHelpModal({ onClose }) {
@@ -20,7 +23,7 @@ export default function ShortcutsHelpModal({ onClose }) {
             <p className="eyebrow">Trợ giúp</p>
             <h2 id="shortcuts-title" className="mt-1 font-display text-xl font-bold">Phím tắt</h2>
           </div>
-          <button onClick={onClose} className="icon-btn -mr-2" aria-label="Đóng bảng phím tắt"><X size={18} /></button>
+          <button type="button" onClick={onClose} className="icon-btn -mr-2" aria-label="Đóng bảng phím tắt"><X size={18} /></button>
         </div>
         <ul className="mt-4 space-y-1.5">
           {SHORTCUTS.map((item) => (
@@ -34,7 +37,9 @@ export default function ShortcutsHelpModal({ onClose }) {
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-xs text-ink/50 dark:text-white/50">Phím tắt học thẻ chỉ hoạt động khi đang trong phiên flashcard.</p>
+        <p className="mt-3 text-xs text-ink/50 dark:text-white/50">
+          Phím tắt học thẻ chỉ hoạt động trong phiên flashcard; phím tắt làm bài chỉ hoạt động khi đang mở đề VSTEP hoặc bài trắc nghiệm.
+        </p>
       </Dialog>
   );
 }

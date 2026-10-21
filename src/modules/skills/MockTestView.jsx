@@ -83,7 +83,7 @@ export default function MockTestView({ history, onFinish }) {
       <section className="panel p-4 sm:p-5">
         <p className="eyebrow">Thi thử</p>
         <h2 className="mt-1 flex items-center gap-2 font-display text-xl font-bold">
-          <GraduationCap size={20} className="text-indigo-600 dark:text-indigo-400" /> Bài thi thử B1
+          <GraduationCap size={20} className="text-sage" /> Bài thi thử B1
         </h2>
         <p className="mt-1.5 text-sm text-ink/60 dark:text-white/60">Trộn ngữ pháp, từ vựng, đọc hiểu và nghe hiểu. Kết quả chỉ là ước lượng để học.</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -94,7 +94,7 @@ export default function MockTestView({ history, onFinish }) {
             { icon: GraduationCap, text: 'Ước lượng kết quả: A2 → B2' },
           ].map((item) => (
             <li key={item.text} className="flex items-center gap-2 rounded-xl border border-ink/[0.08] p-3 text-sm dark:border-white/[0.08]">
-              <item.icon size={16} className="shrink-0 text-indigo-500" />{item.text}
+              <item.icon size={16} className="shrink-0 text-sage" />{item.text}
             </li>
           ))}
         </ul>

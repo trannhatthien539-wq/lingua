@@ -164,12 +164,12 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
         {showTranscript && (
           <div className="mt-4 space-y-2">
             {lesson.transcript.map((item, index) => (
-              <div key={`${item.speaker}-${index}`} className={`flex items-start gap-2.5 rounded-xl border p-3 transition ${currentLine === index ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-ink/[0.08] dark:border-white/[0.08]'}`}>
+              <div key={`${item.speaker}-${index}`} className={`flex items-start gap-2.5 rounded-xl border p-3 transition ${currentLine === index ? 'border-sage bg-sage/10' : 'border-ink/[0.08] dark:border-white/[0.08]'}`}>
                 <button type="button" onClick={() => playLine(index)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink/60 transition hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10" aria-label={`Nghe câu của ${item.speaker}`}>
                   <Volume2 size={15} />
                 </button>
                 <span className="min-w-0">
-                  <span className="block text-xs font-bold text-indigo-600 dark:text-indigo-400">{item.speaker}</span>
+                  <span className="block text-xs font-bold text-sage">{item.speaker}</span>
                   <span className="block text-sm">{item.line}</span>
                 </span>
               </div>
@@ -181,7 +181,7 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
           <p className="text-xs font-bold uppercase tracking-[0.06em] text-ink/60 dark:text-white/60">Từ khoá trong bài</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {lesson.glossary.map((item) => (
-              <button key={item.word} type="button" onClick={() => speakText(item.word)} className="chip min-h-[36px] bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 px-3.5 py-1.5" title="Bấm để nghe">
+              <button key={item.word} type="button" onClick={() => speakText(item.word)} className="chip min-h-[36px] bg-sage/15 px-3.5 py-1.5 text-ink dark:text-white" title="Bấm để nghe">
                 <Headphones size={12} className="mr-1" />{item.word} — {item.meaning}
               </button>
             ))}
