@@ -14,7 +14,6 @@ import { speakText, stopSpeech } from "../../utils/speech";
 import { intervalLabel, previewIntervals, schedulePayload } from "../../utils/srs";
 import { celebrateStudyCompletion, playStudySound } from "../../utils/studyFeedback";
 import WordAvatar from "../WordAvatar";
-import Dialog from "../ui/Dialog";
 import { toast } from "../../services/toast";
 
 // Thời gian khớp với transition xoay 3D (ms) để tráo nội dung đúng nhịp
@@ -42,17 +41,9 @@ export default function FlashcardModal({
       const saved = sessionStorage.getItem(sessionKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed || !Array.isArray(parsed.queue) || typeof parsed.index !== "number") return null;
-        // Phiên cũ không còn khớp bộ thẻ hiện tại (thẻ bị xoá/đổi bộ) → bỏ qua.
-        const knownIds = new Set((cards || []).map((card) => card.id));
-        if (knownIds.size && parsed.queue.some((card) => !knownIds.has(card.id))) return null;
-        if (parsed.index < 0 || parsed.index > parsed.queue.length) return null;
-        return {
-          ...parsed,
-          queue: parsed.queue,
-          results: Array.isArray(parsed.results) ? parsed.results : [],
-          history: Array.isArray(parsed.history) ? parsed.history : [],
-        };
+        if (parsed && Array.isArray(parsed.queue) && typeof parsed.index === "number") {
+          return parsed;
+        }
       }
     } catch {
       // Ignored
@@ -75,20 +66,11 @@ export default function FlashcardModal({
 
   const touchStartX = useRef(null);
   const flipTimer = useRef(null);
-  const flipButtonRef = useRef(null);
-  const saveWarningRef = useRef(false);
   const currentCard = queue[index];
 
   const totalCards = queue.length;
   const isComplete = totalCards > 0 && index >= totalCards;
   const progressPercent = totalCards ? Math.min(100, Math.round((index / totalCards) * 100)) : 0;
-
-  // Bộ thẻ có thể được tải bất đồng bộ (Firestore/IndexedDB): nạp hàng đợi khi dữ liệu về muộn
-  // để không rơi vào màn hình trắng vì `currentCard` chưa tồn tại.
-  useEffect(() => {
-    if (!Array.isArray(cards) || cards.length === 0) return;
-    setQueue((current) => (current.length ? current : cards.map((card) => ({ ...card }))));
-  }, [cards]);
 
   // Dọn dẹp âm thanh & timer khi component unmount
   useEffect(() => {
@@ -135,7 +117,7 @@ export default function FlashcardModal({
   }, [isComplete, sessionKey]);
 
   // Phát âm chuẩn bản ngữ cho từ hoặc câu ví dụ với cơ chế bắt lỗi an toàn
-  const handleSpeak = useCallback((text, targetId) => {
+  const handleSpeak = (text, targetId) => {
     if (!text?.trim()) return;
     stopSpeech();
     setSpeaking(targetId);
@@ -151,7 +133,7 @@ export default function FlashcardModal({
       setSpeaking("");
       toast.warning("Không thể phát âm thanh trên trình duyệt.");
     }
-  }, []);
+  };
 
   // Cơ chế tráo nội dung sau khi lật úp để không lộ đáp án thẻ sau
   const advanceAfterFlip = useCallback(
@@ -176,36 +158,9 @@ export default function FlashcardModal({
     [flipped]
   );
 
-  /** Chỉ báo một lần cho cả phiên để không spam toast khi đang offline. */
-  const warnSaveFailure = useCallback(() => {
-    if (saveWarningRef.current) return;
-    saveWarningRef.current = true;
-    toast.warning("Chưa lưu được tiến độ lên máy chủ. Bạn vẫn học tiếp bình thường, dữ liệu sẽ đồng bộ khi có mạng.");
-  }, []);
-
-  const persistCard = useCallback(
-    (cardId, payload) => {
-      let result;
-      try {
-        result = onUpdateCard?.(cardId, payload);
-      } catch {
-        warnSaveFailure();
-        return;
-      }
-      Promise.resolve(result).then(
-        () => {
-          saveWarningRef.current = false;
-        },
-        warnSaveFailure,
-      );
-    },
-    [onUpdateCard, warnSaveFailure],
-  );
-
-  // Đánh giá thẻ theo thuật toán Spaced Repetition (SRS).
-  // Cập nhật giao diện NGAY (optimistic) rồi lưu nền — mất mạng không làm kẹt phiên học.
+  // Đánh giá thẻ theo thuật toán Spaced Repetition (SRS)
   const rateCard = useCallback(
-    (rating) => {
+    async (rating) => {
       if (!currentCard || locked) return;
 
       // Phản hồi âm thanh theo kết quả đánh giá
@@ -226,42 +181,45 @@ export default function FlashcardModal({
         ease: Number(currentCard.ease) || 2.5,
         lapses: Number(currentCard.lapses) || 0,
       };
-      const card = currentCard;
-      const payload = schedulePayload(card, rating);
+
+      const nextResults = [...results, rating];
+      const payload = schedulePayload(currentCard, rating);
+
+      // Lưu cập nhật tiến độ
+      await onUpdateCard?.(currentCard.id, payload);
 
       setHistory((curr) => [
         ...curr,
         {
-          cardId: card.id,
+          cardId: currentCard.id,
           previousSrs,
           rating,
           repeated: rating === "again",
         },
       ]);
-      setResults((curr) => [...curr, rating]);
+      setResults(nextResults);
 
       advanceAfterFlip(() => {
         // Nếu chọn "Chưa nhớ", thẻ sẽ được đẩy lại cuối hàng đợi để ôn tiếp
         if (rating === "again") {
-          setQueue((curr) => [...curr, card]);
+          setQueue((curr) => [...curr, currentCard]);
         }
         setIndex((curr) => curr + 1);
       });
 
-      persistCard(card.id, payload);
-
       // Ghi nhận hoạt động học tập vào chuỗi Streak
       if (rating !== "again" && index + 1 >= queue.length) {
-        Promise.resolve(onStudyActivity?.()).catch(() => {});
+        await onStudyActivity?.();
       }
     },
-    [advanceAfterFlip, currentCard, index, locked, onStudyActivity, persistCard, queue.length]
+    [advanceAfterFlip, currentCard, index, locked, onStudyActivity, onUpdateCard, queue.length, results]
   );
 
   // Khôi phục thẻ vừa học (Undo / Quay lại thẻ trước)
-  const goPrevious = useCallback(() => {
+  const goPrevious = useCallback(async () => {
     if (locked || index === 0 || !history.length) return;
     const lastRecord = history[history.length - 1];
+    const restorePromise = onUpdateCard?.(lastRecord.cardId, lastRecord.previousSrs);
 
     setHistory((curr) => curr.slice(0, -1));
     setResults((curr) => curr.slice(0, -1));
@@ -273,8 +231,8 @@ export default function FlashcardModal({
       setIndex((curr) => curr - 1);
     });
 
-    persistCard(lastRecord.cardId, lastRecord.previousSrs);
-  }, [advanceAfterFlip, history, index, locked, persistCard]);
+    await restorePromise;
+  }, [advanceAfterFlip, history, index, locked, onUpdateCard]);
 
   // Cử chỉ vuốt trên màn hình cảm ứng di động
   const handleTouchStart = (event) => {
@@ -294,33 +252,30 @@ export default function FlashcardModal({
     }
   };
 
-  // Hệ thống phím tắt bàn phím chuẩn EdTech.
-  // - Esc do <Dialog> đảm nhiệm (kèm focus trap).
-  // - Không cướp phím khi người dùng đang gõ hoặc đang focus vào nút (Space/Enter vẫn kích hoạt nút).
+  // Hệ thống phím tắt bàn phím chuẩn EdTech
   useEffect(() => {
     const onKeyDown = (event) => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target;
-      const tag = target?.tagName;
-      if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose?.();
+        return;
+      }
       if (isComplete || locked) return;
 
-      const onControl = Boolean(target?.closest?.("button, a, [role='button']"));
-      const key = event.key.toLowerCase();
-
-      if (event.code === "Space" && !onControl) {
+      if (event.code === "Space") {
         event.preventDefault();
-        setFlipped((value) => !value);
-      } else if (!onControl && (event.key === "ArrowLeft" || event.key === "Backspace" || key === "z")) {
+        setFlipped((val) => !val);
+      } else if (event.key === "ArrowLeft" || event.key === "Backspace" || event.key.toLowerCase() === "z") {
         event.preventDefault();
         goPrevious();
       } else if (flipped && ["1", "2", "3"].includes(event.key)) {
         event.preventDefault();
-        rateCard({ "1": "again", "2": "soon", "3": "mastered" }[event.key]);
-      } else if (key === "r" && currentCard) {
+        const ratingMap = { "1": "again", "2": "soon", "3": "mastered" };
+        rateCard(ratingMap[event.key]);
+      } else if (event.key.toLowerCase() === "r" && currentCard) {
         event.preventDefault();
         handleSpeak(
-          flipped ? currentCard.example || currentCard.meaning : currentCard.word,
+          flipped ? (currentCard.example || currentCard.meaning) : currentCard.word,
           `${currentCard.id}-shortcut`
         );
       }
@@ -328,36 +283,33 @@ export default function FlashcardModal({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [currentCard, flipped, goPrevious, handleSpeak, isComplete, locked, rateCard]);
+  }, [currentCard, flipped, goPrevious, isComplete, locked, onClose, rateCard]);
 
   // 2. EDGE CASE 1: Bộ thẻ rỗng (Empty State)
   if (!cards || cards.length === 0) {
     return (
-      <Dialog
-        onClose={() => onClose?.()}
-        ariaLabel="Bộ thẻ đang trống"
-        closeOnBackdrop={false}
-        className="relative w-full max-w-md rounded-3xl border border-white/15 bg-white/95 p-7 text-center shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95"
-      >
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 ring-8 ring-amber-500/5 dark:bg-amber-400/10 dark:text-amber-400">
-          <Inbox size={28} aria-hidden="true" />
-        </div>
-        <h3 className="mt-4 font-display text-xl font-bold text-slate-900 dark:text-white">
-          Bộ thẻ này đang trống
-        </h3>
-        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-          Hiện chưa có từ vựng nào trong danh sách. Hãy thêm từ mới hoặc chọn bộ từ khác để bắt đầu học.
-        </p>
-        <div className="mt-6 flex justify-center">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 active:scale-95 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
-          >
-            Quay lại thư viện
-          </button>
-        </div>
-      </Dialog>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md">
+        <section className="relative w-full max-w-md rounded-3xl border border-white/15 bg-white/95 p-7 text-center shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 ring-8 ring-amber-500/5 dark:bg-amber-400/10 dark:text-amber-400">
+            <Inbox size={28} />
+          </div>
+          <h3 className="mt-4 font-display text-xl font-bold text-slate-900 dark:text-white">
+            Bộ thẻ này đang trống
+          </h3>
+          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Hiện chưa có từ vựng nào trong danh sách. Hãy thêm từ mới hoặc chọn bộ từ khác để bắt đầu học.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 active:scale-95 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+            >
+              Quay lại thư viện
+            </button>
+          </div>
+        </section>
+      </div>
     );
   }
 
@@ -367,13 +319,8 @@ export default function FlashcardModal({
     const accuracyRate = results.length ? Math.round((masteredCount / results.length) * 100) : 0;
 
     return (
-      <Dialog
-        onClose={() => onClose?.()}
-        ariaLabel="Hoàn thành phiên ôn tập"
-        closeOnBackdrop={false}
-        overlayClassName="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-md sm:p-6"
-        className="relative w-full max-w-lg rounded-3xl border border-white/20 bg-white/95 p-7 text-center shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 sm:p-9"
-      >
+      <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-md sm:p-6">
+        <section className="relative w-full max-w-lg rounded-3xl border border-white/20 bg-white/95 p-7 text-center shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 sm:p-9">
           {/* Huy hiệu chiến thắng */}
           <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30 ring-8 ring-emerald-500/10">
             <Check size={36} strokeWidth={2.5} />
@@ -441,47 +388,25 @@ export default function FlashcardModal({
               Về thư viện <ArrowRight size={15} />
             </button>
           </div>
-      </Dialog>
+        </section>
+      </div>
     );
   }
 
   // 4. TRẠNG THÁI HIỂN THỊ THẺ HIỆN TẠI (Active Flashcard Workspace)
-  if (!currentCard) {
-    return (
-      <Dialog
-        onClose={() => onClose?.()}
-        ariaLabel="Đang chuẩn bị thẻ"
-        closeOnBackdrop={false}
-        className="rounded-3xl border border-white/15 bg-white/95 px-8 py-10 text-center shadow-2xl dark:border-white/10 dark:bg-slate-900/95"
-      >
-        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Đang chuẩn bị thẻ học…</p>
-      </Dialog>
-    );
-  }
+  if (!currentCard) return null;
 
   const exampleText = currentCard.example || "Chưa có câu ví dụ.";
   const intervals = previewIntervals(currentCard);
 
   return (
-    <Dialog
-      onClose={() => onClose?.()}
-      ariaLabel={`Ôn tập thẻ ghi nhớ: ${deck?.title || "Từ vựng"}`}
-      ariaDescribedBy="flashcard-live-status"
-      closeOnBackdrop={false}
-      initialFocusRef={flipButtonRef}
-      overlayClassName="fixed inset-0 z-[90] flex justify-center overflow-y-auto bg-slate-950/85 p-4 text-slate-900 backdrop-blur-xl dark:text-white sm:p-7"
-      className="mx-auto flex w-full max-w-3xl flex-col justify-between outline-none"
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Ôn tập thẻ ghi nhớ: ${deck?.title || "Từ vựng"}`}
+      className="fixed inset-0 z-[90] flex flex-col justify-between overflow-y-auto bg-slate-950/85 p-4 text-slate-900 backdrop-blur-xl dark:text-white sm:p-7"
     >
-      <div className="flex flex-1 flex-col justify-between">
-        {/* Vùng thông báo cho trình đọc màn hình: chỉ đọc mặt đang hiển thị, không lộ đáp án */}
-        <p id="flashcard-live-status" aria-live="polite" aria-atomic="true" className="sr-only">
-          {`Thẻ ${Math.min(index + 1, totalCards)} trên ${totalCards}. Từ: ${currentCard.word}. ${
-            flipped
-              ? `Nghĩa: ${currentCard.meaning}${currentCard.example ? `. Ví dụ: ${currentCard.example}` : ""}. Chọn 1, 2 hoặc 3 để đánh giá.`
-              : "Nhấn Space hoặc nút Lật thẻ để xem nghĩa."
-          }`}
-        </p>
-
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-between">
         {/* Header điều hướng & Phím tắt */}
         <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-3.5">
           <div>
@@ -526,15 +451,7 @@ export default function FlashcardModal({
         </header>
 
         {/* Thanh tiến độ học tập đa sắc */}
-        <div
-          role="progressbar"
-          aria-label="Tiến độ phiên ôn tập"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progressPercent}
-          aria-valuetext={`${Math.min(index, totalCards)} trên ${totalCards} thẻ`}
-          className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-white/10"
-        >
+        <div className="mt-3.5 h-2 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 shadow-sm transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
@@ -542,21 +459,21 @@ export default function FlashcardModal({
         </div>
 
         {/* 5. KHỐI THẺ 3D LẬT VẬT LÝ (3D Perspective Card) */}
-        <div className="my-auto py-4 [perspective:1400px]">
+        <div className="my-auto py-5 [perspective:1400px]">
           <div
+            role="button"
+            tabIndex={0}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
-            onClick={() => !locked && setFlipped((value) => !value)}
-            className={`relative min-h-[260px] w-full cursor-pointer touch-pan-y [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] sm:min-h-[320px] ${
+            onClick={() => !locked && setFlipped((v) => !v)}
+            onKeyDown={(e) => (e.key === "Enter" || e.code === "Space") && !locked && setFlipped((v) => !v)}
+            className={`relative min-h-[360px] w-full cursor-pointer touch-pan-y [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] sm:min-h-[400px] ${
               flipped ? "[transform:rotateY(180deg)]" : ""
             } ${locked ? "pointer-events-none" : ""}`}
+            aria-label={flipped ? "Mặt sau thẻ ghi nhớ, chạm để lật lại mặt trước" : "Mặt trước thẻ ghi nhớ, chạm hoặc nhấn Space để lật"}
           >
-            {/* MẶT TRƯỚC (Front Face) — mặt bị úp được đánh dấu inert để AT không đọc lộ đáp án */}
-            <div
-              aria-hidden={flipped}
-              inert={flipped}
-              className="absolute inset-0 flex flex-col items-center justify-between overflow-hidden rounded-3xl border border-white/20 bg-white/95 p-5 text-center shadow-2xl backdrop-blur-2xl [backface-visibility:hidden] dark:border-white/10 dark:bg-slate-900/95 sm:p-7"
-            >
+            {/* MẶT TRƯỚC (Front Face) */}
+            <div className="absolute inset-0 flex flex-col items-center justify-between rounded-3xl border border-white/20 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-2xl [backface-visibility:hidden] dark:border-white/10 dark:bg-slate-900/95 sm:p-10">
               <div className="flex w-full items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 <span>Mặt trước</span>
                 <span>Chạm để lật</span>
@@ -580,7 +497,7 @@ export default function FlashcardModal({
                   </div>
                 )}
 
-                <h1 className="break-words font-display text-4xl font-black tracking-tight text-slate-900 sm:text-6xl dark:text-white">
+                <h1 className="font-display text-5xl font-black tracking-tight text-slate-900 sm:text-7xl dark:text-white">
                   {currentCard.word}
                 </h1>
 
@@ -591,7 +508,7 @@ export default function FlashcardModal({
                     e.stopPropagation();
                     handleSpeak(currentCard.word, `${currentCard.id}-word`);
                   }}
-                  className={`mt-5 inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 transition hover:bg-emerald-400 active:scale-95 ${
+                  className={`mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 transition hover:bg-emerald-400 active:scale-95 ${
                     speaking === `${currentCard.id}-word` ? "animate-pulse ring-4 ring-emerald-500/30" : ""
                   }`}
                 >
@@ -610,11 +527,7 @@ export default function FlashcardModal({
             </div>
 
             {/* MẶT SAU (Back Face) */}
-            <div
-              aria-hidden={!flipped}
-              inert={!flipped}
-              className="absolute inset-0 flex [transform:rotateY(180deg)] flex-col items-center justify-between overflow-y-auto rounded-3xl border border-white/20 bg-white/95 p-6 text-center shadow-2xl backdrop-blur-2xl [backface-visibility:hidden] dark:border-white/10 dark:bg-slate-900/95 sm:p-9"
-            >
+            <div className="absolute inset-0 flex [transform:rotateY(180deg)] flex-col items-center justify-between rounded-3xl border border-white/20 bg-white/95 p-8 text-center shadow-2xl backdrop-blur-2xl [backface-visibility:hidden] dark:border-white/10 dark:bg-slate-900/95 sm:p-10">
               <div className="flex w-full items-center justify-between text-[11px] font-bold uppercase tracking-wider text-emerald-500">
                 <span>Mặt sau</span>
                 <span>Nghĩa &amp; Ví dụ</span>
@@ -627,7 +540,7 @@ export default function FlashcardModal({
                   </span>
                 )}
 
-                <h2 className="mt-2 break-words font-display text-2xl font-black text-slate-900 sm:text-4xl dark:text-white">
+                <h2 className="mt-2 font-display text-3xl font-black text-slate-900 sm:text-4xl dark:text-white">
                   {currentCard.meaning}
                 </h2>
 
@@ -666,31 +579,12 @@ export default function FlashcardModal({
           </div>
         </div>
 
-        {/* Nút lật thẻ — điều khiển chính thức cho bàn phím & trình đọc màn hình */}
-        <button
-          ref={flipButtonRef}
-          type="button"
-          onClick={() => !locked && setFlipped((value) => !value)}
-          aria-pressed={flipped}
-          className="mx-auto mb-3 flex min-h-[46px] w-full max-w-sm items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-[0.99] sm:w-auto sm:px-6"
-        >
-          <RotateCcw size={15} aria-hidden="true" />
-          <span>{flipped ? "Úp thẻ lại" : "Lật thẻ xem nghĩa"}</span>
-          <kbd className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-slate-300">Space</kbd>
-        </button>
-
-        {/* 6. BỘ 3 NÚT ĐÁNH GIÁ SRS (Action Rating Bar) — chỉ hiện sau khi đã xem nghĩa */}
-        {!flipped && (
-          <p className="mb-3 text-center text-xs text-slate-300">
-            Lật thẻ để xem nghĩa, sau đó chọn mức độ nhớ (phím <kbd className="rounded bg-white/10 px-1 font-mono">1</kbd>{" "}
-            <kbd className="rounded bg-white/10 px-1 font-mono">2</kbd>{" "}
-            <kbd className="rounded bg-white/10 px-1 font-mono">3</kbd>).
-          </p>
-        )}
-        <div className={flipped ? "grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3.5" : "hidden"}>
+        {/* 6. BỘ 3 NÚT ĐÁNH GIÁ SRS (Action Rating Bar) */}
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
           {/* Nút 1: Chưa nhớ */}
           <button
             type="button"
+            disabled={!flipped}
             onClick={() => rateCard("again")}
             className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-orange-400/40 bg-orange-500/10 px-4 py-2.5 text-left transition hover:border-orange-500 hover:bg-orange-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-500/30 dark:bg-orange-500/10"
           >
@@ -708,6 +602,7 @@ export default function FlashcardModal({
           {/* Nút 2: Nhớ vừa */}
           <button
             type="button"
+            disabled={!flipped}
             onClick={() => rateCard("soon")}
             className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-amber-400/40 bg-amber-500/10 px-4 py-2.5 text-left transition hover:border-amber-500 hover:bg-amber-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-500/30 dark:bg-amber-500/10"
           >
@@ -725,6 +620,7 @@ export default function FlashcardModal({
           {/* Nút 3: Đã thuộc */}
           <button
             type="button"
+            disabled={!flipped}
             onClick={() => rateCard("mastered")}
             className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-left transition hover:border-emerald-500 hover:bg-emerald-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/10"
           >
@@ -741,11 +637,11 @@ export default function FlashcardModal({
         </div>
 
         {/* Chú thích thông minh */}
-        <p className="mt-4 hidden items-center justify-center gap-1.5 text-center text-[11px] text-slate-400 sm:flex">
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400">
           <RotateCcw size={12} />
           <span>Thẻ đánh dấu "Chưa nhớ" sẽ tự động quay lại cuối hàng đợi trong phiên học này.</span>
         </p>
       </div>
-    </Dialog>
+    </div>
   );
 }

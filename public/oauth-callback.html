@@ -32,14 +32,6 @@
         margin-top: 8px; background: transparent; color: inherit;
         border: 1px solid var(--line); font-size: 13px; font-weight: 600;
       }
-      button.copy {
-        display: block; width: 100%; min-height: 44px; margin-top: 10px; border: 1px solid var(--line);
-        border-radius: 14px; background: transparent; color: inherit; font-weight: 700; font-size: 13px; cursor: pointer;
-      }
-      textarea { border: 1px solid var(--line); border-radius: 10px; background: transparent; color: inherit; padding: 8px; }
-      details { margin-top: 18px; text-align: left; font-size: 12px; opacity: 0.8; }
-      summary { cursor: pointer; }
-      code { word-break: break-all; font-size: 11px; }
       .spinner {
         width: 34px; height: 34px; margin: 0 auto 16px; border-radius: 50%;
         border: 3px solid var(--line); border-top-color: #86a98f; animation: spin 900ms linear infinite;
@@ -55,15 +47,6 @@
       <p id="message">Ứng dụng Lingua sẽ tự mở lại. Nếu không, bấm nút bên dưới.</p>
       <a class="btn" id="open" href="#">Bấm để quay lại ứng dụng Lingua</a>
       <a class="btn btn-alt" id="openIntent" href="#" hidden>Cách khác: mở thẳng bằng Android intent</a>
-      <details>
-        <summary>Không mở được ứng dụng?</summary>
-        <p>
-          Bấm <strong>Sao chép mã đăng nhập</strong> bên dưới, quay lại app Lingua và dán mã vào
-          <em>Cài đặt → Tài khoản → Không đăng nhập được bằng Google?</em>
-        </p>
-        <button class="copy" id="copy" type="button" hidden>Sao chép mã đăng nhập</button>
-        <p id="copyState" hidden></p>
-      </details>
     </div>
     <script>
       (function () {
@@ -73,8 +56,6 @@
         var messageEl = document.getElementById('message');
         var openEl = document.getElementById('open');
         var spinnerEl = document.getElementById('spinner');
-        var copyEl = document.getElementById('copy');
-        var copyStateEl = document.getElementById('copyState');
         var intentEl = document.getElementById('openIntent');
 
         var raw = window.location.hash ? window.location.hash.slice(1) : window.location.search.slice(1);
@@ -106,31 +87,12 @@
           return;
         }
 
-        copyEl.hidden = false;
-        copyEl.addEventListener('click', function () {
-          var done = function () {
-            copyStateEl.hidden = false;
-            copyStateEl.textContent = 'Đã sao chép mã. Hãy quay lại app Lingua và dán mã vào Cài đặt → Tài khoản.';
-          };
-          var failed = function () {
-            copyEl.hidden = true;
-            openEl.insertAdjacentHTML('afterend', '<textarea readonly style="width:100%;margin-top:10px;font-size:11px" rows="4">' + idToken.replace(/</g, '&lt;') + '</textarea>');
-            copyStateEl.hidden = false;
-            copyStateEl.textContent = 'Hãy chọn toàn bộ mã trên rồi sao chép thủ công.';
-          };
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(idToken).then(done).catch(failed);
-          } else {
-            failed();
-          }
-        });
-
         // Chuyển tiếp ngay về app; giữ nút dự phòng cho trường hợp trình duyệt chặn.
         window.location.replace(target);
         window.setTimeout(function () {
           spinnerEl.remove();
           titleEl.textContent = 'Bấm nút xanh để quay lại app';
-          messageEl.textContent = 'Đăng nhập Google đã xong. Chrome đôi khi chặn việc tự mở app — bấm nút xanh bên dưới để hoàn tất. Nếu vẫn không được, dùng mục “Không mở được ứng dụng?” để dán mã vào app.';
+          messageEl.textContent = 'Đăng nhập Google đã xong. Chrome đôi khi chặn việc tự mở app — bấm nút xanh bên dưới để hoàn tất.';
         }, 1200);
       })();
     </script>

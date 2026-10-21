@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { CircleStop, Mic, Quote, Volume2 } from "lucide-react";
 import { speakText, stopSpeech } from "../../../utils/speech";
 import { scoreLabel, scorePronunciation } from "../../../utils/speechScore";
-import { toast } from "../../../services/toast";
 import useAudioRecorder, { formatSeconds } from "../useAudioRecorder";
 
 /**
@@ -16,12 +15,9 @@ export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "
   const recorder = useAudioRecorder();
   const [saved, setSaved] = useState(() => speaking[part?.id] || null);
 
-  const resetRecorder = recorder.reset;
-
   useEffect(() => {
     setSaved(speaking[part?.id] || null);
-    // Đổi phần thi khi đang ghi âm: dừng micro và bỏ bản ghi của phần trước.
-    resetRecorder();
+    recorder.reset();
     return () => stopSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [part?.id]);
@@ -32,21 +28,18 @@ export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "
   const sample = part.sample || (part.questions || []).map((item) => item.sample).filter(Boolean).join(" ");
 
   const startRecording = async () => {
-    stopSpeech();
-    // Payload được chốt tại thời điểm MediaRecorder dừng → không còn lưu đè bằng dữ liệu cũ.
-    await recorder.start((payload) => {
-      const answer = {
-        transcript: payload.transcript,
-        seconds: payload.seconds,
-        at: new Date().toISOString(),
-      };
-      onSpeak(part.id, answer);
-      setSaved(answer);
+    await recorder.start(() => {
+      const seconds = recorder.seconds;
+      onSpeak(part.id, { transcript: recorder.transcript, seconds, at: new Date().toISOString() });
     });
   };
 
   const stopRecording = () => {
+    const seconds = recorder.seconds;
+    const transcript = recorder.transcript;
     recorder.stop();
+    onSpeak(part.id, { transcript, seconds, at: new Date().toISOString() });
+    setSaved({ transcript, seconds });
   };
 
   const pronunciation = saved?.transcript && sample ? scorePronunciation(saved.transcript, sample, saved.seconds) : null;
@@ -92,55 +85,25 @@ export default function SpeakingSection({ exam, speaking = {}, onSpeak, mode = "
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => speakText(prompts.join(" "), { onError: () => toast.error("Không phát được âm thanh. Hãy kiểm tra loa/thiết bị.") })}
+            onClick={() => speakText(prompts.join(" "))}
             className="btn-secondary px-4"
-            aria-label="Nghe đề bài bằng tiếng Anh"
           >
             <Volume2 size={16} />Nghe đề bằng tiếng Anh
           </button>
           {recorder.recording ? (
-            <button
-              type="button"
-              onClick={stopRecording}
-              className="btn-primary px-4"
-              aria-label={`Dừng ghi âm, đã ghi ${formatSeconds(recorder.seconds)}`}
-            >
-              <CircleStop size={16} />
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-white" aria-hidden="true" />
-                Dừng ({formatSeconds(recorder.seconds)})
-              </span>
+            <button type="button" onClick={stopRecording} className="btn-primary px-4">
+              <CircleStop size={16} />Dừng ({formatSeconds(recorder.seconds)})
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={startRecording}
-              className="btn-primary px-4"
-              aria-pressed={false}
-              aria-describedby="vstep-recorder-hint"
-            >
+            <button type="button" onClick={startRecording} className="btn-primary px-4">
               <Mic size={16} />{saved ? "Ghi âm lại" : "Bắt đầu nói"}
             </button>
           )}
-          {recorder.audioUrl && (
-            <audio
-              controls
-              src={recorder.audioUrl}
-              className="h-11 w-full max-w-xs"
-              aria-label="Nghe lại bản ghi âm của bạn"
-            />
-          )}
+          {recorder.audioUrl && <audio controls src={recorder.audioUrl} className="h-11 w-full max-w-xs" />}
         </div>
-        <p id="vstep-recorder-hint" className="mt-2 text-xs text-ink/55 dark:text-white/55">
-          Tối đa {formatSeconds(recorder.maxSeconds)} mỗi lần ghi âm. Bản ghi tự dừng khi hết giới hạn.
-        </p>
-        {recorder.error && (
-          <p role="alert" className="mt-2 text-xs font-semibold text-danger dark:text-dangerfgdark">
-            {recorder.error}
-          </p>
-        )}
+        {recorder.error && <p className="mt-2 text-xs text-danger dark:text-dangerfgdark">{recorder.error}</p>}
         {recorder.transcript && (
-          <p aria-live="polite" className="mt-3 rounded-xl bg-ink/[0.04] p-3 text-sm leading-6 dark:bg-white/[0.06]">
+          <p className="mt-3 rounded-xl bg-ink/[0.04] p-3 text-sm leading-6 dark:bg-white/[0.06]">
             <span className="text-xs font-bold uppercase tracking-wide text-ink/50 dark:text-white/50">Nhận dạng được: </span>
             {recorder.transcript}
           </p>
