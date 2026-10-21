@@ -45,7 +45,7 @@ export const requestNotificationPermission = async () => {
   }
 };
 
-const iconUrl = () => `${import.meta.env.BASE_URL}icons/icon-192.svg`;
+const iconUrl = () => `${import.meta.env.BASE_URL}icons/icon-192.png`;
 
 export const showStudyNotification = async (title, body) => {
   if (notificationPermission() !== "granted") return false;

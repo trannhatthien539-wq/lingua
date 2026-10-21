@@ -40,6 +40,7 @@ Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất l
 | `npm run lint` | `eslint . --max-warnings 0` — cấu hình ở `eslint.config.js`; **0 error & 0 warning** (warning cũng chặn CI) |
 | `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
 | `npm run size` | `node scripts/check-bundle.mjs` — chạy sau `npm run build`: in các chunk lớn nhất và **fail nếu vượt ngân sách byte** (chống bundle phình lại) |
+| `python scripts/make-icons.py <ảnh>` | Cắt vuông ảnh gốc rồi xuất icon PWA: `public/icons/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` (cần Pillow) |
 
 CI (`deploy.yml`) chạy theo thứ tự: `npm ci` → `npm test` → `npm run lint` → `node scripts/check-vstep.mjs` → `npm run build` → `npm run size` → deploy GitHub Pages.
 

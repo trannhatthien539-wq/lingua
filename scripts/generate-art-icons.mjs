@@ -270,10 +270,7 @@ const generateFeatherSvg = (withBackground = false, size = 128) => {
 // 1. Ghi file tree.svg (Trong suốt, sắc nét, tương thích toàn bộ AppMark trên web)
 fs.writeFileSync('public/icons/tree.svg', generateFeatherSvg(false, 128), 'utf-8');
 
-// 2. Ghi file icon-192.svg (Canvas Squircle dành cho PWA & Favicon 192px)
-fs.writeFileSync('public/icons/icon-192.svg', generateFeatherSvg(true, 192), 'utf-8');
+// 2. Icon PWA (icon-192.png / icon-512.png / apple-touch-icon.png) được tạo từ ảnh gốc
+//    bằng `python scripts/make-icons.py <ảnh>` — không còn sinh SVG cho PWA.
 
-// 3. Ghi file icon-512.svg (Canvas Squircle độ phân giải cao 512px)
-fs.writeFileSync('public/icons/icon-512.svg', generateFeatherSvg(true, 512), 'utf-8');
-
-console.log('Successfully generated painterly Celestial Quill Feather icons!');
+console.log('Successfully generated painterly Celestial Quill Feather icon (tree.svg)!');
