@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /settings
+Disallow: /login
+
+Sitemap: https://trannhatthien539-wq.github.io/sitemap.xml

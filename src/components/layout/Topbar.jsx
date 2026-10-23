@@ -9,9 +9,10 @@ import NotificationBell from '../NotificationBell'
  * Trên desktop thanh này dính ở đầu vùng nội dung và chỉ hiện nền kính khi đã cuộn
  * (giống Linear/Notion) — vừa giữ ngữ cảnh, vừa không chiếm thêm diện tích khi ở đầu trang.
  */
-export default function Topbar({ title, eyebrow, accent = '#4F46E5', onOpenSearch, onPrefetchSearch, onOpenTutor, onPrefetchTutor, onOpenShortcuts, user, streak }) {
+export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, onOpenSearch, onPrefetchSearch, onOpenTutor, onPrefetchTutor, onOpenShortcuts, user, streak }) {
   const [scrolled, setScrolled] = useState(false)
   const streakDays = Number(streak?.currentStreak) || 0
+  const isHome = activeTab === 'home' || title === 'Trang chủ'
 
   useEffect(() => {
     let frame = 0
@@ -38,17 +39,17 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', onOpenSearc
         scrolled
           ? 'md:border-slate-200/70 md:bg-mist/85 md:shadow-[0_16px_40px_-28px_rgba(15,23,42,0.35)] md:backdrop-blur-xl dark:md:border-white/[0.07] dark:md:bg-dark1/80'
           : 'md:border-transparent md:bg-transparent'
-      } flex items-center justify-between gap-3 pb-4 transition-colors duration-300 md:gap-5`}
+      } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-colors duration-300 md:gap-5`}
     >
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 ${isHome ? 'hidden md:block' : ''}`}>
         <p className="eyebrow flex items-center gap-1.5 truncate">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}80` }} aria-hidden="true" />
           <span className="truncate text-slate-600 dark:text-slate-300">{eyebrow}</span>
         </p>
-        <h1 className="mt-1 truncate font-display text-2xl font-black tracking-tight text-slate-900 md:text-[1.9rem] dark:text-white">{title}</h1>
+        <h1 className="mt-1 truncate font-display text-xl font-black tracking-tight text-slate-900 md:text-[1.9rem] dark:text-white">{title}</h1>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className={`flex shrink-0 items-center gap-2 ${isHome ? 'w-full justify-end md:w-auto' : ''}`}>
         {streakDays > 0 && (
           <span
             className="hidden h-10 items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 text-xs font-bold text-amber-700 backdrop-blur-md dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300 lg:inline-flex"
@@ -59,7 +60,13 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', onOpenSearc
           </span>
         )}
         <span className="hidden md:block"><SyncStatusBadge user={user} /></span>
-        <button onClick={onOpenTutor} onMouseEnter={onPrefetchTutor} onFocus={onPrefetchTutor} className={`${buttonClass} hidden sm:inline-flex`} aria-label="Mở gia sư AI">
+        <button
+          onClick={onOpenTutor}
+          onMouseEnter={onPrefetchTutor}
+          onFocus={onPrefetchTutor}
+          className={`${buttonClass} ${isHome ? 'inline-flex' : 'hidden sm:inline-flex'}`}
+          aria-label="Mở gia sư AI"
+        >
           <Sparkles size={15} className="text-emerald-500" />
           <span>Gia sư AI</span>
         </button>

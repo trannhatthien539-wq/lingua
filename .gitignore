@@ -13,3 +13,7 @@ dev_*.log
 # Mã nguồn widget/shortcut nằm ở native/android-widget/ và được chép vào lúc build.
 android/
 ios/
+
+# Screenshots và tài liệu tạm
+.screens/
+*.docx

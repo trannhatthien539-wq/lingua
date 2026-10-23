@@ -343,6 +343,7 @@ export default function App() {
               title={activeItem.label}
               eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description}
               accent={activeItem.color}
+              activeTab={activeTab}
               onOpenSearch={() => setSearchOpen(true)}
               onPrefetchSearch={() => preload(SearchPalette)}
               onOpenTutor={() => setTutorOpen(true)}

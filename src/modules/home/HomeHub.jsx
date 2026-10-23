@@ -3,9 +3,7 @@ import {
   ArrowRight,
   Award,
   BookOpen,
-  CalendarCheck,
   CheckCircle2,
-  Circle,
   Flame,
   GraduationCap,
   Layers,
@@ -13,63 +11,24 @@ import {
   PlayCircle,
   Plus,
   Sparkles,
-  Target,
   TrendingUp,
   Trophy,
-  Zap,
 } from "lucide-react";
-import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
+import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import NavIcon from "../../components/ui/NavIcon";
-import GoalRing from "../../components/ui/GoalRing";
-import useCloudDoc from "../../hooks/useCloudDoc";
+import { navigationItems } from "../../data/navigation";
 import useDailyGoal from "../../hooks/useDailyGoal";
 import useGrammarProgress from "../../hooks/useGrammarProgress";
-import useSkillsProgress from "../../hooks/useSkillsProgress";
-import useVocabularyCards from "../../hooks/useVocabularyCards";
 import useVstepProgress from "../../hooks/useVstepProgress";
-import { listeningLessons } from "../../data/skills/listening";
-import { readingPassages } from "../../data/skills/reading";
-import { navigationItems } from "../../data/navigation";
-import { registry as vstepRegistry } from "../../data/vstep/metadata";
+import useVocabularyCards from "../../hooks/useVocabularyCards";
 import { openItem } from "../../services/deepLink";
-import { getHistoryDays, historyChangedEvent, loadHistory, recentHistory } from "../../services/historyService";
-import { summarize } from "../../services/gamification";
+import { getHistoryDays, historyChangedEvent, loadHistory } from "../../services/historyService";
+import { computeStats } from "../../services/gamification";
 import { createStarterPackDeck } from "../../services/starterPackService";
 import { toast } from "../../services/toast";
-import { userDocKeys } from "../../services/userDocService";
 
-/** Các khu vực học hiện trên trang chủ (lấy icon + màu từ `navigationItems`). */
-const AREA_IDS = ["vocabulary", "grammar", "skills", "vstep", "writing", "progress"];
-
-const AREA_METADATA = {
-  vocabulary: {
-    badge: "1.000+ từ",
-    teaser: "1.000 từ cốt lõi · Flashcard SRS 3D · Phát âm chuẩn IPA",
-  },
-  grammar: {
-    badge: "30 bài",
-    teaser: "Lộ trình A1–C1 · 12 thì & cấu trúc · Trắc nghiệm & sổ câu sai",
-  },
-  skills: {
-    badge: "4 kỹ năng",
-    teaser: "Nghe · Đọc · Nói có chấm phát âm · Viết & luyện câu",
-  },
-  vstep: {
-    badge: "10 đề thi",
-    teaser: "Bộ đề 4 kỹ năng chuẩn B1–C1 · Chấm điểm và xem lại chi tiết",
-  },
-  writing: {
-    badge: "AI chữa bài",
-    teaser: "Phân tích ngữ pháp · Chỉ rõ lỗi sai · Gợi ý câu mẫu nâng điểm",
-  },
-  progress: {
-    badge: "Thành tựu",
-    teaser: "Cấp bậc XP · Chuỗi ngày · Bộ sưu tập huy hiệu và báo cáo",
-  },
-};
-
-const CEFR_LADDER = [
+const CEFR_LEVELS = [
   { id: "A1", label: "Vỡ lòng" },
   { id: "A2", label: "Sơ cấp" },
   { id: "B1", label: "Trung cấp" },
@@ -78,9 +37,16 @@ const CEFR_LADDER = [
   { id: "C2", label: "Thành thạo" },
 ];
 
-const WEEKDAYS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-const weekdayOf = (dateKey) => WEEKDAYS[new Date(`${dateKey}T00:00:00`).getDay()] || "";
-const shortLabel = (label = "") => label.replace(/\s*\(.*?\)\s*/g, " ").trim();
+const AREA_IDS = ["vocabulary", "grammar", "skills", "vstep", "writing", "progress"];
+
+const AREA_METADATA = {
+  vocabulary: { badge: "1.000+ từ", teaser: "Flashcard SRS · IPA" },
+  grammar: { badge: "30 bài", teaser: "12 thì · Cấu trúc B1-C1" },
+  skills: { badge: "4 kỹ năng", teaser: "Nghe · Đọc · Nói · Viết" },
+  vstep: { badge: "10 đề thi", teaser: "Đề thi chuẩn B1–C1" },
+  writing: { badge: "AI chấm bài", teaser: "Sửa lỗi & gợi ý câu" },
+  progress: { badge: "Thành tích", teaser: "Cấp XP & huy hiệu" },
+};
 
 const greetingByHour = () => {
   const hour = new Date().getHours();
@@ -90,25 +56,20 @@ const greetingByHour = () => {
   return "Chào buổi tối";
 };
 
-function QuickStat({ icon, color, colorDark, label, value, note, onClick, loading = false }) {
+function StatTile({ icon: Icon, color, label, value }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="panel panel-interactive group flex min-h-[92px] items-start gap-3 p-3.5 text-left"
-    >
-      <NavIcon icon={icon} color={color} darkColor={colorDark} size="sm" />
+    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 backdrop-blur-md dark:border-white/[0.06] dark:bg-white/[0.02]">
+      <span
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+        style={{ backgroundColor: `${color}18`, color }}
+      >
+        <Icon size={15} />
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-        {loading ? (
-          <span className="skeleton mt-1.5 block h-6 w-12 rounded-md" />
-        ) : (
-          <p className="metric mt-0.5 text-2xl text-slate-900 dark:text-white">{value}</p>
-        )}
-        <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">{note}</p>
+        <p className="metric text-sm leading-tight text-slate-900 dark:text-white">{value}</p>
+        <p className="truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
       </div>
-      <ArrowRight size={14} className="mt-1 hidden shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-500 dark:text-slate-600 dark:group-hover:text-slate-400 sm:block" />
-    </button>
+    </div>
   );
 }
 
@@ -135,7 +96,7 @@ function FirstRunCard({ busy, onStarterPack, onCreateDeck }) {
           type="button"
           onClick={onStarterPack}
           disabled={busy}
-          className="btn-primary min-h-[56px] justify-start px-4 text-left disabled:cursor-wait disabled:opacity-70"
+          className="btn-primary min-h-[52px] justify-start px-4 text-left disabled:cursor-wait disabled:opacity-70"
         >
           {busy ? <LoaderCircle size={18} className="shrink-0 animate-spin" /> : <Sparkles size={18} className="shrink-0" />}
           <span className="min-w-0">
@@ -146,11 +107,11 @@ function FirstRunCard({ busy, onStarterPack, onCreateDeck }) {
         <button
           type="button"
           onClick={onCreateDeck}
-          className="btn-secondary min-h-[56px] justify-start px-4 text-left"
+          className="btn-secondary min-h-[52px] justify-start px-4 text-left"
         >
           <Plus size={18} className="shrink-0" />
           <span className="min-w-0">
-            <span className="block text-sm font-bold">Tạo bộ từ mới / Nhập thẻ riêng</span>
+            <span className="block text-sm font-bold">Tạo bộ từ mới / Nhập thẻ</span>
             <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">Tự đặt tên bộ và thêm từ của bạn</span>
           </span>
         </button>
@@ -159,64 +120,202 @@ function FirstRunCard({ busy, onStarterPack, onCreateDeck }) {
   );
 }
 
-function StatTile({ icon: Icon, color, label, value, note }) {
+function CefrProgressCard({ stats, onNavigate }) {
+  const vstepBest = Number(stats.vstep.best) || 0;
+  const grammarPassed = Number(stats.grammar.passed) || 0;
+  const cardsMastered = Number(stats.cards.mastered) || 0;
+  let currentLevel = "A2";
+  let targetGrammar = 5;
+  let targetCards = 50;
+  let targetVstep = 4;
+
+  if (vstepBest >= 8.5 || (grammarPassed >= 25 && cardsMastered >= 500)) {
+    currentLevel = "C1";
+    targetGrammar = 30;
+    targetCards = 1000;
+    targetVstep = 9.5;
+  } else if (vstepBest >= 6 || (grammarPassed >= 15 && cardsMastered >= 200)) {
+    currentLevel = "B2";
+    targetGrammar = 25;
+    targetCards = 500;
+    targetVstep = 8.5;
+  } else if (vstepBest >= 4 || (grammarPassed >= 5 && cardsMastered >= 50)) {
+    currentLevel = "B1";
+    targetGrammar = 15;
+    targetCards = 200;
+    targetVstep = 6;
+  }
+
+  const currentLevelIndex = CEFR_LEVELS.findIndex((level) => level.id === currentLevel);
+  const nextLevel = CEFR_LEVELS[Math.min(currentLevelIndex + 1, CEFR_LEVELS.length - 1)];
+  const criteria = [
+    {
+      title: "Ngữ pháp trọng điểm",
+      value: `${grammarPassed}/${targetGrammar}`,
+      unit: "bài",
+      percent: Math.min(100, Math.round((grammarPassed / targetGrammar) * 100)),
+      done: grammarPassed >= targetGrammar,
+      icon: GraduationCap,
+      action: grammarPassed >= targetGrammar ? "Ôn lại" : "Học bài tiếp",
+      destination: "grammar",
+    },
+    {
+      title: "Kho từ vựng cốt lõi",
+      value: `${cardsMastered}/${targetCards}`,
+      unit: "từ",
+      percent: Math.min(100, Math.round((cardsMastered / targetCards) * 100)),
+      done: cardsMastered >= targetCards,
+      icon: Layers,
+      action: cardsMastered >= targetCards ? "Mở kho từ" : "Học từ mới",
+      destination: "vocabulary",
+    },
+    {
+      title: "Điểm VSTEP thực chiến",
+      value: vstepBest.toFixed(1),
+      unit: `/ 10đ (mục tiêu ≥ ${targetVstep.toFixed(1)})`,
+      percent: Math.min(100, Math.round((vstepBest / targetVstep) * 100)),
+      done: vstepBest >= targetVstep,
+      icon: Award,
+      action: vstepBest >= targetVstep ? "Luyện đề" : "Thi thử VSTEP",
+      destination: "vstep",
+    },
+  ];
+  const completed = criteria.filter((criterion) => criterion.done).length;
+  const progressPercent = Math.round(criteria.reduce((total, criterion) => total + criterion.percent, 0) / criteria.length);
+
   return (
-    <div className="panel-flat flex items-start gap-2.5 p-3">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border" style={{ backgroundColor: `${color}14`, borderColor: `${color}28`, color }}>
-        <Icon size={15} />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</p>
-        <p className="metric text-lg text-slate-900 dark:text-white">{value}</p>
-        {note && <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{note}</p>}
+    <section className="panel p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="eyebrow">Lộ trình chuẩn hóa</p>
+          <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">
+            Mục tiêu bậc {nextLevel.id} · {nextLevel.label}
+          </h3>
+        </div>
+        <span className="chip border border-indigo-500/25 bg-indigo-500/10 font-mono text-[11px] font-bold text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-400/10 dark:text-indigo-300">
+          {completed}/3 tiêu chí · {progressPercent}%
+        </span>
       </div>
-    </div>
+
+      {/* Stepper thang bậc CEFR */}
+      <div className="mt-3.5 rounded-xl border border-slate-200/70 bg-white/60 p-2.5 backdrop-blur-xs dark:border-white/[0.06] dark:bg-white/[0.02]">
+        <div className="flex items-center justify-between gap-1">
+          {CEFR_LEVELS.map((level, index) => {
+            const isPast = index < currentLevelIndex;
+            const isCurrent = index === currentLevelIndex;
+            const isTarget = index === currentLevelIndex + 1;
+            return (
+              <div key={level.id} className="flex min-w-0 flex-1 flex-col items-center text-center">
+                <div className="flex w-full items-center">
+                  <div className={`h-1 flex-1 rounded-full ${index === 0 ? "invisible" : index <= currentLevelIndex ? "bg-emerald-500" : "bg-slate-200 dark:bg-white/10"}`} />
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[11px] font-black transition-transform ${
+                      isCurrent
+                        ? "scale-105 border-2 border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                        : isTarget
+                          ? "border-2 border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
+                          : isPast
+                            ? "border border-emerald-600/30 bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200"
+                            : "bg-slate-100 text-slate-500 dark:bg-white/[0.05] dark:text-slate-400"
+                    }`}
+                  >
+                    {level.id}
+                  </span>
+                  <div className={`h-1 flex-1 rounded-full ${index === CEFR_LEVELS.length - 1 ? "invisible" : index < currentLevelIndex ? "bg-emerald-500" : index === currentLevelIndex ? "bg-gradient-to-r from-emerald-500 to-indigo-500" : "bg-slate-200 dark:bg-white/10"}`} />
+                </div>
+                <span className={`mt-1 text-[9px] font-bold ${
+                  isCurrent ? "text-emerald-700 dark:text-emerald-300" : isTarget ? "text-indigo-700 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500"
+                }`}>
+                  {isCurrent ? "Hiện tại" : isTarget ? "Mục tiêu" : level.id}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3 Tiêu chí dạng thanh tiến độ ngang gọn gàng */}
+      <div className="mt-3.5 space-y-2.5">
+        {criteria.map((item) => (
+          <div
+            key={item.title}
+            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 backdrop-blur-xs transition-colors hover:border-slate-300/80 dark:border-white/[0.06] dark:bg-white/[0.02]"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+                item.done
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+              }`}>
+                {item.done ? <CheckCircle2 size={16} /> : <item.icon size={16} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{item.title}</span>
+                  <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                    {item.value} <span className="text-[10px] font-normal text-slate-400">{item.unit}</span>
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[rgb(var(--accent))] transition-all duration-500"
+                    style={{ width: `${item.percent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate?.(item.destination)}
+              className="btn-secondary h-7 shrink-0 px-2.5 text-[11px] font-semibold"
+            >
+              {item.action} <ArrowRight size={11} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
-function CriterionCard({ done, icon: Icon, iconClass, title, value, unit, hint, cta, onAction }) {
-  return (
-    <div
-      className={`flex flex-col justify-between rounded-2xl border p-4 transition-colors ${
-        done
-          ? "border-emerald-500/30 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.08]"
-          : "border-slate-200/80 bg-white/70 dark:border-white/[0.08] dark:bg-white/[0.02]"
-      }`}
-    >
-      <div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
-            <Icon size={16} className={iconClass} />
-            <span className="truncate">{title}</span>
-          </span>
-          {done ? <CheckCircle2 size={16} className="shrink-0 text-emerald-500" /> : <Circle size={15} className="shrink-0 text-slate-300 dark:text-slate-600" />}
-        </div>
-        <div className="mt-3 flex items-baseline gap-1">
-          <span className="metric text-xl text-slate-900 dark:text-white">{value}</span>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{unit}</span>
-        </div>
-        <p className={`mt-1 text-[11px] font-semibold ${done ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>{hint}</p>
-      </div>
-      <button type="button" onClick={onAction} className="btn-secondary mt-3 h-9 w-full justify-center text-[11px] font-bold">
-        {cta} <ArrowRight size={13} />
-      </button>
-    </div>
-  );
-}
-
-/**
- * Trang chủ: bảng điều khiển học tập.
- * Mục tiêu là trả lời thật nhanh 3 câu: hôm nay cần làm gì, đang ở đâu, và học tiếp ở đâu.
- */
 export default function HomeHub({ user, streak, onNavigate }) {
-  const { progress: grammarProgress, total: grammarTotal } = useGrammarProgress();
-  const { progress: skillsProgress } = useSkillsProgress();
-  const { attempts: vstepAttempts } = useVstepProgress();
   const { target } = useDailyGoal();
-  const { value: writingDoc } = useCloudDoc(userDocKeys.writing, { initial: {} });
+  const { progress: grammarProgress, total: grammarTotal } = useGrammarProgress();
+  const { attempts: vstepAttempts } = useVstepProgress();
   const { cards, loading: cardsLoading, reload: reloadCards } = useVocabularyCards({ user });
   const [days, setDays] = useState(() => getHistoryDays());
   const [starterBusy, setStarterBusy] = useState(false);
+  const displayName = (user?.displayName || "").trim().split(" ").slice(-1)[0];
+  const stats = useMemo(
+    () => computeStats({
+      days,
+      streak,
+      cards,
+      grammar: { ...grammarProgress, total: grammarTotal },
+      goal: { target },
+      vstep: { attempts: vstepAttempts },
+    }),
+    [days, streak, cards, grammarProgress, grammarTotal, target, vstepAttempts],
+  );
+  const goalToday = stats.goal.today;
+  const goalPercent = target ? Math.min(100, Math.round((goalToday / target) * 100)) : 0;
+  const dueCount = stats.cards.due;
+  const freshCount = stats.cards.fresh;
+  const primaryLabel = cardsLoading
+    ? "Đang tải thư viện…"
+    : dueCount > 0
+      ? `Ôn ${Math.min(dueCount, 50)} thẻ đến hạn`
+      : freshCount > 0
+        ? "Học từ mới"
+        : cards.length === 0
+          ? "Khám phá từ vựng"
+          : "Học ngữ pháp";
+  const primaryAction = dueCount > 0
+    ? () => {
+      openItem({ tab: "vocabulary", type: "practice" });
+      onNavigate?.("vocabulary");
+    }
+    : () => onNavigate?.(cards.length === 0 || freshCount > 0 ? "vocabulary" : "grammar");
 
   useEffect(() => {
     let active = true;
@@ -233,124 +332,6 @@ export default function HomeHub({ user, streak, onNavigate }) {
     };
   }, []);
 
-  const summary = useMemo(
-    () => summarize({
-      days,
-      streak,
-      cards,
-      grammar: { ...grammarProgress, total: grammarTotal },
-      skills: skillsProgress,
-      goal: { target },
-      vstep: { attempts: vstepAttempts },
-    }),
-    [days, streak, cards, grammarProgress, grammarTotal, skillsProgress, target, vstepAttempts],
-  );
-  const { stats, xp, level, achievements } = summary;
-  const earnedCount = achievements.filter((achievement) => achievement.earned).length;
-  const goalToday = stats.goal.today;
-  const goalPercent = target ? Math.min(100, Math.round((goalToday / target) * 100)) : 0;
-  const week = useMemo(() => recentHistory(7, days), [days]);
-  const weekMax = Math.max(1, ...week.map((day) => day.reviewed));
-  const displayName = (user?.displayName || "").trim().split(" ").slice(-1)[0];
-  const areas = AREA_IDS.map((id) => navigationItems.find((item) => item.id === id)).filter(Boolean);
-
-  // Tiến độ từng khu vực học cho lưới thẻ.
-  const areaStats = useMemo(() => {
-    const build = (done, total, unit) => {
-      if (total <= 0) return { percent: 0, label: `Chưa có ${unit}` };
-      const percent = Math.min(100, Math.round((done / total) * 1000) / 10);
-      return { percent, label: `${done}/${total} ${unit}` };
-    };
-    const skillsDone = stats.skills.listening + stats.skills.reading;
-    const vstepDone = new Set(vstepAttempts.map((attempt) => attempt.examId).filter(Boolean)).size;
-    return {
-      vocabulary: build(stats.cards.mastered, stats.cards.total, "từ"),
-      grammar: build(stats.grammar.passed, stats.grammar.total, "bài"),
-      skills: build(skillsDone, listeningLessons.length + readingPassages.length, "bài"),
-      vstep: build(vstepDone, vstepRegistry.length, "đề"),
-      writing: writingDoc?.result
-        ? { percent: 100, label: "Đã chấm 1 bài" }
-        : { percent: 0, label: "Chưa có bài nào" },
-      progress: build(earnedCount, achievements.length, "huy hiệu"),
-    };
-  }, [stats, earnedCount, achievements, vstepAttempts, writingDoc]);
-
-  const cefrInfo = useMemo(() => {
-    const vstepBest = Number(stats?.vstep?.best) || 0;
-    const grammarPassed = Number(stats?.grammar?.passed) || 0;
-    const cardsMastered = Number(stats?.cards?.mastered) || 0;
-
-    let currentCefr = "A2";
-    let currentCefrLabel = "Sơ cấp (Elementary)";
-    let nextCefr = "B1";
-    let nextCefrLabel = "Trung cấp (Intermediate)";
-    let targetGrammar = 5;
-    let targetCards = 50;
-    let targetVstep = "4.0";
-    let targetVstepScore = 4.0;
-
-    if (vstepBest >= 8.5 || (grammarPassed >= 25 && cardsMastered >= 500)) {
-      currentCefr = "C1";
-      currentCefrLabel = "Cao cấp (Advanced)";
-      nextCefr = "C2";
-      nextCefrLabel = "Thông thạo (Proficiency)";
-      targetGrammar = 30;
-      targetCards = 1000;
-      targetVstep = "9.5";
-      targetVstepScore = 9.5;
-    } else if (vstepBest >= 6.0 || (grammarPassed >= 15 && cardsMastered >= 200)) {
-      currentCefr = "B2";
-      currentCefrLabel = "Trung cấp trên (Upper-Intermediate)";
-      nextCefr = "C1";
-      nextCefrLabel = "Cao cấp (Advanced)";
-      targetGrammar = 25;
-      targetCards = 500;
-      targetVstep = "8.5";
-      targetVstepScore = 8.5;
-    } else if (vstepBest >= 4.0 || (grammarPassed >= 5 && cardsMastered >= 50)) {
-      currentCefr = "B1";
-      currentCefrLabel = "Trung cấp (Intermediate)";
-      nextCefr = "B2";
-      nextCefrLabel = "Trung cấp trên (Upper-Intermediate)";
-      targetGrammar = 15;
-      targetCards = 200;
-      targetVstep = "6.0";
-      targetVstepScore = 6.0;
-    }
-
-    const cardsRemaining = Math.max(0, targetCards - cardsMastered);
-    const grammarRemaining = Math.max(0, targetGrammar - grammarPassed);
-    const vstepReached = vstepBest >= targetVstepScore;
-    const criteriaCompletedCount =
-      (grammarRemaining === 0 ? 1 : 0) +
-      (cardsRemaining === 0 ? 1 : 0) +
-      (vstepReached ? 1 : 0);
-
-    return {
-      currentCefr,
-      currentCefrLabel,
-      nextCefr,
-      nextCefrLabel,
-      currentLevelIndex: CEFR_LADDER.findIndex((lvl) => lvl.id === currentCefr),
-      nextLevelIndex: CEFR_LADDER.findIndex((lvl) => lvl.id === nextCefr),
-      targetGrammar,
-      targetCards,
-      targetVstep,
-      cardsRemaining,
-      grammarRemaining,
-      vstepReached,
-      cardsMastered,
-      grammarPassed,
-      vstepBest,
-      criteriaCompletedCount,
-      criteriaPercent: Math.round((criteriaCompletedCount / 3) * 100),
-    };
-  }, [stats]);
-
-  const startPractice = () => {
-    openItem({ tab: "vocabulary", type: "practice" });
-    onNavigate?.("vocabulary");
-  };
   const handleStarterPack = async () => {
     if (starterBusy) return;
     setStarterBusy(true);
@@ -366,125 +347,76 @@ export default function HomeHub({ user, streak, onNavigate }) {
       setStarterBusy(false);
     }
   };
+
   const openNewDeck = () => {
     openItem({ tab: "vocabulary", type: "new-deck" });
     onNavigate?.("vocabulary");
   };
-  const dueCount = stats.cards.due;
-  const freshCount = stats.cards.fresh;
-  const primaryLabel = dueCount > 0
-    ? `Ôn ${Math.min(dueCount, 50)} thẻ đến hạn`
-    : freshCount > 0
-      ? `Học ${Math.min(freshCount, 50)} thẻ mới`
-      : "Thêm từ mới";
 
   return (
     <div className="space-y-5">
-      {/* Hero: lời chào + mục tiêu + nhịp học 7 ngày */}
-      <section className="home-hero relative overflow-hidden rounded-[28px] border border-slate-200/80 p-5 text-slate-900 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:text-white sm:p-7">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[rgba(var(--accent),0.12)] blur-3xl dark:bg-[rgba(var(--accent),0.18)]" aria-hidden="true" />
-        <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-[rgba(var(--accent-2),0.10)] blur-3xl" aria-hidden="true" />
+      {/* Hero Banner: Tinh gọn, rõ trọng tâm học hôm nay */}
+      <section className="home-hero relative overflow-hidden rounded-[24px] border border-slate-200/80 p-5 text-slate-900 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:text-white sm:p-6">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[rgba(var(--accent),0.12)] blur-3xl dark:bg-[rgba(var(--accent),0.18)]" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-[rgba(var(--accent-2),0.10)] blur-3xl" aria-hidden="true" />
         <div className="surface-dots pointer-events-none absolute inset-0 opacity-40" aria-hidden="true" />
 
-        <div className="relative z-10 grid gap-5 lg:grid-cols-[minmax(0,1fr)_306px] lg:items-stretch">
-          <div className="flex min-w-0 flex-col justify-center">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-3.5 py-1 text-xs font-bold text-slate-700 shadow-sm backdrop-blur-sm dark:border-white/15 dark:bg-white/10 dark:text-slate-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              {greetingByHour()}{displayName ? `, ${displayName}` : ""} · Hôm nay
-            </div>
-
-            <h2 className="mt-3 max-w-xl font-display text-[1.65rem] font-black leading-tight tracking-tight text-slate-900 dark:text-white sm:text-4xl sm:leading-[1.12]">
-              Học đều đặn.{" "}
-              <span className="text-gradient">
-                Bứt phá mỗi ngày.
-              </span>
-            </h2>
-            <p className="mt-2 hidden max-w-lg text-xs leading-relaxed text-slate-600 dark:text-slate-300 sm:block sm:text-sm">
-              Một phiên ngắn mỗi ngày, đúng thẻ cần ôn — thói quen nhỏ tạo nên phản xạ tiếng Anh.
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="eyebrow flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+              {greetingByHour()}{displayName ? `, ${displayName}` : ""}
             </p>
-
-            <div className="mt-5 flex flex-wrap gap-2.5">
+            <h2 className="mt-1 font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-[1.75rem]">
+              Hôm nay mình học gì?
+            </h2>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              Kiên trì ôn tập mỗi ngày để tiến bộ tự nhiên và vững chắc.
+            </p>
+            <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                onClick={dueCount > 0 ? startPractice : () => onNavigate?.("vocabulary")}
-                className="btn-primary min-h-[44px] px-5 text-xs font-bold shadow-md"
+                onClick={primaryAction}
+                disabled={cardsLoading}
+                className="btn-primary min-h-[44px] px-4 text-xs font-bold shadow-md disabled:cursor-wait disabled:opacity-70"
               >
-                <PlayCircle size={16} />{primaryLabel}
+                {cardsLoading ? <LoaderCircle size={15} className="animate-spin" /> : <PlayCircle size={15} />}
+                {primaryLabel}
               </button>
-              <button type="button" onClick={() => onNavigate?.("grammar")} className="btn-secondary min-h-[44px] px-4 text-xs font-bold">
-                <GraduationCap size={16} />Học ngữ pháp
+              <button
+                type="button"
+                onClick={() => onNavigate?.("grammar")}
+                className="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold"
+              >
+                <GraduationCap size={15} />
+                Luyện ngữ pháp
               </button>
-              <button type="button" onClick={() => onNavigate?.("vstep")} className="btn-secondary min-h-[44px] px-4 text-xs font-bold">
-                <Award size={16} />Luyện VSTEP
-              </button>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              <span className="inline-flex items-center gap-1.5">
-                <Zap size={13} className="text-[rgb(var(--accent))]" /> Cấp {level.level} · {xp} XP
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Flame size={13} className="text-amber-500" /> {stats.streak.current > 0 ? `${stats.streak.current} ngày liên tiếp` : "Chưa có chuỗi"}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Target size={13} className="text-emerald-500" /> {goalToday}/{target} lượt ôn hôm nay
-              </span>
             </div>
           </div>
 
-          {/* Thẻ mục tiêu ngày */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white/85 p-4 text-slate-900 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.06] dark:text-white">
+          {/* Ô tiến độ mục tiêu & chuỗi học */}
+          <div className="w-full rounded-2xl border border-slate-200/80 bg-white/70 p-3.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.05] sm:max-w-[260px]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="eyebrow">Mục tiêu hôm nay</p>
-                <p className="mt-1 font-display text-lg font-bold">{goalToday}/{target} lượt ôn</p>
-                <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {goalPercent >= 100 ? "Đã đạt mục tiêu 🎉" : `Còn ${Math.max(0, target - goalToday)} lượt nữa`}
-                </p>
+                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Mục tiêu hôm nay</p>
+                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{goalToday}/{target} lượt ôn</p>
               </div>
-              <GoalRing value={goalPercent} size={70} stroke={7} label="Mục tiêu hôm nay">
-                <span className="metric text-base text-slate-900 dark:text-white">{goalPercent}%</span>
-              </GoalRing>
+              <span className="metric text-lg text-slate-900 dark:text-white">{goalPercent}%</span>
             </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-200/70 pt-3 text-center dark:border-white/10">
-              <div>
-                <p className="metric text-base text-slate-900 dark:text-white">{stats.cards.due}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cần ôn</p>
-              </div>
-              <div>
-                <p className="metric text-base text-slate-900 dark:text-white">{stats.cards.mastered}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Đã thuộc</p>
-              </div>
-              <div>
-                <p className="metric text-base text-slate-900 dark:text-white">{earnedCount}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Huy hiệu</p>
-              </div>
+            <div
+              className="mt-2.5 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"
+              role="progressbar"
+              aria-label="Tiến độ mục tiêu hôm nay"
+              aria-valuenow={goalPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[rgb(var(--accent))] transition-all" style={{ width: `${goalPercent}%` }} />
             </div>
-
-            <div className="mt-3 hidden border-t border-slate-200/70 pt-3 dark:border-white/10 sm:block">
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <span>7 ngày qua</span>
-                <span>{stats.last7.reviewed} lượt</span>
-              </div>
-              <div className="mt-2 flex h-9 items-end gap-1.5" role="img" aria-label={`Hoạt động 7 ngày: ${week.map((day) => `${weekdayOf(day.date)} ${day.reviewed} lượt`).join(", ")}`}>
-                {week.map((day) => (
-                  <div
-                    key={day.date}
-                    className="group flex h-full flex-1 flex-col justify-end"
-                    title={`${weekdayOf(day.date)} ${day.label}: ${day.reviewed} lượt ôn, ${day.correct} đúng`}
-                  >
-                    <div
-                      className={`w-full rounded-t-[4px] transition-all ${day.reviewed > 0 ? "bg-gradient-to-t from-[rgba(var(--accent),0.7)] to-[rgb(var(--accent-2))]" : "bg-slate-200 dark:bg-white/10"}`}
-                      style={{ height: `${Math.max(day.reviewed ? 14 : 6, Math.round((day.reviewed / weekMax) * 100))}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-1 flex gap-1.5 text-center text-[9px] font-bold text-slate-600 dark:text-slate-400">
-                {week.map((day) => <span key={day.date} className="flex-1">{weekdayOf(day.date)}</span>)}
-              </div>
-            </div>
+            <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <Flame size={13} className="text-amber-500" />
+              {streak?.currentStreak > 0 ? `Chuỗi ${streak.currentStreak} ngày học liên tục` : "Bắt đầu chuỗi học hôm nay"}
+            </p>
           </div>
         </div>
       </section>
@@ -493,194 +425,99 @@ export default function HomeHub({ user, streak, onNavigate }) {
         <FirstRunCard busy={starterBusy} onStarterPack={handleStarterPack} onCreateDeck={openNewDeck} />
       )}
 
-      {/* 4 chỉ số nhanh */}
-      {(cardsLoading || cards.length > 0) && <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Chỉ số nhanh hôm nay">
-        <QuickStat icon={CalendarCheck} color="#B45309" colorDark="#FCD34D" label="Cần ôn hôm nay" value={stats.cards.due} note={stats.cards.due > 0 ? `${Math.min(stats.cards.due, 50)} thẻ mỗi phiên` : "Không có thẻ quá hạn"} loading={cardsLoading} onClick={startPractice} />
-        <QuickStat icon={Sparkles} color="#4F46E5" colorDark="#A5B4FC" label="Thẻ mới" value={stats.cards.fresh} note="chưa từng học" loading={cardsLoading} onClick={() => onNavigate?.("vocabulary")} />
-        <QuickStat icon={Flame} color="#BE123C" colorDark="#FDA4AF" label="Từ hay quên" value={stats.cards.leeches} note="quên ≥ 4 lần" loading={cardsLoading} onClick={() => onNavigate?.("vocabulary")} />
-        <QuickStat icon={TrendingUp} color="#047857" colorDark="#6EE7B7" label="Đã thuộc" value={stats.cards.mastered} note={`${stats.cards.total} thẻ trong thư viện`} loading={cardsLoading} onClick={() => onNavigate?.("progress")} />
-      </section>}
+      {/* Bố cục 2 cột cân đối: Nhiệm vụ cốt lõi (Trái) & Thống kê + Lối tắt (Phải) */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+        {/* Cột trái: 7 phần 12 - Trọng tâm hành động học tập */}
+        <div className="space-y-5 lg:col-span-7">
+          <TodayPlanCard
+            cards={cards}
+            target={target}
+            goalToday={goalToday}
+            streak={streak}
+            onNavigate={onNavigate}
+            maxItems={4}
+            showGoal={false}
+          />
 
-      {/* Khu vực học tập */}
-      <section className="space-y-3">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="eyebrow">Tiếp tục học</p>
-            <h3 className="mt-0.5 font-display text-lg font-bold tracking-tight text-slate-900 dark:text-white">Khu vực học tập</h3>
-          </div>
-          <p className="hidden text-xs font-semibold text-slate-500 dark:text-slate-400 sm:block">6 phân khu kiến thức cốt lõi</p>
+          <CefrProgressCard stats={stats} onNavigate={onNavigate} />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {areas.map((area) => {
-            const stat = areaStats[area.id] || { percent: 0, label: "" };
-            const meta = AREA_METADATA[area.id] || { badge: "", teaser: area.description };
-            return (
+        {/* Cột phải: 5 phần 12 - Phong độ & Lối tắt nhanh */}
+        <div className="space-y-5 lg:col-span-5">
+          {/* Thống kê phong độ 14 ngày */}
+          <section className="panel space-y-3.5 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow flex items-center gap-1.5">
+                  <TrendingUp size={13} className="text-[rgb(var(--accent))]" />
+                  Phong độ học tập
+                </p>
+                <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">Thống kê 14 ngày</h3>
+              </div>
               <button
-                key={area.id}
                 type="button"
-                onClick={() => onNavigate?.(area.id)}
-                className="group panel panel-interactive relative flex flex-col overflow-hidden p-4 text-left"
+                onClick={() => onNavigate?.("progress")}
+                className="btn-secondary h-7 px-2.5 text-[11px] font-semibold"
               >
-                <div className="flex items-start gap-3">
-                  <NavIcon icon={area.icon} color={area.color} darkColor={area.colorDark} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-display text-sm font-bold text-slate-900 dark:text-white">{area.label}</p>
-                      <ArrowRight size={13} className="text-slate-300 opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-slate-600" />
-                    </div>
-                    <span className="tone-text mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ '--tone': area.color, '--tone-dark': area.colorDark, backgroundColor: `${area.color}15`, border: `1px solid ${area.color}30` }}>
-                      {meta.badge}
-                    </span>
-                  </div>
-                  <span className="metric tone-text shrink-0 text-sm" style={{ '--tone': area.color, '--tone-dark': area.colorDark }}>{Math.round(stat.percent)}%</span>
-                </div>
-
-                <p className="mt-3 line-clamp-2 min-h-[2.25rem] text-xs leading-relaxed text-slate-600 dark:text-slate-300">{meta.teaser}</p>
-
-                <div className="mt-auto pt-3">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    <span>{stat.label}</span>
-                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{stat.percent}%</span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stat.percent}%`, backgroundColor: area.color }} />
-                  </div>
-                </div>
+                Chi tiết <ArrowRight size={11} />
               </button>
-            );
-          })}
-        </div>
-      </section>
+            </div>
 
-      {/* Lộ trình CEFR */}
-      <section className="panel overflow-hidden p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow">Lộ trình CEFR</p>
-            <h3 className="mt-1 font-display text-lg font-bold text-slate-900 dark:text-white">
-              Lên bậc {cefrInfo.nextCefr} · {shortLabel(cefrInfo.nextCefrLabel)}
-            </h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Hoàn thành 3 tiêu chí để mở khoá bậc tiếp theo.</p>
-          </div>
-          <span className="chip border border-indigo-500/25 bg-indigo-500/10 font-mono text-xs font-bold text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-400/10 dark:text-indigo-300">
-            {cefrInfo.criteriaCompletedCount}/3 tiêu chí · {cefrInfo.criteriaPercent}%
-          </span>
-        </div>
+            <StudyHistoryChart days={14} />
 
-        <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/60 p-3 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.02]">
-          <div className="overflow-x-auto pb-1 no-scrollbar">
-            <div className="flex min-w-0 items-start justify-between gap-0.5 sm:gap-1">
-              {CEFR_LADDER.map((step, index) => {
-                const isPast = index < cefrInfo.currentLevelIndex;
-                const isCurrent = index === cefrInfo.currentLevelIndex;
-                const isTarget = index === cefrInfo.nextLevelIndex;
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <StatTile icon={Layers} color="#0EA5E9" label="Từ vựng đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
+              <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
+              <StatTile icon={Award} color="#F43F5E" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
+              <StatTile icon={Trophy} color="#10B981" label="Độ chính xác" value={`${stats.accuracy}%`} />
+            </div>
+          </section>
+
+          {/* Lối tắt nhanh vào các chương trình học */}
+          <section className="panel p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="eyebrow">Lối tắt nhanh</p>
+                <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">Khám phá module</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {AREA_IDS.map((areaId) => {
+                const item = navigationItems.find((nav) => nav.id === areaId);
+                const meta = AREA_METADATA[areaId];
+                if (!item) return null;
                 return (
-                  <div key={step.id} className="flex min-w-0 flex-1 flex-col items-center text-center">
-                    <div className="flex w-full items-center">
-                      <div className={`h-1 flex-1 rounded-full ${index === 0 ? "invisible" : index <= cefrInfo.currentLevelIndex ? "bg-emerald-500" : index === cefrInfo.nextLevelIndex ? "bg-[rgba(var(--accent),0.35)] dark:bg-[rgba(var(--accent),0.5)]" : "bg-slate-200 dark:bg-white/10"}`} />
-                      <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-[10px] font-black transition-all sm:h-8 sm:w-8 sm:rounded-xl sm:text-xs ${
-                          isCurrent
-                            ? "scale-110 border-2 border-emerald-600 bg-emerald-700 text-white shadow-[0_0_12px_rgba(4,120,87,0.45)]"
-                            : isTarget
-                              ? "scale-105 border-2 border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:border-indigo-300/40 dark:bg-indigo-400/15 dark:text-indigo-200"
-                              : isPast
-                                ? "border border-emerald-600/30 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/15 dark:text-emerald-200"
-                                : "bg-slate-100 text-slate-600 dark:bg-white/[0.05] dark:text-slate-300"
-                        }`}
-                      >
-                        {step.id}
-                      </span>
-                      <div className={`h-1 flex-1 rounded-full ${index === CEFR_LADDER.length - 1 ? "invisible" : index < cefrInfo.currentLevelIndex ? "bg-emerald-500" : index === cefrInfo.currentLevelIndex ? "bg-gradient-to-r from-emerald-500 to-[rgb(var(--accent-2))]" : "bg-slate-200 dark:bg-white/10"}`} />
+                  <button
+                    key={areaId}
+                    type="button"
+                    onClick={() => onNavigate?.(areaId)}
+                    className="group flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 text-left backdrop-blur-xs transition-all hover:border-slate-300 hover:bg-white active:scale-[0.98] dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
+                  >
+                    <NavIcon icon={item.icon} color={item.color} darkColor={item.colorDark} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-bold text-slate-800 transition-colors group-hover:text-[rgb(var(--accent))] dark:text-slate-200">
+                        {item.label}
+                      </p>
+                      <p className="truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                        {meta?.badge || item.shortLabel}
+                      </p>
                     </div>
-                    <span className={`mt-1.5 whitespace-nowrap text-[9px] font-bold sm:text-[10px] ${isCurrent ? "text-emerald-700 dark:text-emerald-300" : isTarget ? "text-indigo-700 dark:text-indigo-300" : isPast ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
-                      {isCurrent ? "Hiện tại" : isTarget ? "Mục tiêu" : step.label}
-                    </span>
-                  </div>
+                    <ArrowRight size={12} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-600 dark:group-hover:text-slate-300" />
+                  </button>
                 );
               })}
             </div>
-          </div>
+          </section>
         </div>
-
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-          <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-[rgb(var(--accent-2))] to-[rgb(var(--accent))] transition-all duration-500" style={{ width: `${cefrInfo.criteriaPercent}%` }} />
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <CriterionCard
-            done={cefrInfo.grammarRemaining === 0}
-            icon={GraduationCap}
-            iconClass="text-violet-500"
-            title="Ngữ pháp trọng điểm"
-            value={`${cefrInfo.grammarPassed}/${cefrInfo.targetGrammar}`}
-            unit="bài"
-            hint={cefrInfo.grammarRemaining === 0 ? "Đã đủ tiêu chuẩn ngữ pháp" : `Còn thiếu ${cefrInfo.grammarRemaining} bài`}
-            cta={cefrInfo.grammarRemaining === 0 ? "Ôn lại" : "Học bài tiếp"}
-            onAction={() => onNavigate?.("grammar")}
-          />
-          <CriterionCard
-            done={cefrInfo.cardsRemaining === 0}
-            icon={Layers}
-            iconClass="text-sky-500"
-            title="Kho từ vựng cốt lõi"
-            value={`${cefrInfo.cardsMastered}/${cefrInfo.targetCards}`}
-            unit="từ"
-            hint={cefrInfo.cardsRemaining === 0 ? "Đã đủ vốn từ chuẩn" : `Còn thiếu ${cefrInfo.cardsRemaining} từ`}
-            cta={cefrInfo.cardsRemaining === 0 ? "Mở kho từ" : "Học từ mới"}
-            onAction={() => onNavigate?.("vocabulary")}
-          />
-          <CriterionCard
-            done={cefrInfo.vstepReached}
-            icon={Award}
-            iconClass="text-rose-500"
-            title="Điểm VSTEP thực chiến"
-            value={cefrInfo.vstepBest ? Number(cefrInfo.vstepBest).toFixed(1) : "0.0"}
-            unit="/ 10 điểm"
-            hint={cefrInfo.vstepReached ? `Đã đạt ngưỡng ${cefrInfo.nextCefr}` : `Mục tiêu ≥ ${cefrInfo.targetVstep}`}
-            cta={cefrInfo.vstepReached ? "Luyện đề nâng cao" : "Thi thử VSTEP"}
-            onAction={() => onNavigate?.("vstep")}
-          />
-        </div>
-      </section>
-
-      {/* Kế hoạch hôm nay + phong độ */}
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-        <TodayPlanCard cards={cards} target={target} goalToday={goalToday} streak={streak} onNavigate={onNavigate} />
-
-        <section className="panel space-y-4 p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow flex items-center gap-2">
-                <TrendingUp size={14} className="text-[rgb(var(--accent))]" />
-                Phong độ học tập
-              </p>
-              <h3 className="mt-0.5 font-display text-lg font-bold">Thống kê tổng quan</h3>
-            </div>
-            <button type="button" onClick={() => onNavigate?.("progress")} className="btn-secondary h-9 px-3 text-xs font-semibold">
-              Chi tiết<ArrowRight size={13} />
-            </button>
-          </div>
-
-          <StudyHistoryChart days={14} />
-
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <StatTile icon={Layers} color="#0EA5E9" label="Từ vựng đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
-            <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
-            <StatTile icon={Award} color="#F43F5E" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
-            <StatTile icon={Trophy} color="#10B981" label="Độ chính xác" value={`${stats.accuracy}%`} />
-          </div>
-        </section>
       </div>
 
-      {/* Gợi ý nhỏ ở cuối trang */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-3 text-xs text-slate-500 backdrop-blur-md dark:border-white/[0.07] dark:bg-white/[0.03] dark:text-slate-400">
+      {/* Mẹo nhỏ tinh gọn ở chân trang */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-2.5 text-xs text-slate-500 backdrop-blur-md dark:border-white/[0.07] dark:bg-white/[0.03] dark:text-slate-400">
         <span className="inline-flex items-center gap-2">
           <BookOpen size={14} className="text-[rgb(var(--accent))]" />
-          Mẹo: nhấn <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">Ctrl</kbd> + <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">K</kbd> để tìm nhanh bất kỳ bài học nào.
+          Nhấn <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">Ctrl</kbd> + <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">K</kbd> để tìm kiếm nhanh mọi bài học.
         </span>
-        <span className="font-semibold">Tiến bộ 1% mỗi ngày là đủ.</span>
+        <span className="font-semibold text-slate-600 dark:text-slate-300">Tiến bộ 1% mỗi ngày là đủ.</span>
       </div>
     </div>
   );

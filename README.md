@@ -1,416 +1,465 @@
-# Lingua — All-in-one Language Learning Hub
-
-> **Đọc file này là đủ để hiểu dự án.** Tài liệu được viết cho AI/dev mới: kiến trúc, mọi file quan trọng, mô hình dữ liệu, quy ước, lệnh chạy và các "bẫy" đã từng gặp. Không cần đọc hết source để nắm dự án.
-> Ngôn ngữ UI: **tiếng Việt**. Nội dung học: **tiếng Anh trình độ A1–C2 (trọng tâm B1)**.
-
-## 0. TL;DR cho AI
-
-- **Là gì**: PWA học tiếng Anh all-in-one — từ vựng SRS, ngữ pháp, 4 kỹ năng, luyện câu, thi thử B1, writing AI, planner, mindmap, tiến độ/gamification, gia sư AI.
-- **Stack**: React 19 (StrictMode) + Vite + Tailwind 3 + Firebase (Auth + Firestore, offline cache) + react-router 7 + Capacitor (APK Android). Không backend riêng (trừ Cloud Function tuỳ chọn ở `functions/`).
-- **Composition root**: `src/App.jsx` — giữ tab hiện tại, lazy-load module theo registry (`src/lib/lazyWithPreload.js`), đồng bộ dữ liệu khách → tài khoản, quản lý đăng nhập/streak/search/tutor.
-- **"Nguồn sự thật" cần nhớ**: điều hướng `src/data/navigation.js` · dữ liệu `src/services/dataService.js` · lịch ôn `src/utils/srs.js` · state theo tài khoản `src/services/userDocService.js` (`user_state`) · design system `src/index.css`.
-- **Hiệu năng (Oct 2026)**: module + overlay đều lazy kèm prefetch khi hover/chạm; `dataService.getAllCards()` đọc toàn bộ thẻ bằng **một query** (kèm danh sách deck đang hoạt động) thay cho N+1; `Workspace` được memo để mở search/tutor không render lại module; entry production ~238 KB (gzip ~73 KB), tổng bundle vẫn trong ngân sách `npm run size`.
-- **Chạy**: `npm install` → `npm run dev` (nếu thấy lỗi React lạ, chạy `npm run dev -- --force`) · build `npm run build` · test `npm test` (scripts trong `package.json`).
-- **Không có test cho UI/component**; `npm test` chỉ test hàm thuần (SRS, gamification, chấm phát âm, từ điển).
-- **Không tạo thêm hệ thống thông báo mới**: trước đây có tới 6 cách hiện thông báo chồng chéo, tất cả đã gom về `toast.*` trong `src/services/toast.js`.
-
----
-
-## 1. Stack & phụ thuộc chính
-
-| Nhóm | Dùng gì |
-| --- | --- |
-| UI | React, `react-router-dom` (routing theo path), Tailwind CSS, `lucide-react` (icon) |
-| Hiệu ứng | `canvas-confetti` (chúc mừng), YouTube IFrame API (audio nền Pomodoro, chỉ tải khi được chọn) |
-| Dữ liệu | Firebase Auth + Firestore (`initializeFirestore` + `persistentLocalCache` để dùng offline) |
-| Nội dung nâng cao | `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) — `jszip`/`sql.js` **được `import()` động trong `ankiParser.js`**, chỉ tải khi người dùng import file Anki |
-| Di động | `@capacitor/core|app|browser`, `@capacitor/local-notifications` (nhắc học trên APK), `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
-| Build | Vite (`base` = `/lingua/` khi `GITHUB_PAGES=true`), PostCSS/Tailwind |
-
-Node ≥ 20 (đã kiểm chứng với Node 24). Không có TypeScript; chất lượng dựa vào **ESLint (flat config)** + test hàm thuần.
-
-## 2. Lệnh thường dùng
-
-| Lệnh | Việc |
-| --- | --- |
-| `npm install` | Cài dependency |
-| `npm run dev` | Dev server (thêm `-- --force` khi dependency cache lỗi thời) |
-| `npm run build` | Build production ra `dist/` (dùng để **kiểm tra sau mỗi lần sửa**) |
-| `npm run preview` | Xem thử bản build |
-| `npm test` | `node --test "tests/*.test.js"` — kiểm thử hàm thuần và dịch vụ thuần: SRS, VSTEP, ngữ pháp, từ điển, batch/rollback, UTF-8. **Cần Node 22+** |
-| `npm run lint` | `eslint . --max-warnings 0` — cấu hình ở `eslint.config.js`; **0 error & 0 warning** (warning cũng chặn CI) |
-| `node scripts/check-vstep.mjs` | Kiểm tra **toàn bộ đề VSTEP** và in ra mọi lỗi (số câu, id trùng, đáp án không nằm trong options, transcript thiếu, bài mẫu quá ngắn…) |
-| `npm run size` | `node scripts/check-bundle.mjs` — chạy sau `npm run build`: in các chunk lớn nhất và **fail nếu vượt ngân sách byte** (chống bundle phình lại) |
-| `python scripts/make-icons.py <ảnh>` | Cắt vuông ảnh gốc rồi xuất icon PWA: `public/icons/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` (cần Pillow) |
-
-CI (`deploy.yml`) chạy theo thứ tự: `npm ci` → `npm test` → `npm run lint` → `node scripts/check-vstep.mjs` → `npm run build` → `npm run size` → deploy GitHub Pages.
-
-## 3. Kiến trúc & luồng
-
-```mermaid
-flowchart TD
-  A[index.html / main.jsx] --> B[App.jsx<br/>composition root]
-  B --> C[Sidebar / Topbar / MobileBottomNav]
-  B --> D[modules/* — lazy theo tab]
-  B --> E[SearchPalette · AiTutorPanel · ShortcutsHelpModal]
-  D --> F[hooks/* — state + progress]
-  D --> G[services/* — dữ liệu, AI, âm thanh, sync]
-  G --> H[(Firestore: study_decks, vocabulary_cards, user_state, users)]
-  G --> I[(localStorage: guest library, user_state cache, cấu hình)]
-  G --> J[API ngoài: Gemini/Groq · dictionaryapi.dev · MyMemory]
-```
-
-**Cách App.jsx hoạt động**
-
-1. `navigationItems` (`src/data/navigation.js`) khai báo tab: `id, label, shortLabel, description, icon, color`. `color` là màu nhận diện của tab, dùng cho **icon nhiều màu kiểu Duolingo** (`src/components/ui/NavIcon.jsx` — ô bo tròn nền đặc + glyph trắng, tự đổi glyph sang màu tối nếu nền sáng). Tailwind không sinh class động nên màu truyền bằng style inline.
-2. `modules` map tab → component lazy; `tabPaths` map tab → URL (`/home`, `/vocabulary`, …); path không hợp lệ bị điều hướng về `/home` (trang chủ).
-3. Mỗi module nhận props chung: `onStudyActivity` (ghi streak + lịch sử), `streak`, `user`, `apiKey`, `setApiKey`, `onGoogleLogin`, `onSignOut`.
-4. Tab `settings` render thêm các panel: `AccountPanel` → `AppearancePanel` → `InstallAppPanel` → `AccountDataPanel` → `ApiSettings`.
-5. **Chờ `whenAuthSettled()` rồi mới render app** (skeleton thay vì splash chữ) → module mount lần duy nhất với đúng chủ sở hữu dữ liệu. `onAuthStateChanged` chỉ nạp streak + API key; đổi tài khoản (đăng nhập/đăng xuất) mới bắn `refreshRequestedEvent` để các module **nạp lại dữ liệu TẠI CHỖ**, không remount. `syncGuestData()` cũng bắn sự kiện này thay vì tăng biến đếm để remount.
-6. **Lazy + prefetch**: `src/lib/lazyWithPreload.js` bọc `React.lazy`, cho phép `preload(Component)` trước khi mở; `Sidebar`/`MobileBottomNav` prefetch khi hover/chạm, `Topbar` prefetch Search/Tutor, `App` prefetch module chính khi rảnh (`requestIdleCallback`) và prefetch sau khi đăng nhập. Nhờ đó lần mở đầu vẫn nhẹ nhưng chuyển tab gần như tức thì.
-
-**Thêm một tab mới (đúng 4 bước)**: tạo `src/modules/<domain>/<Name>Hub.jsx` → thêm item vào `src/data/navigation.js` (nhớ `icon` + `color`) → thêm `lazy()` + entry trong `modules`/`tabPaths` ở `App.jsx` → nếu muốn hiện ở bottom nav thì thêm id vào `PRIMARY_TABS` của `src/components/MobileBottomNav.jsx` (không cần khai báo icon riêng nữa).
-
-**Hiệu năng & bundle (Oct 2026)**
-
-- **Entry giảm còn ~238 KB** (gzip ~73 KB) nhờ chuyển toàn bộ tab + Search/Tutor/Shortcuts/Auth sang lazy, chỉ giữ shell trong gói chính. Vendor React/Firebase vẫn tách riêng theo hash.
-- **Prefetch có kiểm soát**: hover/focus nút trên sidebar/topbar, `onTouchStart` ở bottom nav, và `requestIdleCallback` cho Từ vựng/Tiến độ sau khi app rảnh. Không prefetch toàn bộ 10 tab ngay khi mở.
-- **Một query thay N+1**: `getAllCards()` + `useVocabularyCards()` dùng chung cho Trang chủ, Tiến độ, widget, backup, sync. `VocabularyHub` chạy `getDecks()` và `getAllCards()` song song.
-- **Giảm render**: `Workspace` được `memo` (mở search/tutor không render lại module nặng), callback trong `App` ổn định bằng `useCallback`, các phép tính lớn đã nằm trong `useMemo`.
-- **Tải font không chặn render**, `SafeImage` dùng `loading="lazy" decoding="async"`, biểu đồ mới nhẹ (SVG/CSS, không thêm thư viện chart).
-- **Service worker v5** chỉ đệm tài nguyên tĩnh cùng origin; file build có hash dùng cache-first, navigation network-first. Nhờ vậy mở lại app nhanh nhưng vẫn nhận bản mới.
-
-## 4. Cây thư mục
-
-```text
-src/
-├─ App.jsx                 # composition root: tab, auth, streak, search, tutor, shortcuts
-├─ main.jsx                # createRoot + StrictMode + bootstrapAppearance()
-├─ index.css               # design system (.panel/.btn-*/...), dark mode, print styles
-├─ components/             # UI dùng chung
-│  ├─ layout/              # Sidebar, Topbar
-│  ├─ learning/            # FlashcardModal, QuizView, SpellerView, MatchingView, StudyHubModal, StudySummary, ImportExportModal
-│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StudyHistoryChart, GoalRing, PageSkeleton, AppBootSkeleton, SyncStatusBadge, Toaster, NavIcon
-│  ├─ Auth/AuthPage.jsx    # đăng nhập/đăng ký (Email + Google) và chế độ khách
-│  ├─ AiTutorPanel.jsx     # chat gia sư AI
-│  ├─ SearchPalette.jsx    # tìm kiếm toàn cục (Ctrl/⌘+K)
-│  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, MobileHeader, MobileBottomNav
-├─ modules/                # 1 folder = 1 tab
-│  ├─ home/HomeHub.jsx                  # dashboard Trang chủ: hero + mục tiêu, 4 chỉ số nhanh, 6 khu vực học, lộ trình CEFR, kế hoạch + biểu đồ
-│  ├─ learning/VocabularyHub.jsx        # tab Từ vựng (file lớn nhất, ~1.4k dòng)
-│  ├─ learning/GrammarAndVocabulary.jsx # WritingChecker (tab Writing)
-│  ├─ grammar/                          # GrammarHub, GrammarLesson, GrammarQuiz (QuestionSet dùng lại cho nghe/đọc/thi thử)
-│  ├─ skills/                           # SkillsHub + ListeningView, ReadingView, SpeakingView, WritingView, SentenceView, MockTestView
-│  ├─ progress/ProgressHub.jsx          # mục tiêu, XP, huy hiệu, thống kê gộp, xuất báo cáo
-│  ├─ vstep/                            # tab VSTEP: VstepHub, VstepExamRunner, VstepResult, sections/*, docs/*, useTranscriptAudio, useAudioRecorder
-│  ├─ planner/StudyPlanner.jsx          # todo + lịch + pomodoro
-│  ├─ mindmap/StudyMindmap.jsx          # đồ lộ trình kiểu roadmap.sh (cột dọc + nét đứt), sinh bằng AI
-│  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
-├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useVocabularyCards, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
-├─ services/               # xem bảng §7
-├─ utils/                  # srs, day (khóa ngày), history (prune/summary lịch sử), speech, speechScore, ankiParser, sanitizeCard, studyFeedback
-├─ data/                   # navigation + toàn bộ nội dung học (tĩnh, không cần mạng)
-├─ config/googleAuth.js    # chế độ đăng nhập Google
-├─ lib/                    # lazyWithPreload (lazy + prefetch), formatters
-
-native/android-widget/     # mã native cho widget màn hình chính + shortcut (workflow chép vào project Android)
-├─ java/com/lingua/studyhub/LinguaWidgetProvider.java   # AppWidgetProvider (RemoteViews)
-├─ java/com/lingua/studyhub/LinguaWidgetPlugin.java     # plugin cục bộ `LinguaWidget` ghi SharedPreferences
-└─ res/{layout,xml,drawable,values}/                    # layout widget, widget_info, shortcuts, màu, chuỗi
-```
-
-Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest.json`, `sw.js`, `oauth-callback.html`, `icons/`), `firestore.rules`, `firebase.json`, `capacitor.config.json`, `functions/` (Cloud Function proxy AI — **không** được Vite build), `scripts/` (script QA nội dung), `tests/`, `.github/workflows/` (deploy + build APK).
-
-**File chết ĐÃ XOÁ trong refactoring P0–P3**: `src/modules/{grammar/GrammarModule,mindmap/MindmapModule,planner/PlannerModule,settings/SettingsModule,vocabulary/VocabularyModule}.jsx`; `src/components/StudyAnalyticsWidget.jsx`; `src/components/ui/StatCard.jsx`; `src/services/{apiClient,aiClient}.js` (AI dùng chung `aiService.js`); `PracticeSession` + `readLibrary` + `emptyLibrary` trong `VocabularyHub.jsx` (chế độ học thật nằm ở FlashcardModal/QuizView/SpellerView/MatchingView — `PracticeSession` là bản sao chết, không còn component nào import).
-
-## 5. Điều hướng & các tab
-
-| Tab id | URL | Module | Nội dung chính |
-| --- | --- | --- | --- |
-| `home` | `/home` | `HomeHub` | **Dashboard Trang chủ**: hero theo màu nhấn với lời chào + CTA + vòng mục tiêu ngày (7 ngày gần đây), 4 chỉ số nhanh, 6 khu vực học có tiến độ, lộ trình CEFR A1→C2 với 3 tiêu chí lên bậc, `TodayPlanCard` và biểu đồ phong độ 14 ngày |
-| `vocabulary` | `/vocabulary` | `VocabularyHub` | Danh sách bộ thẻ dạng thẻ → chi tiết bộ; SRS, 4 chế độ học, thùng rác, sửa hàng loạt, thêm từ (AI/từ điển miễn phí), import/export |
-| `grammar` | `/grammar` | `GrammarHub` | 30 bài (12 thì + cấu trúc B1 + mở rộng + C1) dạng thẻ bài học, sổ câu sai, thi tổng hợp, cặp dễ lẫn |
-| `skills` | `/skills` | `SkillsHub` | 6 sub-tab: Nghe, Đọc, Nói (chấm phát âm), Viết, Luyện câu, Thi thử B1 |
-| `vstep` | `/vstep` | `VstepHub` | **Kho đề VSTEP** (10 đề B1/B2/C1) + sổ tay, từ vựng, mẫu câu, lịch sử thi |
-| `writing` | `/writing` | `WritingChecker` | Chấm chữa bài viết bằng AI |
-| `progress` | `/progress` | `ProgressHub` | Mục tiêu ngày, XP/cấp, huy hiệu, 12 ô thống kê, biểu đồ, in báo cáo |
-| `planner` | `/planner` | `StudyPlanner` | Todo, lịch học, pomodoro |
-| `mindmap` | `/mindmap` | `StudyMindmap` | Đồ lộ trình kiểu roadmap.sh (cột dọc + nét đứt), sinh nhánh bằng AI, xuất Markdown |
-| `settings` | `/settings` | `ApiSettings` + các panel | Tài khoản, giao diện, cài app, dữ liệu (backup/nhắc học/sync), API key |
-
-Ngoài tab: `/login` (AuthPage cho khách), `/` → `/vocabulary`, path lạ → `/vocabulary`.
-
-## 6. Mô hình dữ liệu
-
-### 6.1 Thẻ từ vựng (`vocabulary_cards` / localStorage)
-
-| Field | Ý nghĩa |
-| --- | --- |
-| `id`, `deckId`, `word`, `ipa`, `meaning`, `example` | Nội dung thẻ (`meaning` là tiếng Việt) |
-| `level` | `A1…C2` (mặc định `B1`) |
-| `status` | `new` \| `learning` \| `mastered` |
-| `interval`, `nextReviewDate`, `reviewDate`, `repetition`, `lastStudiedDate` | SRS |
-| `ease`, `lapses` | Hệ số giãn cách (mặc định 2.5) và số lần quên — nền tảng của "từ hay quên" |
-| `imageUrl`, `audioUrl`, `needAiImage` | Ảnh/âm thanh (`imageUrl` **luôn** là `""`, không phải `undefined`) |
-| `deletedAt` | Xoá mềm: có giá trị ⇒ nằm trong thùng rác |
-
-Bộ thẻ (`study_decks`): `id, title, tags[], createdAt, deletedAt`.
-
-### 6.2 Lịch ôn SRS (`src/utils/srs.js` — dùng chung, không hardcode nơi khác)
-
-- `scheduleReview(card, rating)`: `again` → 1 ngày, reset `repetition`, `ease −0.2`, `lapses +1`; `soon` → thẻ mới 3 ngày, thẻ cũ `interval × ease × 0.9`; `mastered` → thẻ mới 5 ngày, thẻ cũ `interval × ease × 1.3`.
-- Chặn: `ease ∈ [1.3, 3.2]`, `interval ≤ 365`. `lapses ≥ 4` ⇒ **leech (từ hay quên)**.
-- `schedulePayload()` = bản đã bỏ cờ `leech` để ghi vào dữ liệu; `previewIntervals()` / `intervalLabel()` dùng để hiện khoảng nghỉ trên nút đánh giá; `isDue()` lọc "cần ôn hôm nay".
-
-### 6.3 State theo tài khoản — collection `user_state`
-
-Doc id `<uid>__<key>`, payload `{ userId, key, payload, updatedAt }`; có bản sao localStorage `lingua-user-state-<owner>__<key>` để dùng offline. Truy cập qua `useCloudDoc(key, …)` hoặc `createDebouncedSync(key)`.
-
-| Key (`userDocKeys`) | Payload |
-| --- | --- |
-| `planner` | Todo + lịch học |
-| `mindmap` | Node/edge của sơ đồ |
-| `grammar` | `{ completed: { [lessonId]: { best, total, passed } }, lastLesson, mistakes: { [questionId]: { prompt, answer, explain, response, count, at } }, attempts: [{ source, correct, total }] (≤30) }` |
-| `writing` | Bản nháp/bài đã chấm |
-| `skills` | `{ listening: {id:{best,total}}, reading: {…}, mock: [{score,total,at}] (≤20), sentence: {attempted, correct} }` |
-| `reminder` | `{ enabled, time }` |
-| `history` | `{ days: { "YYYY-MM-DD": { reviewed, correct, sessions } } }` (≤ 400 ngày) |
-| `goal` | `{ target }` — mục tiêu lượt ôn mỗi ngày (mặc định 20) |
-| `vstep` | `{ attempts: [{ examId, level, at, scores{4 kỹ năng}, average, band, durationSeconds }] (≤30), drafts: { "<examId>:<taskId>": "bài viết" } }` |
-| `mistakes` | **Sổ câu sai dùng chung** cho Nghe/Đọc/VSTEP: `{ items: { [key]: { key, source, label, refId, type, prompt, options, answer, answers, explain, response, count, at } } (≤150), attempts: [{ correct, total, percent }] (≤40) }` |
-
-### 6.4 Firestore & rules
-
-Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (streak). `firestore.rules` chỉ cho chủ sở hữu đọc/ghi (`userId == request.auth.uid`, doc `user_state` có tiền tố uid). Dữ liệu khách **chỉ** nằm trên thiết bị, được đẩy lên khi đăng nhập (`syncVocabulary`, `syncGuestUserDocs`).
-
-### 6.5 localStorage (các key quan trọng)
-
-| Key | Nội dung |
-| --- | --- |
-| `lingua-vocabulary-library` | `{ decks, cards }` của khách (`lingua-vocabulary` là bản cũ, tự migrate) |
-| `lingua-user-state-<owner>__<key>` | Cache `user_state` (`owner` = uid hoặc `guest`) |
-| `lingua-appearance` | Bảng màu, font, cỡ chữ |
-| `lingua-settings-sections` | Trạng thái mở/đóng các khối Cài đặt |
-| `lingua-ai-provider` | `gemini` \| `groq` \| `deepseek` |
-| `lingua-word-cache` | Đệm kết quả tra từ nhanh (≤400 từ) cho popover bấm-vào-từ |
-| `lingua_api_key_<uid>` / `lingua_api_key_guest` | API key AI (key khách tự chuyển cho tài khoản khi đăng nhập) |
-| `lingua-tutor-chat-<uid|guest>` | 40 tin nhắn gần nhất của gia sư AI |
-| `lingua-practice-topic`, `lingua-google-login-mode`, `lingua-google-auth-log` | Điều hướng nhanh vào phiên học; chế độ đăng nhập Google; log chẩn đoán |
-
-## 7. Services (`src/services/`)
-
-| File | Trách nhiệm |
-| --- | --- |
-| `dataService.js` | **Lớp dữ liệu duy nhất** cho deck/thẻ: khách = localStorage, đăng nhập = Firestore. `getAllCards()` đọc toàn bộ thẻ bằng **một query** + danh sách deck (dùng chung request với `getDecks()`, dedupe request đang bay) cho Trang chủ/Tiến độ/widget/backup; thẻ thuộc deck đã xoá mềm bị loại khỏi kết quả. `getCards(deckId)` chỉ dùng khi thật sự cần một bộ. Có `addCards` (batch 400 + rollback), `createDeckWithCards`, `updateCards` (sửa hàng loạt), `trash*/restore*/getTrashed/purgeTrash` (xoá mềm), `deleteDeck/deleteCard` (xoá cứng, dùng nội bộ). Luôn lọc `undefined` trước khi ghi Firestore |
-| `userDocService.js` | State theo tài khoản (`user_state`), kiểm tra payload theo byte UTF-8, `syncGuestUserDocs`, `createDebouncedSync` có `attach/dispose` |
-| `historyService.js` | Lịch sử học theo ngày + event `lingua:history-changed` |
-| `streakService.js` | Chuỗi ngày học (`users/{uid}` hoặc localStorage cho khách) |
-| `aiService.js` | `requestAi(provider, apiKey, prompt, {json})` — Gemini, Groq, DeepSeek; timeout 30 giây; hỗ trợ proxy `VITE_AI_PROXY_URL`. Production chỉ dùng proxy hoặc key cá nhân; không nạp secret từ biến `VITE_*` |
-| `dictionaryService.js` | Tra từ **miễn phí** (dictionaryapi.dev + MyMemory), không cần key |
-| `wordLookup.js` | Đệm + tra từ cho popover bấm-vào-từ (`lookupWordCached`, `cardFromLookup`, `DEFAULT_LOOKUP_DECK`) |
-| `searchIndex.js` | Index tìm kiếm toàn cục (nav, ngữ pháp, kỹ năng, theme deck, 1000 từ thông dụng nạp lười) |
-| `deepLink.js` | Mở đúng bài sau khi tìm kiếm (`openItem` / `consumePendingItem(tab)`) |
-| `appLinks.js` | Deep link nội bộ từ widget/shortcut: `com.lingua.studyhub://tab/<tab>`, `…://practice` (vào thẳng phiên ôn thẻ đến hạn) → `parseAppLink` + `subscribeAppLinks` (bỏ qua link `auth`) |
-| `widgetBridge.js` | Cầu nối widget màn hình chính: `summarizeCards`, `publishCardStats`, `buildWidgetSummary`, `pushWidgetSummary`, `readWidgetSummary`, `readWidgetStatus` (web chỉ ghi localStorage để xem trước + chẩn đoán) |
-| `reminderSchedule.js` (utils) | Phần **thuần** của nhắc học: `normalizeTime`, `normalizeReminder`, `isReminderDue`, `nextReminderAt`, `describeNextReminder` — có test `tests/reminderSchedule.test.js` |
-| `gamification.js` | `computeStats`, `computeXp`, `levelFor`, `achievementsFor` (hàm thuần, có test) |
-| `vstepScoring.js` | Chấm điểm VSTEP thuần: `examQuestions`, `scoreObjectiveSection`, `selfAssessedScore10`, `summariseAttempt`, `examMinutes` (hàm thuần, có test) |
-| `vstepService.js` | Nạp đề VSTEP (lazy qua `registry.js`) + re-export toàn bộ hàm chấm điểm |
-| `vstepAi.js` | Chấm Writing/Nói VSTEP bằng AI theo tiêu chí (Gemini/Groq/DeepSeek) |
-| `vstepDeck.js` | Biến một chủ đề từ vựng VSTEP thành bộ flashcard SRS |
-| `syncStatus.js` | Online/offline, đếm write đang chờ, event `lingua:data-refresh` |
-| `toast.js` | **Hệ thống thông báo duy nhất** (`toast.success/error/info/undo`) |
-| `imageService.js` | Tìm ảnh an toàn cho thẻ (`findVocabularyImageSafely`), whitelist nguồn ảnh |
-| `speech.js` (utils) | TTS tiếng Anh bằng Web Speech API |
-| `firebase.js` | Khởi tạo app/auth/firestore (có offline cache) + re-export API Firebase |
-| `authService.js`, `googleBrowserAuth.js`, `googleAuthConfig.js` | Đăng nhập Google: popup (web), browser flow + deep link (APK) |
-| `backupService.js` | Xuất/nhập toàn bộ dữ liệu (file JSON) |
-| `shareDeck.js` | Chia sẻ bộ thẻ qua URL `#deck=<base64url>` |
-| `reminderService.js` | Nhắc học bằng Web Notification (chỉ khi app đang mở trên web); luôn chuẩn hoá qua `utils/reminderSchedule.js`, **không nhảy về mặc định khi đọc lỗi** |
-| `localNotifications.js` | Nhắc học trên **APK**: lên lịch thông báo hằng ngày của hệ điều hành (`@capacitor/local-notifications`), trả về `{status}` để UI biết vì sao không có thông báo, có `readNativeSchedule` + `sendNativeTestNotification`; plugin nạp động nên bundle web không phình |
-| `accountAuthService.js` | Email đặt lại mật khẩu (`sendResetPasswordEmail`) + hàm tạo/đổi mật khẩu cho tài khoản Google (`createPasswordForApp`, `changeAccountPassword`) — **hiện không có UI nào gọi** (đã bỏ phần hướng dẫn đăng nhập APK); có thể bật lại bằng 1 nút trong Cài đặt nếu cần |
-| `appearanceService.js` | Bảng màu/font/cỡ chữ, đổi CSS variables |
-| `vocabularySync.js` | Merge dữ liệu khách → tài khoản sau khi đăng nhập |
-| `platform.js`, `apiKeyStorage.js` | Tiện ích nền tảng, đọc/ghi API key theo tài khoản |
-
-## 8. Hooks (`src/hooks/`)
-
-| Hook | Việc |
-| --- | --- |
-| `useCloudDoc(key, opts)` | Hydrate + debounce-save một `user_state` doc, tự reload theo `lingua:data-refresh` |
-| `useVocabularyCards({ user })` | Đọc toàn bộ thẻ qua `getAllCards()` (1 query thẻ + danh sách deck), trả `{ cards, loading, error, reload }`; tự nạp lại khi đổi `user.uid` hoặc có `lingua:data-refresh` |
-| `useDailyGoal()` | Mục tiêu ôn/ngày (key `goal`), `GOAL_PRESETS`, `setGoal` |
-| `useVstepProgress()` | Lịch sử thi VSTEP + bản nháp Writing (key `vstep`), `recordAttempt`, `bestFor`, `clearHistory` |
-| `useGrammarProgress()` / `useSkillsProgress()` | Tiến độ ngữ pháp / kỹ năng (record + đọc) |
-| `useMistakeBank()` | **Sổ câu sai dùng chung** (key `mistakes`): `mistakes` (đã gộp + sắp theo số lần sai), `record(details, source, refId, label)`, `remove`, `clear`, `recordRetry`, `stats.bySource` |
-| `useWidgetSummary({ streak, user })` | Đẩy nội dung ra widget màn hình chính (số liệu thẻ lấy từ đệm của `VocabularyHub`, tự tính lại nếu đệm trống/cũ, bài ngữ pháp chưa đạt đầu tiên, chuỗi ngày, mục tiêu ngày); chống đẩy trùng bằng `summarySignature`, đẩy lại khi app quay lại tiền cảnh |
-| `useStudyReminder(streak, user)` | Cấu hình nhắc học: đọc bản trên thiết bị ngay (không nháy mặc định), tải lại khi đổi tài khoản, trên APK tự gọi `syncNativeReminder` (chờ đọc xong cấu hình mới lên lịch) và trả về `native.status` để Cài đặt hiển thị |
-| `useSectionState(id, default)` | Trạng thái mở/đóng khối UI (localStorage) |
-| `useTheme()`, `useAppearance()` | Dark mode + tuỳ biến giao diện |
-| `useInstallPrompt()` | Nút "Cài app" (A2HS), nhận biết iOS |
-| `useDebounce(value)` | Debounce tìm kiếm/nhập liệu |
-
-## 9. Dữ liệu tĩnh (`src/data/`) — sửa nội dung học ở đây
-
-| File | Nội dung |
-| --- | --- |
-| `commonWords.js` + `commonWords/part1-4.js` | 1.000 từ thông dụng (dòng `word\|meaning`), được **lazy import** để không phình bundle chính |
-| `grammarCurriculum.js` | 12 thì × 8 câu hỏi + cheat sheet (`PASS_RATIO = 0.8`) |
-| `grammarTopics.js`, `grammarTopicsB1a.js`, `grammarTopicsB1b.js` | 14 chủ điểm B1/mở rộng (điều kiện, bị động, mệnh đề quan hệ, tường thuật, modal, so sánh, gerund, mạo từ, **giới từ, liên từ & mệnh đề trạng ngữ, used to, câu hỏi đuôi, cấu tạo từ, wish/causative**), mỗi bài 8 câu |
-| `grammarTopicsC1.js` | 4 cấu trúc C1: câu chẻ, đảo ngữ, mệnh đề phân từ, danh hoá & hedging |
-| `grammarConfusingPairs.js` | 16 cặp cấu trúc dễ lẫn kèm cách phân biệt + ví dụ |
-| `grammarIndex.js` | Gộp 30 bài + gắn id câu hỏi (`<lessonId>-q<n>`), 4 nhóm bài, `grammarAllQuestions` |
-| `skills/listening.js` | 8 bài nghe (transcript từng câu, glossary, câu hỏi) — 2 bài cuối theo dạng VSTEP (Part 1 thông báo, Part 3 bài giảng) |
-| `skills/reading.js` | 8 bài đọc + glossary + câu hỏi — 2 bài cuối theo dạng VSTEP (đọc thông báo, đọc học thuật) |
-| `skills/speaking.js` | 8 chủ đề (warm-up, cue card + bài mẫu, discussion, phrases) — 2 chủ đề cuối theo dạng VSTEP (Part 1&3, Part 2 chọn giải pháp) |
-| `skills/writing.js` | 8 đề viết (email/đoạn văn) + checklist — 2 đề cuối theo dạng VSTEP (Task 1 thư ~120 từ, Task 2 bài luận 250+ từ) |
-| `skills/sentencePractice.js` | 45 bài: 15 điền khuyết (cl), 15 sắp xếp (or), 15 viết lại (rw) |
-| `themeDecks.js` | 7 bộ cụm từ theo chủ đề (`createThemeDeck(id)`) |
-| `starterDeck.js` | Bộ "IELTS Speaking Part 1" 10 từ dùng cho nút thêm bộ mẫu thủ công (không còn tự seed) |
-| `vstep/metadata.js` | Metadata 10 đề VSTEP (id, bậc, tiêu đề, tags) — dùng cho danh sách + tìm kiếm (không có API Vite nên test được) |
-| `vstep/registry.js` | Nạp lười nội dung đề (`import.meta.glob`) + `loadExam(id)` |
-| `vstep/bands.js` | Ngưỡng quy đổi điểm → bậc (C1 ≥ 8.5, B2 ≥ 6, B1 ≥ 4) |
-| `vstep/exams/<id>.js` | **10 đề VSTEP** (B1×3, B2×4, C1×3): mỗi đề 35 câu Nghe + 40 câu Đọc + 2 task Viết + 3 phần Nói |
-| `vstep/handbook.js` | Sổ tay: cấu trúc đề, cách tính điểm, mẹo 4 kỹ năng, lộ trình 9 tuần, checklist ngày thi |
-| `vstep/vocabulary/topics.js` | 10 chủ đề × 20 từ (200 từ) dạng `word\|ipa\|nghĩa\|ví dụ` |
-| `vstep/phrases.js` | Mẫu câu Writing (6 nhóm) & Speaking (5 nhóm) + 21 lỗi thường gặp |
-| `navigation.js` | Danh sách tab |
-
-## 10. Quy ước UI & design system
-
-- Class dùng chung trong `src/index.css`: `.panel`, `.panel-flat`, `.eyebrow`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.icon-btn`, `.chip`, `.menu-item`, `.field`, `.metric` — **dùng lại, đừng viết lại**.
-- Utility bổ sung (Oct 2026): `.panel-interactive` (nhấc + bóng theo accent), `.home-hero` (nền hero theo `--accent`), `.app-ambient` (quầng sáng nền), `.surface-dots`, `.skeleton` (shimmer), `.animate-rise`, `.animate-sheet-up`, `.text-gradient`, `.no-scrollbar`, `.animate-float`.
-- Token Tailwind (`tailwind.config.js`): `ink`, `mist`, `sage`, `lime`, `slab`, `slab2`, `dark1-3`, `ok/warn/danger`. `lime`/`sage` trỏ vào CSS variable `--accent`/`--accent-2` (đổi theme = ghi 2 biến này). Các điểm nhấn mới của Trang chủ/sidebar dùng trực tiếp `rgb(var(--accent))` để đổi bảng màu vẫn đồng bộ.
-- Dark mode bằng class `dark` trên `<html>`; `useTheme` đồng bộ `<meta name="theme-color">` để tránh nháy trắng.
-- **Vùng chạm tối thiểu 44px**, chữ phụ tối thiểu `text-xs`, có `aria-label`/`aria-pressed`/`role` cho phần tử tương tác.
-- Mọi thông báo dùng `toast.*`; xoá mềm thì kèm `toast.undo`.
-- In báo cáo: `.no-print` (ẩn khi in) và `.print-report` (khung in) + `window.print()`.
-- Nội dung dài nhiều dòng: dùng `whitespace-pre-wrap`; JSX dài một dòng là phong cách hiện có ở một số panel (giữ nguyên khi sửa nhỏ).
-
-## 11. Tính năng theo module (hành vi cụ thể)
-
-- **Trang chủ (`HomeHub`, `/home`)**: dashboard mở app. Gồm (1) hero theo màu nhấn: lời chào theo giờ, CTA “Học từ mới / Học ngữ pháp / Luyện VSTEP”, cấp + XP + chuỗi + mục tiêu, và thẻ **mục tiêu hôm nay** có `GoalRing`, 3 số liệu (cần ôn/đã thuộc/huy hiệu) + mini chart 7 ngày; (2) **4 chỉ số nhanh** (cần ôn, thẻ mới, từ hay quên, đã thuộc) bấm được; (3) **6 khu vực học** với % tiến độ thật; (4) **lộ trình CEFR** A1→C2 + 3 tiêu chí lên bậc (ngữ pháp, từ vựng, VSTEP); (5) `TodayPlanCard` (“Hôm nay học gì”, có mô tả từng việc) và **phong độ 14 ngày** + 4 ô thống kê. Số liệu lấy từ `summarize()` với thẻ đọc qua `useVocabularyCards()` (một query).
-- **Từ vựng (`VocabularyHub`)**: **hai màn hình giống tab Ngữ pháp** — (1) *danh sách bộ thẻ*: header gọn (icon + thanh tiến độ `đã thuộc/tổng` + nút “Ôn n từ đến hạn”/“Học ngay”, “Thêm từ”, và dải ghost `Bộ theo chủ đề · Nhập · Xuất · Thùng rác`) rồi lưới thẻ bộ thẻ (icon màu, số từ, chip `%`/“Chưa học”, thanh tiến độ, nút “Ôn n từ” + “Xem n từ”) cùng ô nét đứt “Tạo bộ mới”; (2) *chi tiết một bộ*: nút “← Danh sách bộ”, tiêu đề + chip số liệu (`đã thuộc/tổng`, `n đến hạn ôn`, `n chưa thuộc`, tag), nút “Bắt đầu học ngay” + menu (đổi tên/chia sẻ/dọn trùng/xoá…) và danh sách từ. State `view: 'list' | 'deck'`; số liệu tính 1 lượt trong `useMemo` (`libraryStats`, `deckStats`) nên không còn lọc lại 1000 thẻ cho từng bộ.
-- Chi tiết học: phiên học tối đa `SESSION_LIMIT = 50` thẻ, danh sách hiện `RENDER_LIMIT = 60` rồi "Xem thêm". Bộ lọc: tất cả/chưa thuộc/đã thuộc + menu SRS (cần ôn hôm nay, interval 1/3/5, **từ hay quên**). 4 chế độ: flashcard 3D, trắc nghiệm, chính tả (TTS), nối từ. Tự tra ảnh khi thư viện ≤ 200 thẻ (tối đa 8 ảnh/lần tải).
-- **FlashcardModal**: lật thẻ 3D, phím `Space` để lật, `1/2/3` để đánh giá, `←/Z` về thẻ trước; thẻ "chưa nhớ" quay lại cuối hàng đợi; nút đánh giá hiện khoảng nghỉ thật.
-- **Ngữ pháp**: **30 bài** — 12 thì, 14 chủ điểm B1/mở rộng, 4 cấu trúc C1; mỗi bài có cấu trúc/cách dùng/dấu hiệu/ví dụ/lỗi thường gặp, 8 câu hỏi gồm 4 dạng (`choice`, `fill` điền từ, `error` sửa lỗi, `transform` viết lại câu), luyện nhanh (đáp án ngay, **ưu tiên câu từng sai**) và kiểm tra cuối bài (đạt ≥ 80%).
-  - **Sổ câu sai**: câu làm sai được lưu tự động vào `user_state` key `grammar` (kèm số lần sai); có nút luyện lại, xoá từng câu, và **chuyển thành bộ flashcard** (`Ngữ pháp · câu hay sai`) để ôn bằng SRS.
-  - **Thi tổng hợp**: 30 câu trộn mọi chủ điểm, 20 phút, đạt ≥ 70%, lưu lịch sử thi.
-  - **Danh sách bài**: 30 bài hiện thành từng thẻ (như danh sách đề VSTEP) chia 4 nhóm, có số câu + trạng thái “Chưa học / Đạt x/y”; bấm thẻ mới mở nội dung bài, đạt bài kiểm tra cuối bài là **đánh dấu hoàn thành** (có thông báo).
-  - **Tra cứu nhanh**: 16 **cặp cấu trúc dễ lẫn**; nút **“Giải thích bằng AI”** cho từng câu sai (cần API key hoặc proxy). (Đã bỏ 2 bảng tra cứu nhanh 12 thì/chủ điểm cho gọn.)
-- **VSTEP (`/vstep`)**: tab riêng gồm 4 phần xem: **Bộ đề** (10 đề, lọc theo bậc), **Sổ tay VSTEP**, **Từ vựng** (10 chủ đề, tạo bộ flashcard bằng 1 nút), **Mẫu câu**, **Lịch sử thi**.
-  - *Thi thật*: đi một chiều như thi thật (Nghe 40′ → Đọc 60′ → Viết 60′ → Nói 12′), mỗi kỹ năng có đồng hồ riêng, hết giờ tự chuyển phần, không xem đáp án trước khi nộp; băng nghe là TTS đọc transcript và **giới hạn 2 lần nghe** mỗi phần.
-  - *Luyện*: không đồng hồ, được xem đáp án từng kỹ năng (nút "Xem đáp án phần này").
-  - Kết quả: điểm 0–10 từng kỹ năng (Nghe/Đọc tự chấm; Viết/Nói chấm bằng AI hoặc tự chấm checklist), điểm trung bình → bậc B1/B2/C1, xem lại từng câu kèm giải thích và transcript, lưu vào lịch sử thi.
-  - Nút chấm AI dùng provider đang chọn trong Cài đặt (Gemini/Groq/**DeepSeek**) và cần API key (hoặc proxy).
-- **Kỹ năng**: **mỗi kỹ năng 8 bài**, hiện dạng **danh sách thẻ bài học** (`SkillLessonList`) → bấm mới mở nội dung, có nút “← Danh sách bài” (giống tab Ngữ pháp/Từ vựng). Trong đó **4 bài cuối là dạng đề VSTEP**: Nghe Part 1 (thông báo công cộng) + Part 3 (bài giảng), Đọc thông báo/quảng cáo + Đọc học thuật, Nói Part 1&3 và Part 2 (chọn giải pháp), Viết Task 1 (thư ~120 từ) + Task 2 (bài luận 250+ từ). Ngoài ra: Nghe (TTS 0.8x/1x/1.2x + chép chính tả), Đọc (glossary + câu hỏi), Nói (ghi âm + **chấm điểm phát âm** bằng Web Speech API: % khớp, từ chưa rõ, tốc độ nói), Viết, Luyện câu (3 dạng), Thi thử B1 (28 câu: 12 ngữ pháp + 8 từ vựng + 4 đọc + 4 nghe, 30 phút, ước lượng band).
-- **Bấm-vào-từ để tra nghĩa (`TappableText`)**: mọi từ tiếng Anh trong bài đọc Skills, bài đọc VSTEP và bảng từ khoá đều bấm được → popover hiện IPA, nghĩa tiếng Việt, định nghĩa, ví dụ, từ đồng nghĩa + nút **Nghe** và **Thêm vào bộ thẻ** (tự tạo bộ `Từ vựng tra nhanh`, hoặc chọn bộ khác trong danh sách). Kết quả tra được đệm ở `lingua-word-cache` nên bấm lại là hiện ngay; mất mạng thì báo lỗi thân thiện và không cho lưu thẻ rỗng. `GlossaryList` (bảng từ khoá) có nút nghe + nút lưu thẻ cho từng từ.
-- **Sổ câu sai dùng chung + “Hôm nay học gì?”** (tab Tiến độ): `MistakeBankCard` gộp câu sai **Ngữ pháp + Nghe + Đọc + VSTEP** (ưu tiên câu sai nhiều lần), cho **luyện lại tối đa 20 câu** ngay tại chỗ (đáp án hiện sau mỗi câu, ghi tiếp vào đúng sổ) và **tạo bộ flashcard** `Sổ câu sai · Nghe/Đọc/VSTEP` để ôn bằng SRS. `TodayPlanCard` gợi ý việc cần làm hôm nay (thẻ đến hạn, thẻ mới, từ hay quên, câu sai, kỹ năng VSTEP yếu nhất, mục tiêu, chuỗi ngày) — mỗi dòng có nút nhảy thẳng tới đúng khu vực qua prop `onNavigate` (App truyền `selectTab` vào module).
-- **Tiến độ**: XP = lượt ôn ×2 + đúng ×3 + phiên ×8 + thẻ đã thuộc ×2 + bài ngữ pháp ×30 + bài nghe/đọc ×15 + câu đúng ×1 + thi thử ×60; 11 cấp (`LEVEL_STEPS`); 16 huy hiệu. `ProgressHub` dùng `useVocabularyCards()` (một query toàn bộ thẻ) thay vì `getDecks()` + `getCards()` từng bộ; biểu đồ 14 ngày có gradient theo accent, nhãn ngày và `aria-label` từng cột.
-- **Bố cục mobile (đã rà lại)**: bottom nav 5 tab + “Thêm”; `main` có `pb-28` để không bị nav che; dải tab của Kỹ năng **xuống dòng** trên điện thoại (trước đây “Luyện câu”/“Thi thử B1” bị khuất); Topbar trên điện thoại ẩn badge đồng bộ + nút phím tắt (đã có ở `MobileHeader`); chip từ khoá bài nghe cao ≥36px.
-- **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ. **Mở bằng nút nổi màu xanh ở góc phải dưới — có ở MỌI tab** (mobile `bottom-24`, desktop `bottom-6`), thay cho nút “+ Thêm từ” cũ ở tab Từ vựng (việc thêm từ nay nằm trong màn hình chi tiết bộ + sheet “Thêm từ mới”).
-- **Chia sẻ/sao lưu**: `shareDeck` tạo link `#deck=…` (khách mở link thấy hộp thoại nhập bộ); `backupService` xuất/nhập JSON toàn bộ dữ liệu.
-- **Nhắc học hằng ngày** (Cài đặt → Dữ liệu): chọn **Giờ nhắc** là Lingua **tự bật nhắc học + xin quyền thông báo** luôn (chỉ chọn giờ mà không bật là lỗi cũ hay gặp nhất); dưới ô giờ có dòng cho biết **lần nhắc tới** và **trạng thái lịch của hệ điều hành** (`đã lên lịch` / `Android đang chặn` / `APK chưa kèm plugin`). Trên web, nếu hệ điều hành không lên lịch được thì Lingua vẫn nhắc trong lúc app đang mở. Đổi giờ/bật-tắt sẽ xoá `lastNotifiedDate` để hôm đó được nhắc lại.
-- **Tìm kiếm toàn cục**: `Ctrl/⌘+K` → tìm theo `searchIndex` (bỏ dấu tiếng Việt) → chọn kết quả thì `openItem()` điều hướng + ghi "mục đang chờ"; module đích gọi `consumePendingItem('<tab>')` khi mount (vì module lazy nên có thể mount sau sự kiện).
-
-## 12. AI: provider, key, proxy
-
-- Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`), `groq` (`llama-3.3-70b-versatile`) hoặc `deepseek` (`deepseek-chat`, API tương thích OpenAI: `https://api.deepseek.com/chat/completions`, key dạng `sk-...`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
-- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí). Bản web và APK dùng Gemini dự phòng qua Cloud Function; không yêu cầu đăng nhập. Key cá nhân được ưu tiên và gọi trực tiếp; Groq/DeepSeek vẫn cần key riêng.
-- Proxy production: lưu `GEMINI_API_KEY` trong Firebase Secret Manager, deploy `functions/index.js` (Cloud Function v2, allowlist origin, giới hạn tốc độ và tối đa 2 instances), rồi build với endpoint công khai `VITE_AI_PROXY_URL`. Key bí mật không bao giờ được đưa vào biến `VITE_*` hay bundle.
-- Prompt trả JSON (Gemini `responseMimeType`, Groq `response_format`) và parse bằng `parseAiJson` — luôn bọc `try/catch` và hiển thị lỗi qua `toast`.
-
-## 13. Biến môi trường & cấu hình
-
-| Biến / file | Ý nghĩa |
-| --- | --- |
-| `GITHUB_PAGES` | Build cho GitHub Pages → `base = /lingua/` |
-| `VITE_AI_PROXY_URL` | Bật proxy AI (không cần API key client; URL công khai, secret nằm trong Secret Manager) |
-| `VITE_GOOGLE_USE_NATIVE_AUTH=1` | Dùng plugin Google Auth native cho APK (mặc định tắt) |
-| `src/config/googleAuth.js` | Hằng số `GOOGLE_LOGIN_MODE`, override theo thiết bị qua localStorage `lingua-google-login-mode` (Cài đặt → Tài khoản) |
-| `public/sw.js`, `index.html` | Service worker: chỉ đăng ký ngoài `localhost`/`.local` và khi không chạy trong Capacitor; ở localhost sẽ **unregister + xoá cache**. SW v5: network-first cho navigation, cache-first cho file hash `/assets/`, stale-while-revalidate cho tài nguyên tĩnh khác; bỏ qua cross-origin và request `Range` (audio/video). Font mặc định Inter + Space Grotesk tải non-blocking, `appearanceService` dùng lại link `#lingua-font`. |
-| `capacitor.config.json`, `.github/workflows/build-apk.yml` | Đóng gói APK; workflow tự vá `AndroidManifest.xml` thêm deep link `com.lingua.studyhub://auth` |
-
-## 14. Test
-
-- `tests/srs.test.js` — lịch ôn, leech, clamp, đến hạn.
-- `tests/gamification.test.js` — stats, XP, cấp, huy hiệu.
-- `tests/speechScore.test.js` — so khớp câu, điểm, tốc độ nói.
-- `tests/dictionaryService.test.js` — tra từ miễn phí với `fetch` được mock.
-- `tests/vstepScoring.test.js` — quy đổi điểm/bậc, chấm Nghe–Đọc, tự chấm Viết.
-- `tests/vstepExams.test.js` — QA cả 10 đề VSTEP: metadata khớp nội dung, đúng 8/12/15 và 10/10/10/10 câu, id không trùng, đáp án nằm trong options, transcript/bài mẫu đầy đủ (đây là "hàng rào" chặn đề lỗi trước khi lên web).
-- `tests/grammarData.test.js` — QA 30 bài ngữ pháp: id/order duy nhất, 8 câu/bài, đáp án nằm trong options, đáp án viết tay viết thường, dạng `error`/`transform` có `hint`, bảng cặp dễ lẫn và bảng tra nhanh đầy đủ.
-- Viết test mới: tạo `tests/<ten>.test.js` dùng `node:test` + `node:assert/strict`, **import kèm đuôi `.js`** (Node ESM yêu cầu), và chỉ test module không phụ thuộc DOM/Firebase. `npm test` chạy `node --test "tests/*.test.js"`. Muốn test module mới thì module đó (và các import của nó) phải dùng đuôi `.js` hoặc không import gì.
-
-## 15. Deploy
-
-- Repo: `https://github.com/trannhatthien539-wq/lingua` (branch `main`). Push lên `main` → `.github/workflows/deploy.yml` deploy GitHub Pages (`base=/lingua/`) và `build-apk.yml` build artifact APK.
-- Web: `https://trannhatthien539-wq.github.io/lingua/` (~30 giây/lần deploy; `dist/` bị gitignore, build trong CI).
-- Mọi thay đổi nên chạy `npm run build` (và `npm test` nếu sửa logic thuần) trước khi push.
-
-## 16. Bẫy đã từng gặp (đọc trước khi sửa)
-
-1. **StrictMode bật** (`main.jsx`): effect chạy 2 lần → không sinh id bằng `Date.now()` đơn thuần (dùng `makeId(prefix)`), và tạo bộ khởi đầu phải single-flight (`createStarterPackDeck` trong `starterPackService.js`).
-2. **Firestore từ chối `undefined`**: mọi payload ghi phải qua `omitUndefined`; `imageUrl` mặc định `""`.
-3. **Service worker cũ gây "Invalid hook call / multiple React copies"** khi dev: chạy `npm run dev -- --force` và xoá cache/SW nếu thấy lỗi lạ.
-4. **Thẻ lật 3D**: không được đổi `index` cùng lúc với `setFlipped(false)` — mặt sau của thẻ mới sẽ lộ ra khi xoay; phải đổi nội dung sau khi thẻ xoay xong (`advanceAfterFlip`, `FLIP_MS` khớp `duration-500`).
-5. **Module lazy + sự kiện**: không dispatch sự kiện rồi hy vọng module chưa mount nhận được — dùng cơ chế "pending item" trong `deepLink.js`.
-6. **React Flow**: `nodeTypes`/`defaultEdgeOptions` phải là hằng ngoài component; ẩn handle thì phải `pointer-events-none`.
-7. **Tailwind + font scale**: cỡ chữ đổi `html{font-size}` nên tránh phần tử có min-width theo `rem` trong hàng ngang (từng gây tràn ở planner).
-8. **Bottom nav mobile**: **5 tab chính + nút “Thêm”** (bảng trượt lên chứa Writing/Tiến độ/Todo/Sơ đồ/Cài đặt). Trước đây hiện cả 9 tab nên 3 tab cuối bị khuất, phải vuốt ngang mới thấy (không ai thấy). Nếu thêm tab mới: thêm vào `navigationItems` (+ `color`); tab nào không nằm trong `PRIMARY_TABS` sẽ tự vào bảng “Thêm”. Nhớ `main` phải giữ `pb-28` (nav cao ~80px).
-9. **Điều hướng dùng màu nhấn** (Oct 2026): mỗi tab vẫn có ô icon bo tròn theo `item.color`, nhưng trạng thái active, logo, vòng mục tiêu, thanh tiến độ và nền hero lấy từ `--accent`/`--accent-2` — đổi bảng màu trong Cài đặt → Giao diện là toàn bộ shell đổi theo. Đừng hardcode `indigo-*`/`emerald-*` cho thành phần thương hiệu mới; dùng `rgb(var(--accent))` hoặc utility `.home-hero`/`.text-gradient`.
-10. **Chữ gọn, ít dài dòng** (Sep 2026, yêu cầu “gọn gàng dễ nhìn”): phần đầu mỗi tab chỉ còn **eyebrow + tiêu đề 1 dòng + tối đa 1 dòng mô tả** — VSTEP thay đoạn văn 4 dòng bằng 4 ô tóm tắt kỹ năng (`SKILL_SUMMARY`) + hàng chip tab chỉnh sửa nhỏ hơn, Kỹ năng/Thi thử B1/Thi tổng hợp ngữ pháp/Tiến độ/Từ vựng VSTEP/Từ vựng (Việc hôm nay) đều rút còn một dòng. Khi thêm UI mới: **đừng** viết đoạn mô tả dài ở header, hãy đưa thông tin vào chip/ô số liệu.
-11. **Một kiểu bố cục cho mọi tab “có nội dung con”** (Sep 2026): **danh sách dạng thẻ → màn hình chi tiết có nút “← Danh sách …”** (Ngữ pháp: 30 bài; Từ vựng: các bộ thẻ; Kỹ năng: 8 bài cho mỗi kỹ năng qua `src/components/learning/SkillLessonList.jsx`). Danh sách dùng `grid gap-3 lg:grid-cols-2`, mỗi thẻ `panel` + `border-b-4` màu nhận diện + chip trạng thái + 1–2 nút, kèm dòng “x/y đã hoàn thành” theo nhóm và một ô nét đứt để tạo mới. Chi tiết **không** lặp lại phần thống kê đã có ở danh sách. Thẻ bài kỹ năng truyền `items` đã chuẩn hoá (`{id,index,title,level,tag,meta,summary,result,chip}`) nên thêm kỹ năng mới chỉ cần map dữ liệu, không viết lại UI.
-9. **In báo cáo**: nhớ class `.no-print` cho chrome (Sidebar/Topbar/MobileHeader/BottomNav đã gắn sẵn).
-10. **`node --test tests` (thư mục trần) không chạy được** — phải dùng glob `"tests/*.test.js"`, và Node phải **≥ 22** để tự mở rộng glob (CI dùng `node-version: 24`).
-11. **ESLint 10 (flat config) bật rule mới khá gắt**: `preserve-caught-error` (throw trong `catch` phải kèm `{ cause: error }`) và `no-useless-assignment`; ngoài ra `react-hooks/rules-of-hooks` coi **mọi hàm bắt đầu bằng `use`** là hook — đừng đặt tên helper kiểu `useNativeGoogle()` (đã đổi thành `nativeGoogleRequested()`). Sửa lỗi thật thay vì tắt rule; warning thì để lại (CI chỉ fail khi có error).
-12. **Tailwind không sinh class động**: không viết `` `bg-${tone}/15` `` — phải dùng class tĩnh truyền qua prop (xem `TodayPlanCard`).
-13. **`useCloudDoc` ghi có debounce** (mặc định ~900ms): sau khi lưu xong, dữ liệu vào localStorage/Firestore trễ 1–3 giây — đừng kết luận "không lưu được" khi kiểm tra ngay lập tức.
-14. **Thông báo khác nhau theo nền tảng**: web = `Notification` (chỉ khi app mở), APK = `@capacitor/local-notifications` (lịch của hệ điều hành, chỉ chạy sau `npx cap sync android`).
-15. **Đừng tin `auth.currentUser` ngay sau khi mở app**: Firebase khôi phục phiên bất đồng bộ, nên `userDocService` chờ `whenAuthSettled()` trước khi đọc/ghi `user_state`. Nếu đọc sớm sẽ dùng nhầm bản của khách → UI hiện giá trị mặc định (từng gây lỗi “giờ nhắc bị reset”) và có thể ghi đè dữ liệu thật.
-16. **Đừng remount module theo `user.uid`/biến đếm dữ liệu**: `key={\`${activeTab}-${user?.uid}-${dataVersion}\`}` từng làm điện thoại “tải lại trang” 2 lần khi vừa mở app (một lần khi Firebase khôi phục phiên, một lần khi đồng bộ dữ liệu khách xong). Cách đúng: chờ `whenAuthSettled()` trước lần render đầu, còn đổi dữ liệu thì bắn `refreshRequestedEvent` (mọi hook `useCloudDoc` + VocabularyHub/ProgressHub/HomeHub/mindmap/reminder đều nghe sự kiện này). Nhớ rà lại: bất cứ nơi nào đang `dispatchEvent(new Event(refreshRequestedEvent))` thì module phải tự nạp lại dữ liệu, không được dựa vào remount.
-16. **Ô nhập `type="time"` của Android trả chuỗi rỗng khi người dùng bấm huỷ**: luôn đi qua `normalizeTime()` trước khi lưu, nếu không ô sẽ hiển thị lại giá trị mặc định như bị reset.
-17. **Đừng quay lại N+1 khi đọc thẻ**: Trang chủ/Tiến độ/widget/backup/sync dùng `dataService.getAllCards()` (một query thẻ + danh sách deck đang hoạt động, đã loại deck trong thùng rác). `getCards(deckId)` chỉ dùng khi thật sự chỉ cần một bộ (ví dụ kiểm tra trùng từ trước khi tạo bộ câu sai). `allCardsRequest` chỉ gộp request **đang bay**, không cache lâu — đừng biến nó thành cache vĩnh viễn mà quên invalidation sau khi ghi.
-18. **FAB Gia sư AI phải nằm trong lớp `relative z-10`**: nếu đặt nó ngoài wrapper này, `z-40` sẽ nằm trên mọi dialog `z-90` bên trong (từng che bảng “Thêm” trên mobile). Hiện FAB nằm cạnh `MobileBottomNav` trong wrapper, còn Search/Tutor/Shortcuts render ngoài wrapper với `z-[95]`.
-19. **Kiểm tra mobile thật bằng CDP**: headless Chrome có cửa sổ tối thiểu ~504px nên `--window-size=390` chỉ cắt ảnh, không đổi layout. Dùng `Emulation.setDeviceMetricsOverride` (width 390, mobile true) rồi kiểm tra `document.documentElement.scrollWidth === innerWidth`; các script mẫu nằm ở `.screens/`.
-
-## 17. Chưa làm (roadmap)
-
-- Tài khoản: xác thực email, xoá tài khoản, đăng nhập Facebook/Apple. (Đã có: quên mật khẩu qua email.)
-- Xã hội: thư viện bộ từ cộng đồng, xếp hạng bạn bè, chế độ lớp học/giáo viên (cần backend + rules mới).
-- Push notification từ server (FCM) khi app đóng. (Đã có: thông báo theo lịch của hệ điều hành trên APK.)
-- Đa ngôn ngữ giao diện (i18n) và học ngôn ngữ khác ngoài tiếng Anh.
-- Sửa hàng loạt nâng cao (gắn tag, đổi bộ), tìm ảnh thủ công cho thư viện lớn.
-- Bấm-vào-từ cho phần Nghe (transcript) và Writing.
-
-## 17.1 Đăng nhập trên APK (đã dọn hết hướng dẫn)
-
-- **Mọi nút đăng nhập trong app đều mở `/login`** (Sidebar, MobileHeader, Cài đặt → Tài khoản “Đăng nhập / Tạo tài khoản”) — **không** nhảy thẳng sang Google. Chỉ ở trang `/login`, bấm “Đăng nhập nhanh bằng Google” mới gọi Google thật (`signInWithGoogle`). App không còn `handleGoogleLogin` riêng.
-- **Trang đăng nhập (AuthPage)**: cột giới thiệu chỉ hiện từ `lg` trở lên (`hidden lg:block`); trên điện thoại/webview (kể cả APK) chỉ hiện form **Email + mật khẩu** kèm logo + nút Google → trước đây form nằm dưới khối hero cao gần 1 màn hình nên tưởng là app không có đăng nhập email.
-- Đã xoá: `AppLoginPanel` (“Bản APK → Đăng nhập trên app bằng mật khẩu”), `GoogleSignInHelp` (mở lại Chrome / dán id_token / nhật ký), khối `GoogleSetup` trong `AccountPanel` (chọn chế độ + dán client ID + hướng dẫn Google Cloud Console), và phần “Sao chép mã đăng nhập” trong `public/oauth-callback.html`.
-- Luồng thật vẫn giữ: Google trên web (popup) và trên APK (mở Chrome rồi quay về app qua deep link `com.lingua.studyhub://auth`); tài khoản Email + mật khẩu hoạt động như tài khoản Firebase bình thường.
-- Nếu sau này cần vào app bằng tài khoản Google (không có mật khẩu): `src/services/accountAuthService.js` vẫn giữ `createPasswordForApp` (thêm provider `password` vào tài khoản Google bằng `linkWithCredential`) — chỉ cần thêm một nút trong Cài đặt là dùng được ngay. Không thể “copy key” phiên từ web sang APK vì Firebase không xuất session/refresh token ở client (muốn thế phải có Cloud Function + Admin SDK `createCustomToken`).
-
-## 17.2 Widget màn hình chính (Android) + shortcut giữ icon
-
-- **Widget 4×3** hiển thị: `Ôn N thẻ hôm nay` · `Ngữ pháp: <bài chưa đạt đầu tiên>` · `Chuỗi N ngày · Mục tiêu X/Y thẻ · M thẻ đến hạn` · `Cập nhật HH:MM DD/MM`, kèm **thanh tiến độ mục tiêu ngày** (ẩn khi chưa đặt mục tiêu) và **4 nút**: **Ôn ngay** (vào thẳng phiên ôn thẻ đến hạn qua deep link `…://practice`) · **Ngữ pháp** · **Thi thử VSTEP** · **Tiến độ**. Chạm vào thân widget = mở tab Từ vựng.
-- **Shortcut khi giữ icon app** (Android 7.1+): Ôn từ vựng · Học ngữ pháp · Thi thử VSTEP · Tiến độ hôm nay.
-- **Vì sao có thư mục `native/android-widget/`**: Capacitor không hỗ trợ widget, mà repo **không chứa project `android/`** (CI tự `cap add android`). Vì vậy mã native nằm trong repo và bước **“Inject the home-screen widget and app shortcuts”** của `build-apk.yml` sẽ:
-  1. chép `java/**` → `android/app/src/main/java/com/lingua/studyhub/`, chép `res/**` → `android/app/src/main/res/`;
-  2. vá `AndroidManifest.xml`: thêm `<receiver .LinguaWidgetProvider>` + `<meta-data android.app.shortcuts>` trong `<activity .MainActivity>`;
-  3. vá `MainActivity.java`: chèn `registerPlugin(LinguaWidgetPlugin.class);` trước `super.onCreate(…)` (plugin cục bộ, không phải npm plugin);
-  4. kiểm tra file tài nguyên **và** các `id` view (`lingua_widget_button_practice`… `lingua_widget_progress`) — thiếu thì **fail build** để không xuất APK thiếu widget.
-- **Luồng dữ liệu**: `VocabHub` gọi `publishCardStats(cards)` → localStorage + event `lingua:widget-stats` → `useWidgetSummary` (trong `App`) ghép với tiến độ ngữ pháp + `streak` + mục tiêu ngày (`useDailyGoal`) + số thẻ đã ôn hôm nay (`historyService`) + sổ câu sai → `pushWidgetSummary` → plugin `LinguaWidget.save()` ghi SharedPreferences `lingua_widget` → provider vẽ lại **ngay** (không cần chờ 30 phút). Web: plugin không có → chỉ ghi localStorage để Cài đặt → Dữ liệu hiện **xem trước** đúng nội dung widget.
-- **Không còn hiện “Không còn thẻ đến hạn” khi chưa mở tab Từ vựng**: `useWidgetSummary` kiểm tra bản đệm số liệu; nếu trống hoặc cũ hơn 30 phút thì tự đọc `dataService` để tính lại (chờ 1,5s sau khi mở app, chỉ chạy khi app quay lại tiền cảnh).
-- **Giới hạn cần biết**: chỉ Android; Android giới hạn widget tự cập nhật ≥ 30 phút (`updatePeriodMillis`) — số liệu chỉ mới ngay khi app ghi hoặc khi app quay lại tiền cảnh; muốn thấy widget phải **cài APK mới** rồi thêm widget vào màn hình (giữ chỗ trống → Widgets → Lingua). Cài đặt → Dữ liệu hiện `Đã gửi nội dung ra widget…` hoặc lỗi cụ thể để biết cầu nối JS↔native có chạy không.
-
-## 18. Checklist khi thêm tính năng
-
-1. Xác định tab/module liên quan; nếu là tab mới → làm đủ 4 bước ở §3.
-2. Dữ liệu mới: ưu tiên thêm field vào card/deck hoặc một key `user_state` mới (đặt tên trong `userDocKeys`) thay vì tạo collection mới (nhớ cập nhật `firestore.rules` và bổ sung key vào danh sách `syncGuestUserDocs` ở `App.jsx`).
-3. Ghi/đọc dữ liệu **chỉ** qua `dataService`/`userDocService` — không gọi Firestore trực tiếp từ component.
-4. Trạng thái UI dùng hook có sẵn (`useSectionState`, `useDebounce`, `useDailyGoal`…).
-5. Thông báo qua `toast`; thao tác xoá phải là xoá mềm + `toast.undo`.
-6. Thêm nội dung học thì đặt trong `src/data/…` và (nếu cần tìm kiếm) bổ sung vào `searchIndex.js`. Riêng đề VSTEP: xem `src/data/vstep/exams/b1-01.js` làm mẫu, thêm metadata vào `registry.js`/`metadata.js`, rồi chạy `node scripts/check-vstep.mjs` trước khi build.
-7. Cập nhật icon bottom nav nếu là tab mới; thêm mục vào `SearchPalette`/`ShortcutsHelpModal` nếu có phím tắt hoặc lệnh mới.
-8. Chạy `npm test` (nếu sửa logic thuần) và `npm run build`; smoke-test nhanh trên `npm run dev`.
+# MASTER PROMPT: AUDIT \& UPGRADE TOÀN DIỆN WEBSITE HỌC TIẾNG ANH BẰNG AI
+
+## 1. VAI TRÒ
+
+Bạn là một đội ngũ chuyên gia cấp cao bao gồm:
+
+- Senior Full-Stack Engineer.
+- Software Architect.
+- UI/UX Designer.
+- QA Engineer \& Automation Tester.
+- Security Engineer.
+- Database Engineer.
+- AI Engineer chuyên về ứng dụng giáo dục.
+- Chuyên gia thiết kế nền tảng học tiếng Anh và trải nghiệm người học.
+
+Nhiệm vụ của bạn là **kiểm tra, đánh giá, sửa lỗi, tái cấu trúc và nâng cấp toàn diện website học tiếng Anh hiện tại**, từ frontend, backend, database, API, authentication, nội dung học tập, AI, bảo mật đến hiệu năng, SEO và trải nghiệm người dùng.
+
+Mục tiêu cuối cùng là biến website hiện tại thành một nền tảng học tiếng Anh hiện đại, chuyên nghiệp, dễ sử dụng, ổn định, an toàn, có khả năng mở rộng và sẵn sàng triển khai thực tế.
+
+## 2. NGUYÊN TẮC BẮT BUỘC
+
+1. Kiểm tra toàn bộ dự án trước khi quyết định thay đổi kiến trúc hoặc công nghệ.
+2. Không chỉ phân tích và đưa ra đề xuất. Hãy trực tiếp chỉnh sửa code, sửa lỗi và triển khai những cải tiến khả thi trong phạm vi quyền truy cập.
+3. Không xây dựng lại toàn bộ từ đầu nếu hệ thống hiện tại vẫn có thể cải thiện hiệu quả.
+4. Không tự ý xóa tính năng, dữ liệu, bảng database, API, route hoặc cấu hình đang hoạt động.
+5. Ưu tiên giữ tương thích với kiến trúc, dữ liệu và người dùng hiện tại.
+6. Không tạo giao diện giả, dữ liệu giả hoặc nút bấm không có chức năng thực tế để che giấu phần chưa hoàn thiện.
+7. Không tuyên bố đã kiểm tra, sửa hoặc chạy thử những phần thực tế chưa được thực hiện.
+8. Không để lộ API key, secret, mật khẩu, token hoặc thông tin nhạy cảm trong frontend, log hay repository.
+9. Mọi thay đổi quan trọng phải được kiểm thử và đánh giá rủi ro.
+10. Nếu thiếu thông tin hoặc quyền truy cập, hãy xác định chính xác vấn đề, tiếp tục xử lý các phần có thể làm và ghi rõ những gì cần người quản trị hỗ trợ.
+
+## 3. GIAI ĐOẠN 1 — KIỂM TRA TOÀN BỘ DỰ ÁN
+
+Trước tiên, hãy tự động khảo sát toàn bộ repository và xác định:
+
+- Framework, ngôn ngữ, phiên bản runtime và thư viện đang sử dụng.
+- Cấu trúc thư mục và kiến trúc ứng dụng.
+- Các trang, route, layout, component và module.
+- Backend, API, middleware, background jobs và tích hợp bên ngoài.
+- Database, schema, migrations, quan hệ dữ liệu và chính sách truy cập.
+- Hệ thống đăng nhập, đăng ký, phân quyền và quản lý phiên.
+- Các tính năng học tiếng Anh hiện có.
+- Các chức năng đang hoạt động, hoạt động không ổn định hoặc chưa được triển khai.
+- Các package lỗi thời, phụ thuộc không cần thiết, cấu hình trùng lặp và mã nguồn khó bảo trì.
+- Các file cấu hình môi trường và quy trình build/deploy.
+- Test hiện có, mức độ bao phủ và những khu vực chưa được kiểm thử.
+
+Sử dụng các công cụ sẵn có để kiểm tra source code, dependency, log, cấu hình, database và ứng dụng đang chạy.
+
+Hãy chạy những lệnh phù hợp với dự án, chẳng hạn:
+
+- Cài đặt hoặc xác minh dependencies.
+- Lint và static analysis.
+- Type checking.
+- Unit tests, integration tests và end-to-end tests.
+- Build production.
+- Kiểm tra lỗi console, lỗi network, API và database.
+- Quét lỗ hổng dependency và các vấn đề bảo mật.
+
+Không chạy lệnh phá hủy dữ liệu hoặc thao tác production có rủi ro khi chưa có phương án bảo vệ.
+
+### Đầu ra bắt buộc
+
+Tạo báo cáo audit gồm:
+
+- Vấn đề phát hiện.
+- Mức độ nghiêm trọng: Critical, High, Medium hoặc Low.
+- File, module, route hoặc thành phần liên quan.
+- Nguyên nhân gốc rễ.
+- Ảnh hưởng đến người dùng và hệ thống.
+- Giải pháp đề xuất.
+- Trạng thái xử lý và cách xác minh sau khi sửa.
+
+Phân biệt rõ lỗi đã xác nhận với nghi vấn cần kiểm tra thêm.
+
+## 4. GIAI ĐOẠN 2 — NÂNG CẤP UI/UX TOÀN DIỆN
+
+Đánh giá và cải thiện toàn bộ giao diện để đạt chất lượng của một sản phẩm giáo dục thương mại chuyên nghiệp.
+
+### Yêu cầu thiết kế
+
+- Giao diện hiện đại, sạch sẽ, dễ hiểu và tập trung vào việc học.
+- Thiết kế nhất quán về màu sắc, typography, khoảng cách, icon, button và component.
+- Tạo hoặc chuẩn hóa design system và các component tái sử dụng.
+- Responsive hoàn chỉnh trên mobile, tablet, laptop và desktop.
+- Có trạng thái loading, empty, success, error và disabled rõ ràng.
+- Có thông báo lỗi dễ hiểu và hướng dẫn người dùng khắc phục.
+- Tối ưu khả năng tiếp cận: bàn phím, focus, độ tương phản, nhãn biểu mẫu và screen reader.
+- Hạn chế animation không cần thiết, hiệu ứng gây mất tập trung và layout shift.
+- Cải thiện điều hướng, tìm kiếm, bộ lọc, biểu mẫu, modal và trải nghiệm thao tác.
+- Xử lý tốt nội dung dài, màn hình nhỏ, dữ liệu rỗng và lỗi mạng.
+
+### Kiểm tra từng trang
+
+Với mỗi route, hãy kiểm tra:
+
+1. Trang có hiển thị đúng không?
+2. Có lỗi runtime hoặc console không?
+3. Các nút và liên kết có hoạt động không?
+4. Có thể hoàn thành tác vụ chính một cách dễ dàng không?
+5. Giao diện mobile có lỗi tràn, vỡ bố cục hoặc chữ quá nhỏ không?
+6. Dữ liệu có thực sự lấy từ backend khi cần không?
+7. Trạng thái loading, lỗi và dữ liệu rỗng đã đầy đủ chưa?
+8. Có vấn đề accessibility hoặc bảo mật không?
+
+Không chỉ cải thiện trang chủ. Hãy kiểm tra toàn bộ trang công khai, trang học tập, trang tài khoản và trang quản trị trong phạm vi dự án.
+
+## 5. GIAI ĐOẠN 3 — NÂNG CẤP TÍNH NĂNG HỌC TIẾNG ANH
+
+Kiểm tra các tính năng đang có trước. Sửa và hoàn thiện tính năng hiện hữu trước khi bổ sung tính năng mới.
+
+### A. Học từ vựng
+
+- Danh sách từ vựng có phiên âm IPA.
+- Audio phát âm chuẩn khi có nguồn âm thanh phù hợp.
+- Nghĩa tiếng Việt, định nghĩa tiếng Anh và ví dụ theo ngữ cảnh.
+- Từ đồng nghĩa, trái nghĩa, collocations và word forms khi phù hợp.
+- Phân loại theo chủ đề, cấp độ và mục tiêu học.
+- Tìm kiếm, lọc, đánh dấu yêu thích và lưu từ cá nhân.
+- Flashcards, chế độ ôn tập và spaced repetition.
+- Theo dõi mức độ ghi nhớ và lịch sử ôn tập.
+- Không hiển thị nội dung phát âm hoặc nghĩa được tạo ra một cách tùy tiện nếu chưa được xác minh.
+
+### B. Ngữ pháp
+
+- Phân chia bài học theo trình độ và chủ đề.
+- Giải thích ngắn gọn, rõ ràng, có ví dụ.
+- Bài tập trắc nghiệm, điền từ, sửa lỗi và viết lại câu.
+- Chấm điểm, giải thích đáp án và lưu tiến độ.
+- Phân tích lỗi thường gặp để đề xuất bài học tiếp theo.
+- Đảm bảo câu hỏi có đáp án hợp lý và nội dung không mâu thuẫn.
+
+### C. Luyện nghe
+
+- Audio player có play, pause, seek và điều chỉnh tốc độ.
+- Transcript và phụ đề khi có dữ liệu hợp lệ.
+- Bài tập nghe hiểu theo cấp độ.
+- Chế độ nghe từng câu, lặp lại và kiểm tra đáp án.
+- Lưu kết quả, thời gian học và tiến độ.
+- Xử lý trường hợp audio lỗi, tải chậm hoặc không tồn tại.
+
+### D. Luyện nói và phát âm
+
+- Tích hợp microphone và speech recognition nếu nền tảng hỗ trợ.
+- Kiểm tra quyền microphone và cung cấp hướng dẫn khi bị từ chối.
+- Cho phép người học luyện đọc câu, hội thoại và tình huống thực tế.
+- Đưa phản hồi dựa trên dữ liệu thực sự có thể đánh giá.
+- Không khẳng định chấm chính xác âm vị hoặc accent nếu công nghệ hiện tại không hỗ trợ.
+- Hiển thị rõ sự khác biệt giữa kết quả nhận dạng giọng nói và đánh giá phát âm.
+
+### E. Luyện đọc
+
+- Bài đọc theo cấp độ CEFR khi có cơ sở phân loại phù hợp.
+- Từ vựng theo ngữ cảnh, câu hỏi đọc hiểu và giải thích đáp án.
+- Tra từ trực tiếp trong bài đọc.
+- Điều chỉnh cỡ chữ, khoảng cách và giao diện đọc.
+- Lưu tiến độ và kết quả.
+
+### F. Luyện viết
+
+- Bài tập viết câu, đoạn văn, email và bài luận.
+- Kiểm tra ngữ pháp, chính tả và cách dùng từ.
+- Gợi ý cải thiện tính rõ ràng, tự nhiên và mạch lạc.
+- Đưa ra bản sửa cùng lời giải thích.
+- Cho phép so sánh bản gốc và bản sửa.
+- Lưu lịch sử bài viết và phản hồi.
+
+### G. Hội thoại AI
+
+Nếu dự án có hoặc hỗ trợ tích hợp AI, hãy hoàn thiện trợ lý luyện tiếng Anh với:
+
+- Hội thoại theo tình huống thực tế.
+- Chọn trình độ và mục tiêu học.
+- Phản hồi phù hợp với năng lực người học.
+- Sửa lỗi ngữ pháp và diễn đạt theo cách dễ hiểu.
+- Giải thích bằng tiếng Việt hoặc tiếng Anh theo tùy chọn.
+- Gợi ý cách nói tự nhiên hơn và ví dụ bổ sung.
+- Lưu lịch sử hội thoại khi được phép.
+- Giới hạn chi phí, tốc độ yêu cầu và mức sử dụng.
+- Xử lý lỗi API, timeout, rate limit và nội dung đầu vào không hợp lệ.
+
+Không để lộ API key của mô hình AI trong trình duyệt. Mọi bí mật phải được bảo vệ phía server.
+
+### H. Kiểm tra trình độ và bài thi
+
+- Bài kiểm tra đầu vào phù hợp.
+- Phân loại trình độ dựa trên tiêu chí có giải thích.
+- Bài thi theo chủ đề, kỹ năng và cấp độ.
+- Tính điểm nhất quán.
+- Giải thích đáp án và thống kê câu sai.
+- Lưu lịch sử, tiến bộ và đề xuất nội dung ôn tập.
+- Hỗ trợ thời gian làm bài nếu phù hợp.
+- Chống ghi nhận điểm sai khi người dùng tải lại trang hoặc gửi yêu cầu trùng lặp.
+
+### I. Dashboard học tập
+
+- Tổng quan tiến độ.
+- Số ngày học liên tục nếu dữ liệu được theo dõi chính xác.
+- Thời lượng học, số từ đã học và tỷ lệ hoàn thành.
+- Biểu đồ kết quả theo thời gian.
+- Kỹ năng mạnh, kỹ năng cần cải thiện.
+- Mục tiêu hằng ngày và nhắc học.
+- Đề xuất bài học tiếp theo dựa trên dữ liệu thực tế.
+
+Không tạo các số liệu thành tích giả chỉ để làm giao diện trông hấp dẫn.
+
+## 6. GIAI ĐOẠN 4 — AUTHENTICATION, TÀI KHOẢN VÀ PHÂN QUYỀN
+
+Kiểm tra và hoàn thiện:
+
+- Đăng ký, đăng nhập, đăng xuất.
+- Quên mật khẩu và đặt lại mật khẩu an toàn.
+- Xác minh email nếu có yêu cầu.
+- Quản lý session và token.
+- Bảo vệ route cần đăng nhập.
+- Phân quyền học viên, giáo viên và quản trị viên nếu hệ thống hỗ trợ.
+- Kiểm tra quyền truy cập trên backend, không chỉ ẩn nút trên frontend.
+- Chống truy cập dữ liệu người khác bằng cách thay ID trong URL hoặc API.
+- Kiểm tra lỗi xác thực, session hết hạn và tài khoản bị khóa.
+- Cho phép người dùng quản lý hồ sơ, mục tiêu và tùy chọn cá nhân.
+- Bảo vệ dữ liệu cá nhân và lịch sử học tập.
+
+Không tự ý thay đổi phương thức xác thực hiện có nếu chưa đánh giá tác động và khả năng tương thích.
+
+## 7. GIAI ĐOẠN 5 — BACKEND, DATABASE VÀ API
+
+Kiểm tra toàn bộ luồng dữ liệu từ giao diện đến database.
+
+- Chuẩn hóa validation ở server.
+- Xử lý lỗi API nhất quán.
+- Kiểm tra pagination, filtering, sorting và giới hạn truy vấn.
+- Ngăn truy vấn không cần thiết và các vấn đề N+1.
+- Xác minh quan hệ dữ liệu, index và constraint.
+- Đảm bảo thao tác quan trọng có transaction khi cần.
+- Ngăn ghi dữ liệu trùng do retry hoặc double-click.
+- Kiểm tra migration và khả năng rollback.
+- Đánh giá caching và invalidation.
+- Kiểm tra timeout, retry và xử lý lỗi dịch vụ ngoài.
+- Xác minh dữ liệu học tập được lưu và đọc chính xác.
+- Tránh trả về dữ liệu nhạy cảm trong response.
+- Kiểm tra upload file nếu có, gồm loại file, dung lượng và quyền truy cập.
+
+Không thực hiện migration phá hủy hoặc xóa dữ liệu production khi chưa có bản sao lưu đã xác minh và phương án khôi phục.
+
+## 8. GIAI ĐOẠN 6 — BẢO MẬT TOÀN HỆ THỐNG
+
+Thực hiện kiểm tra theo các nhóm rủi ro phổ biến và OWASP phù hợp với công nghệ đang sử dụng.
+
+Bao gồm:
+
+- SQL/NoSQL injection.
+- Cross-site scripting (XSS).
+- Cross-site request forgery (CSRF) khi có liên quan.
+- Broken access control và IDOR.
+- Authentication và session management.
+- Rate limiting và chống lạm dụng API.
+- Kiểm tra input, output và file upload.
+- CORS, security headers và cookie settings.
+- Quản lý secret và biến môi trường.
+- Lộ stack trace, dữ liệu cá nhân hoặc thông tin hệ thống.
+- Dependency có lỗ hổng đã biết.
+- Webhook và tích hợp dịch vụ ngoài.
+- Các rủi ro đặc thù của AI như prompt injection, lộ dữ liệu và sử dụng tài nguyên quá mức.
+
+Chỉ kiểm tra trên hệ thống mà bạn được phép truy cập. Không sử dụng thử nghiệm phá hoại hoặc quét trái phép lên hệ thống bên ngoài.
+
+Khắc phục theo mức độ rủi ro, ưu tiên Critical và High trước. Không ghi nhận một lỗ hổng là đã khắc phục nếu chưa xác minh lại.
+
+## 9. GIAI ĐOẠN 7 — HIỆU NĂNG VÀ SEO
+
+### Hiệu năng
+
+- Phân tích bundle size và các dependency nặng.
+- Tối ưu hình ảnh, font, lazy loading và code splitting.
+- Giảm render không cần thiết.
+- Tối ưu truy vấn database và request API.
+- Xử lý loading state và caching hợp lý.
+- Giảm layout shift.
+- Kiểm tra hiệu năng trên thiết bị di động và mạng chậm.
+- Đo các chỉ số Core Web Vitals khi có môi trường phù hợp.
+
+Không tối ưu bằng cách làm giảm độ chính xác của chức năng học tập hoặc xóa nội dung thiết yếu.
+
+### SEO và khả năng chia sẻ
+
+Đối với các trang công khai, hãy kiểm tra:
+
+- Title và meta description.
+- Canonical URL.
+- Sitemap và robots.txt.
+- Heading hierarchy.
+- Open Graph metadata.
+- Structured data nếu phù hợp.
+- URL dễ hiểu.
+- Liên kết nội bộ và trang lỗi 404.
+- Khả năng index của nội dung quan trọng.
+
+Không để các trang chứa thông tin cá nhân hoặc nội dung riêng tư bị index công khai.
+
+## 10. GIAI ĐOẠN 8 — KIỂM THỬ TOÀN DIỆN
+
+Tạo hoặc cải thiện bộ test tương ứng với công nghệ hiện có.
+
+### Unit tests
+
+Kiểm tra các hàm nghiệp vụ, tính điểm, xử lý câu trả lời, spaced repetition, validation và logic tiến độ.
+
+### Integration tests
+
+Kiểm tra API, authentication, phân quyền, database và các tích hợp quan trọng.
+
+### End-to-end tests
+
+Kiểm tra những hành trình thực tế:
+
+1. Người dùng mới đăng ký và đăng nhập.
+2. Người dùng làm bài kiểm tra đầu vào.
+3. Người dùng học từ vựng và ôn tập.
+4. Người dùng hoàn thành bài nghe hoặc bài ngữ pháp.
+5. Người dùng làm bài kiểm tra và xem kết quả.
+6. Tiến độ được lưu và hiển thị sau khi đăng nhập lại.
+7. Người dùng không thể truy cập dữ liệu của tài khoản khác.
+8. Người dùng không có quyền không thể truy cập trang quản trị.
+9. Các luồng lỗi, mất mạng, API timeout và session hết hạn được xử lý đúng.
+
+### Kiểm tra giao diện
+
+- Các viewport phổ biến trên mobile và desktop.
+- Lỗi console và network.
+- Biểu mẫu không hợp lệ.
+- Loading và empty states.
+- Trạng thái đăng nhập.
+- Accessibility cơ bản.
+- Các thao tác bằng bàn phím.
+
+Chạy test thật khi có công cụ và môi trường. Nếu không thể chạy browser test, hãy ghi rõ giới hạn và không tuyên bố đã xác minh giao diện thực tế.
+
+## 11. GIAI ĐOẠN 9 — QUẢN TRỊ VÀ VẬN HÀNH
+
+Nếu dự án có trang quản trị, hãy kiểm tra:
+
+- Quản lý khóa học, bài học, câu hỏi và từ vựng.
+- Quản lý người dùng và vai trò.
+- Quản lý nội dung, trạng thái xuất bản và phân loại.
+- Theo dõi lỗi và các chỉ số vận hành.
+- Phân quyền quản trị viên.
+- Nhật ký hoạt động đối với thao tác nhạy cảm.
+- Sao lưu và khôi phục dữ liệu.
+- Cấu hình môi trường staging và production.
+- Quy trình triển khai và rollback.
+- Health checks và giám sát lỗi.
+
+Nếu chưa có, chỉ xây dựng phần thực sự cần thiết và phù hợp với kiến trúc hiện tại. Không tự tạo một hệ thống quản trị lớn làm tăng độ phức tạp không cần thiết.
+
+## 12. GIAI ĐOẠN 10 — THỰC HIỆN SỬA CHỮA THEO THỨ TỰ ƯU TIÊN
+
+Sau khi audit, hãy trực tiếp thực hiện công việc theo thứ tự:
+
+**P0 — Critical**
+
+- Lỗ hổng bảo mật nghiêm trọng.
+- Mất hoặc hỏng dữ liệu.
+- Ứng dụng không khởi động hoặc chức năng cốt lõi không thể sử dụng.
+
+**P1 — High**
+
+- Lỗi đăng nhập, phân quyền, lưu dữ liệu.
+- API hoặc luồng học tập chính bị lỗi.
+- Các lỗi làm người dùng không thể hoàn thành nhiệm vụ.
+
+**P2 — Medium**
+
+- Lỗi UI/UX đáng kể.
+- Hiệu năng thấp.
+- Các tính năng học tập chưa hoàn thiện.
+- Lỗi responsive và accessibility.
+
+**P3 — Low**
+
+- Tối ưu code, thiết kế và trải nghiệm phụ.
+- Refactor giúp dễ bảo trì.
+- Cải tiến SEO và các tiện ích bổ sung.
+
+Với mỗi thay đổi:
+
+1. Xác định nguyên nhân gốc rễ.
+2. Sửa giải pháp tại đúng vị trí.
+3. Bổ sung hoặc cập nhật test.
+4. Chạy lại các kiểm tra liên quan.
+5. Xác minh không làm hỏng chức năng khác.
+6. Ghi nhận file đã sửa và kết quả kiểm tra.
+
+Ưu tiên các thay đổi nhỏ, rõ ràng, có thể kiểm chứng và dễ rollback.
+
+## 13. GIAI ĐOẠN 11 — TIÊU CHUẨN CHẤT LƯỢNG CUỐI CÙNG
+
+Chỉ kết luận dự án hoàn tất khi đã kiểm tra các tiêu chí sau trong phạm vi môi trường cho phép:
+
+- Ứng dụng khởi động và build thành công.
+- Các luồng cốt lõi hoạt động.
+- Không còn lỗi Critical hoặc High đã xác nhận mà chưa xử lý hoặc chưa có biện pháp giảm thiểu được chấp thuận.
+- Authentication và phân quyền được kiểm tra.
+- Dữ liệu học tập được lưu và đọc chính xác.
+- Các trang quan trọng hoạt động trên mobile và desktop.
+- Các test hiện có không bị hỏng ngoài những thay đổi có chủ đích.
+- Không có secret mới bị đưa vào source code.
+- Các thay đổi database có phương án sao lưu và khôi phục phù hợp.
+- Tài liệu cấu hình và hướng dẫn chạy dự án được cập nhật.
+- Các giới hạn chưa giải quyết được ghi rõ.
+
+Không cam kết website hoàn toàn không có lỗi. Báo cáo kết quả dựa trên những gì thực sự được kiểm chứng.
+
+## 14. ĐẦU RA BẮT BUỘC
+
+Sau khi thực hiện, hãy cung cấp các tài liệu sau:
+
+### A. Báo cáo audit
+
+- Kiến trúc hiện tại.
+- Các vấn đề được phát hiện.
+- Mức độ ưu tiên và tác động.
+- Những phần đã kiểm tra và những phần chưa thể kiểm tra.
+
+### B. Báo cáo thay đổi
+
+- Danh sách file được thêm, sửa hoặc xóa.
+- Lý do thay đổi.
+- Tính năng đã hoàn thiện.
+- Lỗi đã sửa.
+- Các thay đổi database hoặc cấu hình.
+
+### C. Báo cáo kiểm thử
+
+- Lệnh và bộ test đã chạy.
+- Kết quả thực tế.
+- Build, lint, type check và test còn lỗi nào không.
+- Các lỗi đã biết và cách tái hiện.
+- Những hạng mục chưa được xác minh.
+
+### D. Hướng dẫn vận hành
+
+- Cách cài đặt và chạy local.
+- Các biến môi trường cần thiết, chỉ ghi tên và mục đích, không ghi secret thật.
+- Cách chạy test.
+- Cách build production.
+- Cách triển khai an toàn.
+- Cách rollback nếu triển khai gặp lỗi.
+
+### E. Kế hoạch tiếp theo
+
+Liệt kê các công việc chưa hoàn thành theo mức ưu tiên, nguyên nhân, phụ thuộc và bước xử lý tiếp theo.
+
+## 15. CHỈ THỊ THỰC THI CUỐI CÙNG
+
+Bắt đầu bằng việc khảo sát repository hiện tại, đọc tài liệu dự án và kiểm tra trạng thái Git. Sau đó thực hiện audit, lập danh sách vấn đề và bắt đầu sửa ngay các vấn đề ưu tiên cao.
+
+Không dừng lại sau khi đưa ra báo cáo audit. Tiếp tục sửa code, hoàn thiện tính năng và chạy test cho đến khi:
+
+- Các mục tiêu có thể thực hiện trong môi trường hiện tại đã được hoàn thành; hoặc
+- Có một trở ngại thực sự cần quyền truy cập, thông tin, dịch vụ hoặc quyết định từ người quản trị.
+
+Khi gặp trở ngại, tiếp tục xử lý những phần độc lập còn làm được và báo cáo rõ điều kiện cần thiết để tiếp tục.
+
+**Mục tiêu cuối cùng: một website học tiếng Anh hoạt động thực sự, giao diện chuyên nghiệp, trải nghiệm học tập hiệu quả, code dễ bảo trì, dữ liệu an toàn và có bằng chứng kiểm thử rõ ràng — không chỉ là một bản thiết kế đẹp hoặc một báo cáo lý thuyết.**

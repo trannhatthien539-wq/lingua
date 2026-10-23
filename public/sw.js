@@ -1,6 +1,6 @@
-const CACHE_NAME = 'lingua-static-v6';
+const CACHE_NAME = 'lingua-static-v7';
 const APP_SHELL = ['./', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/tree.svg'];
-/** Chỉ đệm tài nguyên tĩnh cùng origin; API/Firebase và luồng media luôn đi mạng. */
+/** Chỉ đệm tài nguyên tĩnh cùng origin và Google Fonts; API/Firebase và luồng media luôn đi mạng. */
 const CACHEABLE_DESTINATIONS = new Set(['script', 'style', 'image', 'font', 'manifest']);
 
 self.addEventListener('install', (event) => {
@@ -16,7 +16,7 @@ self.addEventListener('activate', (event) => {
 });
 
 const putSafely = (request, response) => {
-  if (!response || !response.ok) return;
+  if (!response || (!response.ok && response.type !== 'opaque')) return;
   const copy = response.clone();
   caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
 };
@@ -28,7 +28,19 @@ self.addEventListener('fetch', (event) => {
   if (request.headers.has('range')) return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  const isGoogleFont = url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com';
+  if (url.origin !== self.location.origin && !isGoogleFont) return;
+
+  // Google Fonts binary (fonts.gstatic.com) là bất biến: ưu tiên cache trước để load siêu tốc trên điện thoại
+  if (url.origin === 'https://fonts.gstatic.com') {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+        putSafely(request, response);
+        return response;
+      })),
+    );
+    return;
+  }
 
   const isNavigation = request.mode === 'navigate' || request.destination === 'document';
   if (isNavigation) {
@@ -44,7 +56,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (!CACHEABLE_DESTINATIONS.has(request.destination)) return;
+  if (!CACHEABLE_DESTINATIONS.has(request.destination) && !isGoogleFont) return;
 
   // File build có hash: cache-first. Tài nguyên khác: trả bản đệm rồi cập nhật ngầm.
   const immutable = url.pathname.includes('/assets/');

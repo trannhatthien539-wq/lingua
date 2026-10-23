@@ -36,8 +36,7 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
   return (
     <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6 no-scrollbar">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
             <div
               className="grid h-10 w-10 place-items-center rounded-2xl border p-1 shadow-sm backdrop-blur-md"
               style={{ borderColor: 'rgba(var(--accent), 0.25)', background: 'linear-gradient(135deg, rgba(var(--accent), 0.16), rgba(var(--accent-2), 0.08))' }}
@@ -61,7 +60,6 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
-      </div>
 
       {/* Menu trên desktop: phân nhóm tinh tế */}
       <nav className="mt-5 hidden lg:block lg:space-y-5" aria-label="Điều hướng chính">

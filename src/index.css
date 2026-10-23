@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 @layer utilities {
+  /* Tối ưu render ngoài màn hình cho di động */
+  .cv-auto { content-visibility: auto; contain-intrinsic-size: 0 160px; }
   /* Màu nhãn module: bản sáng đạt AA, bản tối dùng biến thể sáng hơn. */
   .tone-text { color: var(--tone, currentColor); }
   .dark .tone-text { color: var(--tone-dark, var(--tone, currentColor)); }
@@ -31,7 +33,7 @@
     color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; overflow-x: hidden; scroll-padding-top: 5.5rem; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; overflow-x: hidden; scroll-padding-top: 5.5rem; -webkit-overflow-scrolling: touch; }
   body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; max-width: 100vw; }
   button, input, textarea, select { font: inherit; }
   h1, h2, h3 { text-wrap: balance; }

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AlertTriangle, CalendarCheck, Flame, GraduationCap, Layers, PlayCircle, Target, TrendingUp } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Flame, GraduationCap, Layers, PlayCircle, TrendingUp } from "lucide-react";
 import useGrammarProgress from "../hooks/useGrammarProgress";
 import useMistakeBank from "../hooks/useMistakeBank";
 import useVstepProgress from "../hooks/useVstepProgress";
@@ -31,7 +31,7 @@ const averageBySkill = (attempts = []) => {
 
 function PlanRow({ icon: Icon, toneClass = "bg-[rgba(var(--accent),0.12)] text-[rgb(var(--accent))]", title, detail, action, onAction }) {
   return (
-    <li className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200/60 bg-white/50 px-3.5 py-3 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111827]/50">
+    <li className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 px-3.5 py-3 backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${toneClass}`}>
           <Icon size={16} />
@@ -42,7 +42,7 @@ function PlanRow({ icon: Icon, toneClass = "bg-[rgba(var(--accent),0.12)] text-[
         </span>
       </div>
       {action && (
-        <button type="button" onClick={onAction} className="btn-secondary h-8 shrink-0 px-3 text-xs font-semibold">
+        <button type="button" onClick={onAction} className="btn-secondary min-h-[38px] sm:min-h-[34px] shrink-0 px-3 text-xs font-semibold">
           <PlayCircle size={14} />{action}
         </button>
       )}
@@ -55,7 +55,7 @@ function PlanRow({ icon: Icon, toneClass = "bg-[rgba(var(--accent),0.12)] text-[
  * câu sai, kỹ năng VSTEP yếu nhất, mục tiêu và chuỗi ngày học).
  * Mỗi dòng có nút nhảy thẳng đến đúng khu vực.
  */
-export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, streak, onNavigate }) {
+export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, streak, onNavigate, maxItems, showGoal = true }) {
   const { mistakes: grammarMistakes } = useGrammarProgress();
   const { mistakes: bankMistakes, stats } = useMistakeBank();
   const { attempts } = useVstepProgress();
@@ -79,7 +79,6 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
     if ((bySource.listening || 0) > 0 || (bySource.reading || 0) > 0) return "skills";
     return "grammar";
   }, [stats]);
-
   const goalPercent = target ? Math.min(100, Math.round((goalToday / target) * 100)) : 0;
   const streakDays = streak?.currentStreak || 0;
 
@@ -102,15 +101,6 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
       action: "Học từ mới",
       onAction: () => onNavigate?.("vocabulary"),
     },
-    leeches > 0 && {
-      key: "leech",
-      icon: AlertTriangle,
-      toneClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
-      title: `${leeches} từ hay quên cần chú ý`,
-      detail: "Những từ này bạn đã quên nhiều lần — nên học bằng flashcard hoặc đặt câu.",
-      action: "Xem lại",
-      onAction: () => onNavigate?.("vocabulary"),
-    },
     mistakeTotal > 0 && {
       key: "mistakes",
       icon: TrendingUp,
@@ -129,13 +119,13 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
       action: "Thi thử",
       onAction: () => onNavigate?.("vstep"),
     },
-    target > 0 && {
-      key: "goal",
-      icon: Target,
-      toneClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
-      title: goalPercent >= 100 ? "Đã đạt mục tiêu hôm nay 🎉" : `Mục tiêu hôm nay: ${goalToday}/${target} lượt ôn`,
-      detail: goalPercent >= 100 ? "Giỏi lắm! Học thêm chút nữa nếu bạn còn thời gian." : `Còn ${Math.max(0, target - goalToday)} lượt nữa để đạt mục tiêu.`,
-      action: goalPercent >= 100 ? null : "Học tiếp",
+    leeches > 0 && {
+      key: "leech",
+      icon: AlertTriangle,
+      toneClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
+      title: `${leeches} từ hay quên cần chú ý`,
+      detail: "Những từ này bạn đã quên nhiều lần — nên học bằng flashcard hoặc đặt câu.",
+      action: "Xem lại",
       onAction: () => onNavigate?.("vocabulary"),
     },
     streakDays > 0 && {
@@ -147,6 +137,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
       action: null,
     },
   ].filter(Boolean);
+  const visibleRows = Number.isFinite(maxItems) ? rows.slice(0, maxItems) : rows;
 
   return (
     <section className="panel p-5">
@@ -155,7 +146,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
           <p className="eyebrow">Kế hoạch hôm nay</p>
           <h3 className="mt-1 font-display text-lg font-bold">Hôm nay học gì?</h3>
         </div>
-        {target > 0 && (
+        {showGoal && target > 0 && (
           <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold" : "bg-[rgba(var(--accent),0.12)] text-[rgb(var(--accent))] border border-[rgba(var(--accent),0.3)] font-bold"}`}>
             {goalToday}/{target} lượt ôn
           </span>
@@ -163,7 +154,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
       </div>
       {rows.length ? (
         <ul className="mt-4 space-y-2">
-          {rows.map((row) => (
+          {visibleRows.map((row) => (
             <PlanRow
               key={row.key}
               icon={row.icon}
