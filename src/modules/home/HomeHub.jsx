@@ -14,10 +14,7 @@ import {
   TrendingUp,
   Trophy,
 } from "lucide-react";
-import TodayPlanCard from "../../components/TodayPlanCard";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
-import NavIcon from "../../components/ui/NavIcon";
-import { navigationItems } from "../../data/navigation";
 import useDailyGoal from "../../hooks/useDailyGoal";
 import useGrammarProgress from "../../hooks/useGrammarProgress";
 import useVstepProgress from "../../hooks/useVstepProgress";
@@ -36,17 +33,6 @@ const CEFR_LEVELS = [
   { id: "C1", label: "Cao cấp" },
   { id: "C2", label: "Thành thạo" },
 ];
-
-const AREA_IDS = ["vocabulary", "grammar", "skills", "vstep", "writing", "progress"];
-
-const AREA_METADATA = {
-  vocabulary: { badge: "1.000+ từ", teaser: "Flashcard SRS · IPA" },
-  grammar: { badge: "30 bài", teaser: "12 thì · Cấu trúc B1-C1" },
-  skills: { badge: "4 kỹ năng", teaser: "Nghe · Đọc · Nói · Viết" },
-  vstep: { badge: "10 đề thi", teaser: "Đề thi chuẩn B1–C1" },
-  writing: { badge: "AI chấm bài", teaser: "Sửa lỗi & gợi ý câu" },
-  progress: { badge: "Thành tích", teaser: "Cấp XP & huy hiệu" },
-};
 
 const greetingByHour = () => {
   const hour = new Date().getHours();
@@ -425,26 +411,15 @@ export default function HomeHub({ user, streak, onNavigate }) {
         <FirstRunCard busy={starterBusy} onStarterPack={handleStarterPack} onCreateDeck={openNewDeck} />
       )}
 
-      {/* Bố cục 2 cột cân đối: Nhiệm vụ cốt lõi (Trái) & Thống kê + Lối tắt (Phải) */}
+      {/* Bố cục 2 cột cân đối: Lộ trình CEFR & Phong độ học tập */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
-        {/* Cột trái: 7 phần 12 - Trọng tâm hành động học tập */}
-        <div className="space-y-5 lg:col-span-7">
-          <TodayPlanCard
-            cards={cards}
-            target={target}
-            goalToday={goalToday}
-            streak={streak}
-            onNavigate={onNavigate}
-            maxItems={4}
-            showGoal={false}
-          />
-
+        {/* Cột trái: Lộ trình CEFR */}
+        <div className="lg:col-span-7">
           <CefrProgressCard stats={stats} onNavigate={onNavigate} />
         </div>
 
-        {/* Cột phải: 5 phần 12 - Phong độ & Lối tắt nhanh */}
-        <div className="space-y-5 lg:col-span-5">
-          {/* Thống kê phong độ 14 ngày */}
+        {/* Cột phải: Phong độ học tập 14 ngày & Chỉ số */}
+        <div className="lg:col-span-5">
           <section className="panel space-y-3.5 p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -470,42 +445,6 @@ export default function HomeHub({ user, streak, onNavigate }) {
               <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
               <StatTile icon={Award} color="#F43F5E" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
               <StatTile icon={Trophy} color="#10B981" label="Độ chính xác" value={`${stats.accuracy}%`} />
-            </div>
-          </section>
-
-          {/* Lối tắt nhanh vào các chương trình học */}
-          <section className="panel p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="eyebrow">Lối tắt nhanh</p>
-                <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">Khám phá module</h3>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {AREA_IDS.map((areaId) => {
-                const item = navigationItems.find((nav) => nav.id === areaId);
-                const meta = AREA_METADATA[areaId];
-                if (!item) return null;
-                return (
-                  <button
-                    key={areaId}
-                    type="button"
-                    onClick={() => onNavigate?.(areaId)}
-                    className="group flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 text-left backdrop-blur-xs transition-all hover:border-slate-300 hover:bg-white active:scale-[0.98] dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
-                  >
-                    <NavIcon icon={item.icon} color={item.color} darkColor={item.colorDark} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-slate-800 transition-colors group-hover:text-[rgb(var(--accent))] dark:text-slate-200">
-                        {item.label}
-                      </p>
-                      <p className="truncate text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                        {meta?.badge || item.shortLabel}
-                      </p>
-                    </div>
-                    <ArrowRight size={12} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-600 dark:group-hover:text-slate-300" />
-                  </button>
-                );
-              })}
             </div>
           </section>
         </div>
