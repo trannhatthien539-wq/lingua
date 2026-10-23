@@ -34,8 +34,8 @@ const writeJson = (key, value) => {
 
 /**
  * Đếm số liệu thẻ cho widget.
- * - `due`: thẻ đến hạn hôm nay (gồm cả thẻ mới chưa học) — khớp bộ lọc “Cần ôn hôm nay”.
- * - `fresh`: thẻ còn ở trạng thái mới.
+ * - `due`: thẻ đã học và tới hạn ôn hôm nay (không gồm thẻ mới).
+ * - `fresh`: thẻ còn ở trạng thái mới, có bộ đếm riêng.
  * - `leech`: từ đã quên ≥ 4 lần.
  */
 export const summarizeCards = (cards = []) => {

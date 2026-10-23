@@ -63,9 +63,12 @@ test("ngày ôn kế tiếp luôn ở tương lai và đúng định dạng", ()
   assert.equal(next.lastStudiedDate, dateKey(from));
 });
 
-test("isDue: thẻ mới luôn đến hạn, thẻ đã lên lịch chỉ đến hạn khi tới ngày", () => {
-  assert.equal(isDue({ status: "new" }), true);
+test("isDue: chỉ thẻ đã học và tới hạn mới được tính là đến hạn", () => {
+  assert.equal(isDue({ status: "new" }), false);
+  assert.equal(isDue({}), false, "thẻ thiếu status được coi là thẻ mới");
+  assert.equal(isDue({ status: "learning" }, "2026-09-20"), false, "chưa có ngày ôn thì chưa đến hạn");
   assert.equal(isDue({ status: "learning", nextReviewDate: "2026-01-01" }, "2026-09-20"), true);
+  assert.equal(isDue({ status: "learning", nextReviewDate: "2026-09-20" }, "2026-09-20"), true);
   assert.equal(isDue({ status: "learning", nextReviewDate: "2099-01-01" }, "2026-09-20"), false);
   assert.equal(isDue({ status: "mastered", reviewDate: "2026-09-20T00:00:00.000Z" }, "2026-09-20"), true);
 });

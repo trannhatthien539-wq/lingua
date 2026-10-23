@@ -1,4 +1,4 @@
-const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-2.5-flash"];
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 // DeepSeek dùng API tương thích OpenAI (deepseek-chat = V3, deepseek-reasoner = R1).
 const DEEPSEEK_MODEL = "deepseek-chat";

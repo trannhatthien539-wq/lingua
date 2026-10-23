@@ -13,11 +13,12 @@ const SIZES = {
   lg: { box: 'h-12 w-12 rounded-2xl', glyph: 23 },
 }
 
-export default function NavIcon({ icon: Icon, color = '#6366F1', size = 'md', active = false, className = '' }) {
+export default function NavIcon({ icon: Icon, color = '#4F46E5', darkColor = color, size = 'md', active = false, className = '' }) {
   const current = SIZES[size] || SIZES.md
+  const tone = { '--tone': color, '--tone-dark': darkColor }
   return (
     <span
-      className={`relative grid shrink-0 place-items-center border backdrop-blur-md transition-all duration-200 ${current.box} ${className}`}
+      className={`relative grid shrink-0 place-items-center border backdrop-blur-md transition-all duration-200 ${current.box} ${active ? '' : 'tone-text'} ${className}`}
       style={
         active
           ? {
@@ -27,9 +28,9 @@ export default function NavIcon({ icon: Icon, color = '#6366F1', size = 'md', ac
               boxShadow: '0 4px 14px -2px rgba(var(--accent), 0.4), inset 0 1px 1px 0 rgba(255,255,255,0.45)',
             }
           : {
+              ...tone,
               backgroundColor: `${color}14`,
               borderColor: `${color}28`,
-              color: color,
               boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.06)',
             }
       }

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import { DailyGoalProvider } from './hooks/useDailyGoal'
 import { bootstrapAppearance } from './services/appearanceService'
 import './index.css'
 
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <ErrorBoundary>
-        <App />
+        <DailyGoalProvider>
+          <App />
+        </DailyGoalProvider>
       </ErrorBoundary>
     </BrowserRouter>
   </StrictMode>,

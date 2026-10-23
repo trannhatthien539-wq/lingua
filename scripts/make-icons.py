@@ -2,12 +2,12 @@
 
 Usage: python scripts/make-icons.py <source-image>
 
-Writes public/icons/icon-192.png, icon-512.png and apple-touch-icon.png.
+Trims the near-white canvas, then writes the PWA and Apple touch icons.
 """
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 SRC = sys.argv[1]
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "icons")
@@ -15,13 +15,32 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 
 def main():
     with Image.open(SRC) as img:
-        art = img.convert("RGB")
+        art = img.convert("RGBA")
 
-    w, h = art.size
-    side = min(w, h)
-    left = (w - side) // 2
-    top = (h - side) // 2
-    art = art.crop((left, top, left + side, top + side))
+    background = Image.new("RGBA", art.size, "white")
+    background.alpha_composite(art)
+    art = background.convert("RGB")
+
+    difference = ImageChops.difference(art, Image.new("RGB", art.size, "white")).convert("L")
+    bounds = difference.point(lambda value: 255 if value > 8 else 0).getbbox()
+    if not bounds:
+        raise ValueError("Source image does not contain any artwork.")
+
+    left, top, right, bottom = bounds
+    center_x = (left + right) / 2
+    center_y = (top + bottom) / 2
+    side = max(right - left, bottom - top) * 1.08
+    half_side = side / 2
+    left = max(0, int(center_x - half_side))
+    top = max(0, int(center_y - half_side))
+    right = min(art.width, int(center_x + half_side))
+    bottom = min(art.height, int(center_y + half_side))
+    art = art.crop((left, top, right, bottom))
+
+    side = max(art.size)
+    square = Image.new("RGB", (side, side), "white")
+    square.paste(art, ((side - art.width) // 2, (side - art.height) // 2))
+    art = square
 
     def save(img, name):
         img.quantize(colors=256, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG).save(

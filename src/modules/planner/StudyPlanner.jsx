@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Clock3,
@@ -21,8 +21,7 @@ import ModuleHero from "../../components/ui/ModuleHero";
 import useCloudDoc from "../../hooks/useCloudDoc";
 import { toast as notify } from "../../services/toast";
 import { userDocKeys } from "../../services/userDocService";
-
-const LazyReactPlayer = lazy(() => import("react-player"));
+import YouTubeAudio from "./YouTubeAudio";
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -753,18 +752,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
       />
       <audio ref={audioRef} preload="auto" aria-hidden="true" />
       {audio.sound === "custom" && audio.customBackground?.type === "youtube" && (
-        <Suspense fallback={null}>
-          <LazyReactPlayer
-            src={audio.customBackground.dataUrl}
-            playing={timer.isRunning && audio.volume > 0}
-            loop
-            volume={audio.volume / 100}
-            muted={audio.volume === 0}
-            width="0"
-            height="0"
-            style={{ display: "none" }}
-          />
-        </Suspense>
+        <YouTubeAudio
+          url={audio.customBackground.dataUrl}
+          playing={timer.isRunning}
+          volume={audio.volume}
+        />
       )}
       <div className="space-y-6">
         <ModuleHero

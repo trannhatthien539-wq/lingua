@@ -11,12 +11,15 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
   return <>
     <header className="no-print sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-ink/10 bg-slab/95 px-3.5 py-2.5 backdrop-blur-md dark:border-white/10 dark:bg-dark1/95 md:hidden">
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-slate-900/40 p-1 shadow-sm backdrop-blur-md">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border p-1 shadow-sm backdrop-blur-md"
+          style={{ borderColor: 'rgba(var(--accent), 0.25)', background: 'linear-gradient(135deg, rgba(var(--accent), 0.16), rgba(var(--accent-2), 0.08))' }}
+        >
           <AppMark className="h-8 w-8 drop-shadow-sm" />
         </span>
         <div className="min-w-0">
           <p className="font-display text-base font-black tracking-tight text-slate-900 dark:text-white">
-            lingua<span className="text-emerald-500">.</span>
+            lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
           </p>
           <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
             {streak?.currentStreak > 0 ? `${streak.currentStreak} ngày chuỗi` : 'Bắt đầu học hôm nay'}

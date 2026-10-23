@@ -11,7 +11,7 @@ export default defineConfig({
         /**
          * Tách Firebase và React khỏi gói chính để: (1) gói khởi động nhỏ hơn, (2) khi chỉ sửa
          * code ứng dụng thì trình duyệt không phải tải lại 2 vendor này (chúng có hash riêng).
-         * Các thư viện nặng khác (xyflow, react-player, jszip, sql.js) vẫn do Rollup tự tách theo
+         * Các thư viện nặng khác (xyflow, jszip, sql.js) vẫn do Rollup tự tách theo
          * lazy import — không gộp vào vendor để tránh tải sớm.
          */
         manualChunks(id) {

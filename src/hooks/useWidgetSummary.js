@@ -67,8 +67,7 @@ export default function useWidgetSummary({ streak, user }) {
     if (fresh) return undefined
     const timer = window.setTimeout(async () => {
       try {
-        const decks = await dataService.getDecks()
-        const cards = (await Promise.all(decks.map((deck) => dataService.getCards(deck.id)))).flat()
+        const cards = await dataService.getAllCards()
         if (cancelled || !cards.length) return
         publishCardStats(cards)
       } catch (error) {

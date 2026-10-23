@@ -8,11 +8,9 @@ import useGrammarProgress from "../../hooks/useGrammarProgress";
 import useSkillsProgress from "../../hooks/useSkillsProgress";
 import useVstepProgress from "../../hooks/useVstepProgress";
 import useDailyGoal, { GOAL_PRESETS } from "../../hooks/useDailyGoal";
-import { dataService } from "../../services/dataService";
+import useVocabularyCards from "../../hooks/useVocabularyCards";
 import { getHistoryDays, historyChangedEvent, loadHistory, recentHistory } from "../../services/historyService";
 import { levelFor, summarize } from "../../services/gamification";
-import { refreshRequestedEvent } from "../../services/syncStatus";
-import { toast } from "../../services/toast";
 
 const ACHIEVEMENT_ICONS = {
   sprout: Star,
@@ -49,29 +47,9 @@ export default function ProgressHub({ user, streak, onNavigate }) {
   const { attempts: vstepAttempts } = useVstepProgress();
   const { target, setGoal } = useDailyGoal();
   const [days, setDays] = useState(() => getHistoryDays());
-  const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [reloadToken, setReloadToken] = useState(0);
+  // Một query duy nhất cho toàn bộ thẻ, dùng chung với Trang chủ/widget.
+  const { cards, loading } = useVocabularyCards({ user });
   const [customGoal, setCustomGoal] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    (async () => {
-      try {
-        const decks = await dataService.getDecks();
-        const lists = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
-        if (active) setCards(lists.flat());
-      } catch (error) {
-        if (active) toast.error(error.message || "Không thể tải dữ liệu từ vựng.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [user?.uid, reloadToken]);
 
   useEffect(() => {
     let active = true;
@@ -84,12 +62,6 @@ export default function ProgressHub({ user, streak, onNavigate }) {
       active = false;
       window.removeEventListener(historyChangedEvent, sync);
     };
-  }, []);
-
-  useEffect(() => {
-    const reload = () => setReloadToken((value) => value + 1);
-    window.addEventListener(refreshRequestedEvent, reload);
-    return () => window.removeEventListener(refreshRequestedEvent, reload);
   }, []);
 
   const summary = useMemo(

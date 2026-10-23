@@ -29,7 +29,7 @@ const download = (content, filename, type) => {
 /** Gộp toàn bộ dữ liệu của tài khoản (bộ thẻ, kế hoạch, mindmap, nháp ngữ pháp, nhắc học, streak). */
 export const buildBackup = async () => {
   const decks = await dataService.getDecks();
-  const cards = (await Promise.all(decks.map((deck) => dataService.getCards(deck.id)))).flat();
+  const cards = await dataService.getAllCards();
   const [planner, mindmap, grammar, reminder, history] = await Promise.all(
     [userDocKeys.planner, userDocKeys.mindmap, userDocKeys.grammar, userDocKeys.reminder, userDocKeys.history]
       .map((key) => loadUserDoc(key).catch(() => null)),
@@ -61,7 +61,7 @@ const restoreLibrary = async (backup) => {
   const remoteDecks = await dataService.getDecks();
   const deckIdByTitle = new Map(remoteDecks.map((deck) => [wordKey(deck.title), deck.id]));
   const wordsByDeck = new Map(remoteDecks.map((deck) => [deck.id, new Set()]));
-  for (const card of (await Promise.all(remoteDecks.map((deck) => dataService.getCards(deck.id)))).flat()) {
+  for (const card of await dataService.getAllCards()) {
     if (!wordsByDeck.has(card.deckId)) wordsByDeck.set(card.deckId, new Set());
     wordsByDeck.get(card.deckId).add(wordKey(card.word));
   }

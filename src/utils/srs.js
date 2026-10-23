@@ -74,10 +74,14 @@ export const schedulePayload = (card, rating, from = new Date()) => {
 export const previewIntervals = (card = {}) =>
   Object.fromEntries(Object.values(SRS_RATINGS).map((rating) => [rating, scheduleReview(card, rating).interval]));
 
-/** Thẻ đến hạn hôm nay: thẻ mới hoặc đã qua ngày ôn kế tiếp. */
+/**
+ * Thẻ đến hạn hôm nay: chỉ tính thẻ **đã bắt đầu học** (không còn trạng thái `new`)
+ * và đã tới/quá ngày ôn kế tiếp. Thẻ mới có bộ đếm riêng (`fresh`), không cộng vào `due`.
+ */
 export const isDue = (card, today = dateKey()) => {
   if (!card) return false;
-  if (!card.status || card.status === "new") return true;
+  const status = card.status || "new";
+  if (status === "new") return false;
   const reviewDate = String(card.nextReviewDate || card.reviewDate || "").slice(0, 10);
   return Boolean(reviewDate) && reviewDate <= today;
 };

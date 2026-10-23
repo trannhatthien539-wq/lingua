@@ -77,3 +77,40 @@ export const createCommonWordsDeck = () => {
     })),
   }
 }
+
+/** Bộ khởi đầu nhỏ, chỉ được tạo khi người dùng chủ động bấm chọn. */
+export const STARTER_PACK_SIZE = 50
+export const STARTER_PACK_TITLE = `${STARTER_PACK_SIZE} từ tiếng Anh khởi đầu`
+export const STARTER_PACK_DESCRIPTION = `${STARTER_PACK_SIZE} từ thông dụng đầu tiên, phù hợp để làm quen với flashcard và lịch ôn SRS.`
+export const STARTER_PACK_TAGS = ['Khởi đầu', '50 từ', 'SRS']
+
+export const createStarterPack = () => {
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  const deckId = `starter-pack-${stamp}`
+  const now = new Date().toISOString()
+  return {
+    deck: {
+      id: deckId,
+      title: STARTER_PACK_TITLE,
+      description: STARTER_PACK_DESCRIPTION,
+      tags: STARTER_PACK_TAGS,
+      createdAt: now,
+    },
+    cards: commonWords.slice(0, STARTER_PACK_SIZE).map((entry, index) => ({
+      id: `starter-pack-card-${stamp}-${String(index + 1).padStart(3, '0')}`,
+      deckId,
+      word: entry.word,
+      ipa: '',
+      meaning: entry.meaning,
+      example: '',
+      level: levelForRank(index + 1),
+      status: 'new',
+      interval: 0,
+      nextReviewDate: null,
+      reviewDate: null,
+      repetition: 0,
+      imageUrl: '',
+      audioUrl: '',
+    })),
+  }
+}

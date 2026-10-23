@@ -21,8 +21,8 @@ test('summarizeCards đếm thẻ đến hạn, thẻ mới và từ hay quên',
     card({ id: 'e', deletedAt: '2026-01-01T00:00:00.000Z' }),
   ])
   assert.equal(stats.total, 4)
-  // "a" đến hạn hôm nay + "c" thẻ mới (isDue coi thẻ mới là đến hạn) + "d" đến hạn hôm nay.
-  assert.equal(stats.due, 3)
+  // Chỉ "a" và "d" (đã học, tới hạn) tính vào due; "c" là thẻ mới nên nằm ở fresh.
+  assert.equal(stats.due, 2)
   assert.equal(stats.fresh, 1)
   assert.equal(stats.leech, 1)
 })

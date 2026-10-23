@@ -28,7 +28,7 @@ Các workflow chính:
 - Tailwind CSS 3.
 - `lucide-react` cho icon.
 - `canvas-confetti` cho Quiz vocabulary.
-- `react-player` cho nguồn audio đa dạng trong Pomodoro.
+- YouTube IFrame API cho audio nền trong Pomodoro (chỉ tải khi người dùng chọn nguồn YouTube).
 - Web Audio API và Speech Synthesis API cho âm thanh/phát âm.
 - LocalStorage cho persistence.
 
@@ -188,7 +188,7 @@ Tính năng:
 - Timer lưu trong `lingua-study-planner`.
 - Zen Focus dùng Fullscreen API và lắng nghe `fullscreenchange`.
 - Background audio preset bằng Web Audio.
-- Custom audio và online source qua `react-player`.
+- Custom audio qua thẻ `<audio>`; nguồn YouTube qua IFrame API nhẹ (không kéo theo dash.js/hls.js).
 - Audio settings lưu trong `lingua-pomodoro-audio`.
 - Custom background/alarm có thể lưu metadata và Base64 data URL.
 - Modal audio có tab nhạc nền và chuông báo.

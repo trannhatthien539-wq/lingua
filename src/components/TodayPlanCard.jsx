@@ -29,17 +29,20 @@ const averageBySkill = (attempts = []) => {
     .sort((first, second) => first.value - second.value);
 };
 
-function PlanRow({ icon: Icon, toneClass = "bg-indigo-500/15 text-indigo-400", title, action, onAction }) {
+function PlanRow({ icon: Icon, toneClass = "bg-[rgba(var(--accent),0.12)] text-[rgb(var(--accent))]", title, detail, action, onAction }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white/50 px-3.5 py-2.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111827]/50">
-      <div className="flex min-w-0 items-center gap-3">
+    <li className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200/60 bg-white/50 px-3.5 py-3 backdrop-blur-md dark:border-white/[0.08] dark:bg-[#111827]/50">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${toneClass}`}>
           <Icon size={16} />
         </span>
-        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</span>
+          {detail && <span className="mt-0.5 block text-xs leading-relaxed text-slate-500 dark:text-slate-400">{detail}</span>}
+        </span>
       </div>
       {action && (
-        <button type="button" onClick={onAction} className="btn-secondary h-8 px-3 text-xs font-semibold">
+        <button type="button" onClick={onAction} className="btn-secondary h-8 shrink-0 px-3 text-xs font-semibold">
           <PlayCircle size={14} />{action}
         </button>
       )}
@@ -153,7 +156,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
           <h3 className="mt-1 font-display text-lg font-bold">Hôm nay học gì?</h3>
         </div>
         {target > 0 && (
-          <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 font-bold"}`}>
+          <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold" : "bg-[rgba(var(--accent),0.12)] text-[rgb(var(--accent))] border border-[rgba(var(--accent),0.3)] font-bold"}`}>
             {goalToday}/{target} lượt ôn
           </span>
         )}
@@ -166,6 +169,7 @@ export default function TodayPlanCard({ cards = [], target = 0, goalToday = 0, s
               icon={row.icon}
               toneClass={row.toneClass}
               title={row.title}
+              detail={row.detail}
               action={row.action}
               onAction={row.onAction}
             />

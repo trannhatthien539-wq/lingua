@@ -7,8 +7,9 @@
 
 - **Là gì**: PWA học tiếng Anh all-in-one — từ vựng SRS, ngữ pháp, 4 kỹ năng, luyện câu, thi thử B1, writing AI, planner, mindmap, tiến độ/gamification, gia sư AI.
 - **Stack**: React 19 (StrictMode) + Vite + Tailwind 3 + Firebase (Auth + Firestore, offline cache) + react-router 7 + Capacitor (APK Android). Không backend riêng (trừ Cloud Function tuỳ chọn ở `functions/`).
-- **Composition root**: `src/App.jsx` — giữ tab hiện tại, lazy-load module theo registry, đồng bộ dữ liệu khách → tài khoản, quản lý đăng nhập/streak/search/tutor.
+- **Composition root**: `src/App.jsx` — giữ tab hiện tại, lazy-load module theo registry (`src/lib/lazyWithPreload.js`), đồng bộ dữ liệu khách → tài khoản, quản lý đăng nhập/streak/search/tutor.
 - **"Nguồn sự thật" cần nhớ**: điều hướng `src/data/navigation.js` · dữ liệu `src/services/dataService.js` · lịch ôn `src/utils/srs.js` · state theo tài khoản `src/services/userDocService.js` (`user_state`) · design system `src/index.css`.
+- **Hiệu năng (Oct 2026)**: module + overlay đều lazy kèm prefetch khi hover/chạm; `dataService.getAllCards()` đọc toàn bộ thẻ bằng **một query** (kèm danh sách deck đang hoạt động) thay cho N+1; `Workspace` được memo để mở search/tutor không render lại module; entry production ~238 KB (gzip ~73 KB), tổng bundle vẫn trong ngân sách `npm run size`.
 - **Chạy**: `npm install` → `npm run dev` (nếu thấy lỗi React lạ, chạy `npm run dev -- --force`) · build `npm run build` · test `npm test` (scripts trong `package.json`).
 - **Không có test cho UI/component**; `npm test` chỉ test hàm thuần (SRS, gamification, chấm phát âm, từ điển).
 - **Không tạo thêm hệ thống thông báo mới**: trước đây có tới 6 cách hiện thông báo chồng chéo, tất cả đã gom về `toast.*` trong `src/services/toast.js`.
@@ -20,7 +21,7 @@
 | Nhóm | Dùng gì |
 | --- | --- |
 | UI | React, `react-router-dom` (routing theo path), Tailwind CSS, `lucide-react` (icon) |
-| Hiệu ứng | `canvas-confetti` (chúc mừng), `react-player` (audio/video) |
+| Hiệu ứng | `canvas-confetti` (chúc mừng), YouTube IFrame API (audio nền Pomodoro, chỉ tải khi được chọn) |
 | Dữ liệu | Firebase Auth + Firestore (`initializeFirestore` + `persistentLocalCache` để dùng offline) |
 | Nội dung nâng cao | `jszip` (import Anki `.apkg`), `sql.js` (đọc DB Anki trong trình duyệt) — `jszip`/`sql.js` **được `import()` động trong `ankiParser.js`**, chỉ tải khi người dùng import file Anki |
 | Di động | `@capacitor/core|app|browser`, `@capacitor/local-notifications` (nhắc học trên APK), `@codetrix-studio/capacitor-google-auth` (tuỳ chọn) |
@@ -65,9 +66,19 @@ flowchart TD
 2. `modules` map tab → component lazy; `tabPaths` map tab → URL (`/home`, `/vocabulary`, …); path không hợp lệ bị điều hướng về `/home` (trang chủ).
 3. Mỗi module nhận props chung: `onStudyActivity` (ghi streak + lịch sử), `streak`, `user`, `apiKey`, `setApiKey`, `onGoogleLogin`, `onSignOut`.
 4. Tab `settings` render thêm các panel: `AccountPanel` → `AppearancePanel` → `InstallAppPanel` → `AccountDataPanel` → `ApiSettings`.
-5. **Chờ `whenAuthSettled()` rồi mới render app** (splash “Đang tải…” một nhịp) → module mount lần duy nhất với đúng chủ sở hữu dữ liệu. `onAuthStateChanged` chỉ nạp streak + API key; đổi tài khoản (đăng nhập/đăng xuất) mới bắn `refreshRequestedEvent` để các module **nạp lại dữ liệu TẠI CHỖ**, không remount (trước đây `key` chứa `user.uid` + `dataVersion` làm trang “tải lại” 2 lần ngay khi vừa mở app). `syncGuestData()` cũng bắn sự kiện này thay vì tăng biến đếm để remount.
+5. **Chờ `whenAuthSettled()` rồi mới render app** (skeleton thay vì splash chữ) → module mount lần duy nhất với đúng chủ sở hữu dữ liệu. `onAuthStateChanged` chỉ nạp streak + API key; đổi tài khoản (đăng nhập/đăng xuất) mới bắn `refreshRequestedEvent` để các module **nạp lại dữ liệu TẠI CHỖ**, không remount. `syncGuestData()` cũng bắn sự kiện này thay vì tăng biến đếm để remount.
+6. **Lazy + prefetch**: `src/lib/lazyWithPreload.js` bọc `React.lazy`, cho phép `preload(Component)` trước khi mở; `Sidebar`/`MobileBottomNav` prefetch khi hover/chạm, `Topbar` prefetch Search/Tutor, `App` prefetch module chính khi rảnh (`requestIdleCallback`) và prefetch sau khi đăng nhập. Nhờ đó lần mở đầu vẫn nhẹ nhưng chuyển tab gần như tức thì.
 
 **Thêm một tab mới (đúng 4 bước)**: tạo `src/modules/<domain>/<Name>Hub.jsx` → thêm item vào `src/data/navigation.js` (nhớ `icon` + `color`) → thêm `lazy()` + entry trong `modules`/`tabPaths` ở `App.jsx` → nếu muốn hiện ở bottom nav thì thêm id vào `PRIMARY_TABS` của `src/components/MobileBottomNav.jsx` (không cần khai báo icon riêng nữa).
+
+**Hiệu năng & bundle (Oct 2026)**
+
+- **Entry giảm còn ~238 KB** (gzip ~73 KB) nhờ chuyển toàn bộ tab + Search/Tutor/Shortcuts/Auth sang lazy, chỉ giữ shell trong gói chính. Vendor React/Firebase vẫn tách riêng theo hash.
+- **Prefetch có kiểm soát**: hover/focus nút trên sidebar/topbar, `onTouchStart` ở bottom nav, và `requestIdleCallback` cho Từ vựng/Tiến độ sau khi app rảnh. Không prefetch toàn bộ 10 tab ngay khi mở.
+- **Một query thay N+1**: `getAllCards()` + `useVocabularyCards()` dùng chung cho Trang chủ, Tiến độ, widget, backup, sync. `VocabularyHub` chạy `getDecks()` và `getAllCards()` song song.
+- **Giảm render**: `Workspace` được `memo` (mở search/tutor không render lại module nặng), callback trong `App` ổn định bằng `useCallback`, các phép tính lớn đã nằm trong `useMemo`.
+- **Tải font không chặn render**, `SafeImage` dùng `loading="lazy" decoding="async"`, biểu đồ mới nhẹ (SVG/CSS, không thêm thư viện chart).
+- **Service worker v5** chỉ đệm tài nguyên tĩnh cùng origin; file build có hash dùng cache-first, navigation network-first. Nhờ vậy mở lại app nhanh nhưng vẫn nhận bản mới.
 
 ## 4. Cây thư mục
 
@@ -79,13 +90,13 @@ src/
 ├─ components/             # UI dùng chung
 │  ├─ layout/              # Sidebar, Topbar
 │  ├─ learning/            # FlashcardModal, QuizView, SpellerView, MatchingView, StudyHubModal, StudySummary, ImportExportModal
-│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StudyHistoryChart, SyncStatusBadge, Toaster, NavIcon
+│  ├─ ui/                  # CollapsibleCard, ProgressBar, SafeImage, StudyHistoryChart, GoalRing, PageSkeleton, AppBootSkeleton, SyncStatusBadge, Toaster, NavIcon
 │  ├─ Auth/AuthPage.jsx    # đăng nhập/đăng ký (Email + Google) và chế độ khách
 │  ├─ AiTutorPanel.jsx     # chat gia sư AI
 │  ├─ SearchPalette.jsx    # tìm kiếm toàn cục (Ctrl/⌘+K)
 │  ├─ ShortcutsHelpModal.jsx, AccountPanel, AccountDataPanel, AppMark, WordAvatar, MobileHeader, MobileBottomNav
 ├─ modules/                # 1 folder = 1 tab
-│  ├─ home/HomeHub.jsx                  # trang chủ: lời chào, chuỗi ngày, mục tiêu, khu vực học, tổng quan tiến độ
+│  ├─ home/HomeHub.jsx                  # dashboard Trang chủ: hero + mục tiêu, 4 chỉ số nhanh, 6 khu vực học, lộ trình CEFR, kế hoạch + biểu đồ
 │  ├─ learning/VocabularyHub.jsx        # tab Từ vựng (file lớn nhất, ~1.4k dòng)
 │  ├─ learning/GrammarAndVocabulary.jsx # WritingChecker (tab Writing)
 │  ├─ grammar/                          # GrammarHub, GrammarLesson, GrammarQuiz (QuestionSet dùng lại cho nghe/đọc/thi thử)
@@ -95,12 +106,12 @@ src/
 │  ├─ planner/StudyPlanner.jsx          # todo + lịch + pomodoro
 │  ├─ mindmap/StudyMindmap.jsx          # đồ lộ trình kiểu roadmap.sh (cột dọc + nét đứt), sinh bằng AI
 │  └─ settings/                         # ApiSettings, AppearancePanel, InstallAppPanel
-├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
+├─ hooks/                  # useCloudDoc, useDailyGoal, useGrammarProgress, useSkillsProgress, useVocabularyCards, useStudyReminder, useSectionState, useTheme, useAppearance, useInstallPrompt, useDebounce, useWidgetSummary
 ├─ services/               # xem bảng §7
 ├─ utils/                  # srs, day (khóa ngày), history (prune/summary lịch sử), speech, speechScore, ankiParser, sanitizeCard, studyFeedback
 ├─ data/                   # navigation + toàn bộ nội dung học (tĩnh, không cần mạng)
 ├─ config/googleAuth.js    # chế độ đăng nhập Google
-└─ lib/formatters.js       # format ngày/giờ tiếng Việt
+├─ lib/                    # lazyWithPreload (lazy + prefetch), formatters
 
 native/android-widget/     # mã native cho widget màn hình chính + shortcut (workflow chép vào project Android)
 ├─ java/com/lingua/studyhub/LinguaWidgetProvider.java   # AppWidgetProvider (RemoteViews)
@@ -116,7 +127,7 @@ Thư mục gốc: `index.html` (đăng ký service worker), `public/` (`manifest
 
 | Tab id | URL | Module | Nội dung chính |
 | --- | --- | --- | --- |
-| `home` | `/home` | `HomeHub` | **Trang chủ**: lời chào + chuỗi ngày + cấp độ + vòng mục tiêu ngày, lưới “Khu vực học” (icon nhiều màu), gợi ý “Hôm nay học gì” và bảng tổng quan tiến độ |
+| `home` | `/home` | `HomeHub` | **Dashboard Trang chủ**: hero theo màu nhấn với lời chào + CTA + vòng mục tiêu ngày (7 ngày gần đây), 4 chỉ số nhanh, 6 khu vực học có tiến độ, lộ trình CEFR A1→C2 với 3 tiêu chí lên bậc, `TodayPlanCard` và biểu đồ phong độ 14 ngày |
 | `vocabulary` | `/vocabulary` | `VocabularyHub` | Danh sách bộ thẻ dạng thẻ → chi tiết bộ; SRS, 4 chế độ học, thùng rác, sửa hàng loạt, thêm từ (AI/từ điển miễn phí), import/export |
 | `grammar` | `/grammar` | `GrammarHub` | 30 bài (12 thì + cấu trúc B1 + mở rộng + C1) dạng thẻ bài học, sổ câu sai, thi tổng hợp, cặp dễ lẫn |
 | `skills` | `/skills` | `SkillsHub` | 6 sub-tab: Nghe, Đọc, Nói (chấm phát âm), Viết, Luyện câu, Thi thử B1 |
@@ -190,7 +201,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 | File | Trách nhiệm |
 | --- | --- |
-| `dataService.js` | **Lớp dữ liệu duy nhất** cho deck/thẻ: khách = localStorage, đăng nhập = Firestore. Có `addCards` (batch 400 + rollback), `createDeckWithCards`, `updateCards` (sửa hàng loạt), `trash*/restore*/getTrashed/purgeTrash` (xoá mềm), `deleteDeck/deleteCard` (xoá cứng, dùng nội bộ). Luôn lọc `undefined` trước khi ghi Firestore |
+| `dataService.js` | **Lớp dữ liệu duy nhất** cho deck/thẻ: khách = localStorage, đăng nhập = Firestore. `getAllCards()` đọc toàn bộ thẻ bằng **một query** + danh sách deck (dùng chung request với `getDecks()`, dedupe request đang bay) cho Trang chủ/Tiến độ/widget/backup; thẻ thuộc deck đã xoá mềm bị loại khỏi kết quả. `getCards(deckId)` chỉ dùng khi thật sự cần một bộ. Có `addCards` (batch 400 + rollback), `createDeckWithCards`, `updateCards` (sửa hàng loạt), `trash*/restore*/getTrashed/purgeTrash` (xoá mềm), `deleteDeck/deleteCard` (xoá cứng, dùng nội bộ). Luôn lọc `undefined` trước khi ghi Firestore |
 | `userDocService.js` | State theo tài khoản (`user_state`), kiểm tra payload theo byte UTF-8, `syncGuestUserDocs`, `createDebouncedSync` có `attach/dispose` |
 | `historyService.js` | Lịch sử học theo ngày + event `lingua:history-changed` |
 | `streakService.js` | Chuỗi ngày học (`users/{uid}` hoặc localStorage cho khách) |
@@ -227,6 +238,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | Hook | Việc |
 | --- | --- |
 | `useCloudDoc(key, opts)` | Hydrate + debounce-save một `user_state` doc, tự reload theo `lingua:data-refresh` |
+| `useVocabularyCards({ user })` | Đọc toàn bộ thẻ qua `getAllCards()` (1 query thẻ + danh sách deck), trả `{ cards, loading, error, reload }`; tự nạp lại khi đổi `user.uid` hoặc có `lingua:data-refresh` |
 | `useDailyGoal()` | Mục tiêu ôn/ngày (key `goal`), `GOAL_PRESETS`, `setGoal` |
 | `useVstepProgress()` | Lịch sử thi VSTEP + bản nháp Writing (key `vstep`), `recordAttempt`, `bestFor`, `clearHistory` |
 | `useGrammarProgress()` / `useSkillsProgress()` | Tiến độ ngữ pháp / kỹ năng (record + đọc) |
@@ -254,7 +266,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `skills/writing.js` | 8 đề viết (email/đoạn văn) + checklist — 2 đề cuối theo dạng VSTEP (Task 1 thư ~120 từ, Task 2 bài luận 250+ từ) |
 | `skills/sentencePractice.js` | 45 bài: 15 điền khuyết (cl), 15 sắp xếp (or), 15 viết lại (rw) |
 | `themeDecks.js` | 7 bộ cụm từ theo chủ đề (`createThemeDeck(id)`) |
-| `starterDeck.js` | Bộ "IELTS Speaking Part 1" 10 từ (bộ mẫu cũ, tự thay bằng bộ 1000 từ) |
+| `starterDeck.js` | Bộ "IELTS Speaking Part 1" 10 từ dùng cho nút thêm bộ mẫu thủ công (không còn tự seed) |
 | `vstep/metadata.js` | Metadata 10 đề VSTEP (id, bậc, tiêu đề, tags) — dùng cho danh sách + tìm kiếm (không có API Vite nên test được) |
 | `vstep/registry.js` | Nạp lười nội dung đề (`import.meta.glob`) + `loadExam(id)` |
 | `vstep/bands.js` | Ngưỡng quy đổi điểm → bậc (C1 ≥ 8.5, B2 ≥ 6, B1 ≥ 4) |
@@ -267,7 +279,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 ## 10. Quy ước UI & design system
 
 - Class dùng chung trong `src/index.css`: `.panel`, `.panel-flat`, `.eyebrow`, `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.icon-btn`, `.chip`, `.menu-item`, `.field`, `.metric` — **dùng lại, đừng viết lại**.
-- Token Tailwind (`tailwind.config.js`): `ink`, `mist`, `sage`, `lime`, `slab`, `slab2`, `dark1-3`, `ok/warn/danger`. `lime`/`sage` trỏ vào CSS variable `--accent`/`--accent-2` (đổi theme = ghi 2 biến này).
+- Utility bổ sung (Oct 2026): `.panel-interactive` (nhấc + bóng theo accent), `.home-hero` (nền hero theo `--accent`), `.app-ambient` (quầng sáng nền), `.surface-dots`, `.skeleton` (shimmer), `.animate-rise`, `.animate-sheet-up`, `.text-gradient`, `.no-scrollbar`, `.animate-float`.
+- Token Tailwind (`tailwind.config.js`): `ink`, `mist`, `sage`, `lime`, `slab`, `slab2`, `dark1-3`, `ok/warn/danger`. `lime`/`sage` trỏ vào CSS variable `--accent`/`--accent-2` (đổi theme = ghi 2 biến này). Các điểm nhấn mới của Trang chủ/sidebar dùng trực tiếp `rgb(var(--accent))` để đổi bảng màu vẫn đồng bộ.
 - Dark mode bằng class `dark` trên `<html>`; `useTheme` đồng bộ `<meta name="theme-color">` để tránh nháy trắng.
 - **Vùng chạm tối thiểu 44px**, chữ phụ tối thiểu `text-xs`, có `aria-label`/`aria-pressed`/`role` cho phần tử tương tác.
 - Mọi thông báo dùng `toast.*`; xoá mềm thì kèm `toast.undo`.
@@ -276,7 +289,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 11. Tính năng theo module (hành vi cụ thể)
 
-- **Trang chủ (`HomeHub`, `/home`)**: mở app là vào đây. Gồm (1) hero xanh kiểu Duolingo: lời chào theo giờ, chuỗi ngày, cấp độ + XP, thanh **mục tiêu hôm nay** và 2 nút “Học ngay”/“Thi thử VSTEP”; (2) lưới **Khu vực học** — Từ vựng, Ngữ pháp, Kỹ năng, VSTEP, Writing, Tiến độ (mỗi thẻ có icon nhiều màu + viền dưới theo màu tab, bấm là `onNavigate`); (3) `TodayPlanCard` (“Hôm nay học gì”); (4) **bảng tổng quan tiến độ** 6 ô (cấp/XP, chuỗi ngày, từ vựng đã thuộc, bài ngữ pháp, đề VSTEP, huy hiệu) + biểu đồ 14 ngày, nút sang tab Tiến độ. Số liệu lấy từ `summarize()` (gamification) với thẻ đọc qua `dataService` — giống `ProgressHub` nhưng chỉ đọc.
+- **Trang chủ (`HomeHub`, `/home`)**: dashboard mở app. Gồm (1) hero theo màu nhấn: lời chào theo giờ, CTA “Học từ mới / Học ngữ pháp / Luyện VSTEP”, cấp + XP + chuỗi + mục tiêu, và thẻ **mục tiêu hôm nay** có `GoalRing`, 3 số liệu (cần ôn/đã thuộc/huy hiệu) + mini chart 7 ngày; (2) **4 chỉ số nhanh** (cần ôn, thẻ mới, từ hay quên, đã thuộc) bấm được; (3) **6 khu vực học** với % tiến độ thật; (4) **lộ trình CEFR** A1→C2 + 3 tiêu chí lên bậc (ngữ pháp, từ vựng, VSTEP); (5) `TodayPlanCard` (“Hôm nay học gì”, có mô tả từng việc) và **phong độ 14 ngày** + 4 ô thống kê. Số liệu lấy từ `summarize()` với thẻ đọc qua `useVocabularyCards()` (một query).
 - **Từ vựng (`VocabularyHub`)**: **hai màn hình giống tab Ngữ pháp** — (1) *danh sách bộ thẻ*: header gọn (icon + thanh tiến độ `đã thuộc/tổng` + nút “Ôn n từ đến hạn”/“Học ngay”, “Thêm từ”, và dải ghost `Bộ theo chủ đề · Nhập · Xuất · Thùng rác`) rồi lưới thẻ bộ thẻ (icon màu, số từ, chip `%`/“Chưa học”, thanh tiến độ, nút “Ôn n từ” + “Xem n từ”) cùng ô nét đứt “Tạo bộ mới”; (2) *chi tiết một bộ*: nút “← Danh sách bộ”, tiêu đề + chip số liệu (`đã thuộc/tổng`, `n đến hạn ôn`, `n chưa thuộc`, tag), nút “Bắt đầu học ngay” + menu (đổi tên/chia sẻ/dọn trùng/xoá…) và danh sách từ. State `view: 'list' | 'deck'`; số liệu tính 1 lượt trong `useMemo` (`libraryStats`, `deckStats`) nên không còn lọc lại 1000 thẻ cho từng bộ.
 - Chi tiết học: phiên học tối đa `SESSION_LIMIT = 50` thẻ, danh sách hiện `RENDER_LIMIT = 60` rồi "Xem thêm". Bộ lọc: tất cả/chưa thuộc/đã thuộc + menu SRS (cần ôn hôm nay, interval 1/3/5, **từ hay quên**). 4 chế độ: flashcard 3D, trắc nghiệm, chính tả (TTS), nối từ. Tự tra ảnh khi thư viện ≤ 200 thẻ (tối đa 8 ảnh/lần tải).
 - **FlashcardModal**: lật thẻ 3D, phím `Space` để lật, `1/2/3` để đánh giá, `←/Z` về thẻ trước; thẻ "chưa nhớ" quay lại cuối hàng đợi; nút đánh giá hiện khoảng nghỉ thật.
@@ -293,7 +306,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 - **Kỹ năng**: **mỗi kỹ năng 8 bài**, hiện dạng **danh sách thẻ bài học** (`SkillLessonList`) → bấm mới mở nội dung, có nút “← Danh sách bài” (giống tab Ngữ pháp/Từ vựng). Trong đó **4 bài cuối là dạng đề VSTEP**: Nghe Part 1 (thông báo công cộng) + Part 3 (bài giảng), Đọc thông báo/quảng cáo + Đọc học thuật, Nói Part 1&3 và Part 2 (chọn giải pháp), Viết Task 1 (thư ~120 từ) + Task 2 (bài luận 250+ từ). Ngoài ra: Nghe (TTS 0.8x/1x/1.2x + chép chính tả), Đọc (glossary + câu hỏi), Nói (ghi âm + **chấm điểm phát âm** bằng Web Speech API: % khớp, từ chưa rõ, tốc độ nói), Viết, Luyện câu (3 dạng), Thi thử B1 (28 câu: 12 ngữ pháp + 8 từ vựng + 4 đọc + 4 nghe, 30 phút, ước lượng band).
 - **Bấm-vào-từ để tra nghĩa (`TappableText`)**: mọi từ tiếng Anh trong bài đọc Skills, bài đọc VSTEP và bảng từ khoá đều bấm được → popover hiện IPA, nghĩa tiếng Việt, định nghĩa, ví dụ, từ đồng nghĩa + nút **Nghe** và **Thêm vào bộ thẻ** (tự tạo bộ `Từ vựng tra nhanh`, hoặc chọn bộ khác trong danh sách). Kết quả tra được đệm ở `lingua-word-cache` nên bấm lại là hiện ngay; mất mạng thì báo lỗi thân thiện và không cho lưu thẻ rỗng. `GlossaryList` (bảng từ khoá) có nút nghe + nút lưu thẻ cho từng từ.
 - **Sổ câu sai dùng chung + “Hôm nay học gì?”** (tab Tiến độ): `MistakeBankCard` gộp câu sai **Ngữ pháp + Nghe + Đọc + VSTEP** (ưu tiên câu sai nhiều lần), cho **luyện lại tối đa 20 câu** ngay tại chỗ (đáp án hiện sau mỗi câu, ghi tiếp vào đúng sổ) và **tạo bộ flashcard** `Sổ câu sai · Nghe/Đọc/VSTEP` để ôn bằng SRS. `TodayPlanCard` gợi ý việc cần làm hôm nay (thẻ đến hạn, thẻ mới, từ hay quên, câu sai, kỹ năng VSTEP yếu nhất, mục tiêu, chuỗi ngày) — mỗi dòng có nút nhảy thẳng tới đúng khu vực qua prop `onNavigate` (App truyền `selectTab` vào module).
-- **Tiến độ**: XP = lượt ôn ×2 + đúng ×3 + phiên ×8 + thẻ đã thuộc ×2 + bài ngữ pháp ×30 + bài nghe/đọc ×15 + câu đúng ×1 + thi thử ×60; 11 cấp (`LEVEL_STEPS`); 16 huy hiệu. `ProgressHub` đọc toàn bộ thẻ của người dùng (như `VocabularyHub`).
+- **Tiến độ**: XP = lượt ôn ×2 + đúng ×3 + phiên ×8 + thẻ đã thuộc ×2 + bài ngữ pháp ×30 + bài nghe/đọc ×15 + câu đúng ×1 + thi thử ×60; 11 cấp (`LEVEL_STEPS`); 16 huy hiệu. `ProgressHub` dùng `useVocabularyCards()` (một query toàn bộ thẻ) thay vì `getDecks()` + `getCards()` từng bộ; biểu đồ 14 ngày có gradient theo accent, nhãn ngày và `aria-label` từng cột.
 - **Bố cục mobile (đã rà lại)**: bottom nav 5 tab + “Thêm”; `main` có `pb-28` để không bị nav che; dải tab của Kỹ năng **xuống dòng** trên điện thoại (trước đây “Luyện câu”/“Thi thử B1” bị khuất); Topbar trên điện thoại ẩn badge đồng bộ + nút phím tắt (đã có ở `MobileHeader`); chip từ khoá bài nghe cao ≥36px.
 - **Gia sư AI**: chat có prompt hệ thống (trả lời tiếng Việt, ví dụ tiếng Anh kèm nghĩa, tối đa 200 từ), gửi 6 tin nhắn gần nhất làm ngữ cảnh, lưu hội thoại cục bộ. **Mở bằng nút nổi màu xanh ở góc phải dưới — có ở MỌI tab** (mobile `bottom-24`, desktop `bottom-6`), thay cho nút “+ Thêm từ” cũ ở tab Từ vựng (việc thêm từ nay nằm trong màn hình chi tiết bộ + sheet “Thêm từ mới”).
 - **Chia sẻ/sao lưu**: `shareDeck` tạo link `#deck=…` (khách mở link thấy hộp thoại nhập bộ); `backupService` xuất/nhập JSON toàn bộ dữ liệu.
@@ -315,7 +328,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 | `VITE_AI_PROXY_URL` | Bật proxy AI (không cần API key client; URL công khai, secret nằm trong Secret Manager) |
 | `VITE_GOOGLE_USE_NATIVE_AUTH=1` | Dùng plugin Google Auth native cho APK (mặc định tắt) |
 | `src/config/googleAuth.js` | Hằng số `GOOGLE_LOGIN_MODE`, override theo thiết bị qua localStorage `lingua-google-login-mode` (Cài đặt → Tài khoản) |
-| `public/sw.js`, `index.html` | Service worker: chỉ đăng ký ngoài `localhost`/`.local` và khi không chạy trong Capacitor; ở localhost sẽ **unregister + xoá cache** |
+| `public/sw.js`, `index.html` | Service worker: chỉ đăng ký ngoài `localhost`/`.local` và khi không chạy trong Capacitor; ở localhost sẽ **unregister + xoá cache**. SW v5: network-first cho navigation, cache-first cho file hash `/assets/`, stale-while-revalidate cho tài nguyên tĩnh khác; bỏ qua cross-origin và request `Range` (audio/video). Font mặc định Inter + Space Grotesk tải non-blocking, `appearanceService` dùng lại link `#lingua-font`. |
 | `capacitor.config.json`, `.github/workflows/build-apk.yml` | Đóng gói APK; workflow tự vá `AndroidManifest.xml` thêm deep link `com.lingua.studyhub://auth` |
 
 ## 14. Test
@@ -337,7 +350,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 
 ## 16. Bẫy đã từng gặp (đọc trước khi sửa)
 
-1. **StrictMode bật** (`main.jsx`): effect chạy 2 lần → không sinh id bằng `Date.now()` đơn thuần (dùng `makeId(prefix)`), và seeding phải single-flight (`starterSeedPromise`).
+1. **StrictMode bật** (`main.jsx`): effect chạy 2 lần → không sinh id bằng `Date.now()` đơn thuần (dùng `makeId(prefix)`), và tạo bộ khởi đầu phải single-flight (`createStarterPackDeck` trong `starterPackService.js`).
 2. **Firestore từ chối `undefined`**: mọi payload ghi phải qua `omitUndefined`; `imageUrl` mặc định `""`.
 3. **Service worker cũ gây "Invalid hook call / multiple React copies"** khi dev: chạy `npm run dev -- --force` và xoá cache/SW nếu thấy lỗi lạ.
 4. **Thẻ lật 3D**: không được đổi `index` cùng lúc với `setFlipped(false)` — mặt sau của thẻ mới sẽ lộ ra khi xoay; phải đổi nội dung sau khi thẻ xoay xong (`advanceAfterFlip`, `FLIP_MS` khớp `duration-500`).
@@ -345,7 +358,7 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 6. **React Flow**: `nodeTypes`/`defaultEdgeOptions` phải là hằng ngoài component; ẩn handle thì phải `pointer-events-none`.
 7. **Tailwind + font scale**: cỡ chữ đổi `html{font-size}` nên tránh phần tử có min-width theo `rem` trong hàng ngang (từng gây tràn ở planner).
 8. **Bottom nav mobile**: **5 tab chính + nút “Thêm”** (bảng trượt lên chứa Writing/Tiến độ/Todo/Sơ đồ/Cài đặt). Trước đây hiện cả 9 tab nên 3 tab cuối bị khuất, phải vuốt ngang mới thấy (không ai thấy). Nếu thêm tab mới: thêm vào `navigationItems` (+ `color`); tab nào không nằm trong `PRIMARY_TABS` sẽ tự vào bảng “Thêm”. Nhớ `main` phải giữ `pb-28` (nav cao ~80px).
-9. **Giao diện điều hướng kiểu Duolingo** (Sep 2026): nhãn tab **IN HOA đậm**, mỗi tab có một ô icon bo tròn **nền đặc theo màu nhận diện** (`item.color`) với glyph trắng + bóng dưới, tab đang chọn có **nền xanh nhạt `#ddf4ff` + viền `#84d8ff` + chữ `#1899d6`** (dark mode dùng tint xanh trên nền tối). Sidebar: logo xanh `#58cc02`, dải tab dọc, thẻ chuỗi ngày có icon lửa cam `#ff9600`; bottom nav dùng cùng bộ icon, tab đang chọn có viền pill xanh. Bảng màu sống động này cố định (không theo `--accent` của Cài đặt → Giao diện).
+9. **Điều hướng dùng màu nhấn** (Oct 2026): mỗi tab vẫn có ô icon bo tròn theo `item.color`, nhưng trạng thái active, logo, vòng mục tiêu, thanh tiến độ và nền hero lấy từ `--accent`/`--accent-2` — đổi bảng màu trong Cài đặt → Giao diện là toàn bộ shell đổi theo. Đừng hardcode `indigo-*`/`emerald-*` cho thành phần thương hiệu mới; dùng `rgb(var(--accent))` hoặc utility `.home-hero`/`.text-gradient`.
 10. **Chữ gọn, ít dài dòng** (Sep 2026, yêu cầu “gọn gàng dễ nhìn”): phần đầu mỗi tab chỉ còn **eyebrow + tiêu đề 1 dòng + tối đa 1 dòng mô tả** — VSTEP thay đoạn văn 4 dòng bằng 4 ô tóm tắt kỹ năng (`SKILL_SUMMARY`) + hàng chip tab chỉnh sửa nhỏ hơn, Kỹ năng/Thi thử B1/Thi tổng hợp ngữ pháp/Tiến độ/Từ vựng VSTEP/Từ vựng (Việc hôm nay) đều rút còn một dòng. Khi thêm UI mới: **đừng** viết đoạn mô tả dài ở header, hãy đưa thông tin vào chip/ô số liệu.
 11. **Một kiểu bố cục cho mọi tab “có nội dung con”** (Sep 2026): **danh sách dạng thẻ → màn hình chi tiết có nút “← Danh sách …”** (Ngữ pháp: 30 bài; Từ vựng: các bộ thẻ; Kỹ năng: 8 bài cho mỗi kỹ năng qua `src/components/learning/SkillLessonList.jsx`). Danh sách dùng `grid gap-3 lg:grid-cols-2`, mỗi thẻ `panel` + `border-b-4` màu nhận diện + chip trạng thái + 1–2 nút, kèm dòng “x/y đã hoàn thành” theo nhóm và một ô nét đứt để tạo mới. Chi tiết **không** lặp lại phần thống kê đã có ở danh sách. Thẻ bài kỹ năng truyền `items` đã chuẩn hoá (`{id,index,title,level,tag,meta,summary,result,chip}`) nên thêm kỹ năng mới chỉ cần map dữ liệu, không viết lại UI.
 9. **In báo cáo**: nhớ class `.no-print` cho chrome (Sidebar/Topbar/MobileHeader/BottomNav đã gắn sẵn).
@@ -357,6 +370,9 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 15. **Đừng tin `auth.currentUser` ngay sau khi mở app**: Firebase khôi phục phiên bất đồng bộ, nên `userDocService` chờ `whenAuthSettled()` trước khi đọc/ghi `user_state`. Nếu đọc sớm sẽ dùng nhầm bản của khách → UI hiện giá trị mặc định (từng gây lỗi “giờ nhắc bị reset”) và có thể ghi đè dữ liệu thật.
 16. **Đừng remount module theo `user.uid`/biến đếm dữ liệu**: `key={\`${activeTab}-${user?.uid}-${dataVersion}\`}` từng làm điện thoại “tải lại trang” 2 lần khi vừa mở app (một lần khi Firebase khôi phục phiên, một lần khi đồng bộ dữ liệu khách xong). Cách đúng: chờ `whenAuthSettled()` trước lần render đầu, còn đổi dữ liệu thì bắn `refreshRequestedEvent` (mọi hook `useCloudDoc` + VocabularyHub/ProgressHub/HomeHub/mindmap/reminder đều nghe sự kiện này). Nhớ rà lại: bất cứ nơi nào đang `dispatchEvent(new Event(refreshRequestedEvent))` thì module phải tự nạp lại dữ liệu, không được dựa vào remount.
 16. **Ô nhập `type="time"` của Android trả chuỗi rỗng khi người dùng bấm huỷ**: luôn đi qua `normalizeTime()` trước khi lưu, nếu không ô sẽ hiển thị lại giá trị mặc định như bị reset.
+17. **Đừng quay lại N+1 khi đọc thẻ**: Trang chủ/Tiến độ/widget/backup/sync dùng `dataService.getAllCards()` (một query thẻ + danh sách deck đang hoạt động, đã loại deck trong thùng rác). `getCards(deckId)` chỉ dùng khi thật sự chỉ cần một bộ (ví dụ kiểm tra trùng từ trước khi tạo bộ câu sai). `allCardsRequest` chỉ gộp request **đang bay**, không cache lâu — đừng biến nó thành cache vĩnh viễn mà quên invalidation sau khi ghi.
+18. **FAB Gia sư AI phải nằm trong lớp `relative z-10`**: nếu đặt nó ngoài wrapper này, `z-40` sẽ nằm trên mọi dialog `z-90` bên trong (từng che bảng “Thêm” trên mobile). Hiện FAB nằm cạnh `MobileBottomNav` trong wrapper, còn Search/Tutor/Shortcuts render ngoài wrapper với `z-[95]`.
+19. **Kiểm tra mobile thật bằng CDP**: headless Chrome có cửa sổ tối thiểu ~504px nên `--window-size=390` chỉ cắt ảnh, không đổi layout. Dùng `Emulation.setDeviceMetricsOverride` (width 390, mobile true) rồi kiểm tra `document.documentElement.scrollWidth === innerWidth`; các script mẫu nằm ở `.screens/`.
 
 ## 17. Chưa làm (roadmap)
 

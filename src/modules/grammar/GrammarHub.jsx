@@ -138,7 +138,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
 
   return (
     <div className="space-y-4">
-      {!examOpen && view === 'list' && (
+      {!examOpen && view !== 'lesson' && (
         <GrammarOverviewBanner
           completedCount={completedCount}
           total={total}
@@ -150,7 +150,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
         />
       )}
 
-      <CollapsibleCard
+      {view !== 'lesson' && <CollapsibleCard
         id="grammar-mistakes"
         icon={AlertTriangle}
         eyebrow="Ôn tập cá nhân"
@@ -221,9 +221,9 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
             {mistakes.length > 20 && <p className="mt-2 text-xs text-ink/55 dark:text-white/55">Còn {mistakes.length - 20} câu khác trong sổ.</p>}
           </>
         )}
-      </CollapsibleCard>
+      </CollapsibleCard>}
 
-      <CollapsibleCard
+      {view !== 'lesson' && <CollapsibleCard
         id="grammar-pairs"
         icon={Layers}
         eyebrow="Hay bị lẫn"
@@ -245,7 +245,7 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
             </li>
           ))}
         </ul>
-      </CollapsibleCard>
+      </CollapsibleCard>}
 
       {examOpen ? (
         <GrammarExam

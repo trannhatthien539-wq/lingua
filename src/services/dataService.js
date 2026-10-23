@@ -74,6 +74,7 @@ export const clearGuestVocabulary = () => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(OLD_STORAGE_KEY);
   localStorage.removeItem("lingua-practice-topic");
+  invalidateVocabularyCache();
 };
 
 const normalizeDeck = (deck) => ({
@@ -152,10 +153,56 @@ const getUserDocuments = async (collectionName, { serverOnly = false } = {}) => 
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 };
 
+/**
+ * Bộ đệm dùng chung cho một phiên làm việc:
+ * - cả Trang chủ, Từ vựng, Tiến độ, sao lưu... dùng chung một lần đọc thư viện;
+ * - request đang chạy được gộp lại (deduplication);
+ * - mọi thao tác ghi hoặc đổi tài khoản sẽ xoá bộ đệm để lần đọc sau lấy dữ liệu mới.
+ *
+ * Cache được khoá theo uid để không bao giờ trả dữ liệu của tài khoản trước.
+ */
+let cacheGeneration = 0;
+let deckDocsCache = null;
+let deckDocsRequest = null;
+let allCardsCache = null;
+let allCardsRequest = null;
+
+const cacheOwner = () => currentUser()?.uid || "guest";
+
+/** Xoá bộ đệm thẻ/bộ thẻ (gọi sau create/update/delete hoặc khi đổi tài khoản). */
+export const invalidateVocabularyCache = () => {
+  cacheGeneration += 1;
+  deckDocsCache = null;
+  deckDocsRequest = null;
+  allCardsCache = null;
+  allCardsRequest = null;
+};
+
+const getRemoteDeckDocuments = () => {
+  const owner = cacheOwner();
+  if (deckDocsCache?.owner === owner) return Promise.resolve(deckDocsCache.docs);
+  if (deckDocsRequest?.owner === owner) return deckDocsRequest.promise;
+
+  const generation = cacheGeneration;
+  let request;
+  request = getUserDocuments("study_decks")
+    .then((docs) => {
+      if (generation === cacheGeneration && cacheOwner() === owner) {
+        deckDocsCache = { owner, docs };
+      }
+      return docs;
+    })
+    .finally(() => {
+      if (deckDocsRequest?.promise === request) deckDocsRequest = null;
+    });
+  deckDocsRequest = { owner, promise: request };
+  return request;
+};
+
 const dataMethods = {
   async getDecks() {
     if (!currentUser()) return readLocal().decks.filter((deck) => !deck.deletedAt).map(normalizeDeck);
-    return (await getUserDocuments("study_decks"))
+    return (await getRemoteDeckDocuments())
       .filter((deck) => !deck.deletedAt)
       .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt)))
       .map(normalizeDeck);
@@ -171,6 +218,7 @@ const dataMethods = {
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, decks: [...library.decks, deck] });
+      invalidateVocabularyCache();
       return deck;
     }
     const created = await addDoc(collection(db, "study_decks"), withUserId(omitUndefined({
@@ -178,6 +226,7 @@ const dataMethods = {
       tags: deck.tags,
       createdAt: deck.createdAt,
     })));
+    invalidateVocabularyCache();
     return { ...deck, id: created.id };
   },
 
@@ -185,9 +234,11 @@ const dataMethods = {
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, decks: library.decks.map((deck) => deck.id === id ? { ...deck, title } : deck) });
+      invalidateVocabularyCache();
       return;
     }
     await updateDoc(doc(db, "study_decks", id), { title });
+    invalidateVocabularyCache();
   },
 
   async deleteDeck(id) {
@@ -197,6 +248,7 @@ const dataMethods = {
         decks: library.decks.filter((deck) => deck.id !== id),
         cards: library.cards.filter((card) => card.deckId !== id),
       });
+      invalidateVocabularyCache();
       return;
     }
     const cards = await getDocs(query(collection(db, "vocabulary_cards"), where("userId", "==", requireUser().uid), where("deckId", "==", id)));
@@ -206,6 +258,7 @@ const dataMethods = {
       await batch.commit();
     }
     await deleteDoc(doc(db, "study_decks", id));
+    invalidateVocabularyCache();
   },
 
   async getCards(deckId) {
@@ -221,14 +274,63 @@ const dataMethods = {
       .filter((card) => !card.deletedAt);
   },
 
+  /**
+   * Đọc toàn bộ thẻ của các bộ đang hoạt động (thay vì `getDecks()` + `getCards()` cho từng bộ).
+   * Dùng cho Trang chủ, Tiến độ, widget, sao lưu và đồng bộ — giảm N+1 lượt đọc Firestore.
+   *
+   * Thùng rác chỉ đánh dấu `deletedAt` ở deck (không sửa từng thẻ), nên phải loại thẻ thuộc
+   * deck đã xoá mềm; nếu không, số liệu sẽ tính cả từ vựng trong thùng rác. Danh sách deck
+   * được gộp chung request với `getDecks()` đang chạy song song.
+   */
+  async getAllCards() {
+    const owner = cacheOwner();
+    if (allCardsCache?.owner === owner) return allCardsCache.cards;
+    if (allCardsRequest?.owner === owner) return allCardsRequest.promise;
+
+    const generation = cacheGeneration;
+    const load = !currentUser()
+      ? Promise.resolve().then(() => {
+        const library = readLocal();
+        const activeDeckIds = new Set(library.decks.filter((deck) => !deck.deletedAt).map((deck) => deck.id));
+        return library.cards
+          .filter((card) => !card.deletedAt && activeDeckIds.has(card.deckId))
+          .map(normalizeCard);
+      })
+      : Promise.all([
+        getUserDocuments("vocabulary_cards"),
+        getRemoteDeckDocuments(),
+      ]).then(([cards, decks]) => {
+        const activeDeckIds = new Set(decks.filter((deck) => !deck.deletedAt).map((deck) => deck.id));
+        return cards
+          .filter((card) => !card.deletedAt && activeDeckIds.has(card.deckId))
+          .map((card) => normalizeCard(card));
+      });
+
+    let request;
+    request = load
+      .then((cards) => {
+        if (generation === cacheGeneration && cacheOwner() === owner) {
+          allCardsCache = { owner, cards };
+        }
+        return cards;
+      })
+      .finally(() => {
+        if (allCardsRequest?.promise === request) allCardsRequest = null;
+      });
+    allCardsRequest = { owner, promise: request };
+    return request;
+  },
+
   async addCard(card) {
     const normalized = normalizeCard(card);
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, cards: [...library.cards, normalized] });
+      invalidateVocabularyCache();
       return normalized;
     }
     const created = await addDoc(collection(db, "vocabulary_cards"), withUserId(omitUndefined(cardPayload(normalized))));
+    invalidateVocabularyCache();
     return { ...normalized, id: created.id };
   },
 
@@ -244,6 +346,7 @@ const dataMethods = {
       const library = readLocal();
       const savedCards = withUniqueLocalCardIds(normalized, library);
       writeLocal({ ...library, cards: [...savedCards, ...library.cards] });
+      invalidateVocabularyCache();
       return savedCards;
     }
     const entries = normalized.map((card) => ({ card, ref: doc(collection(db, "vocabulary_cards")) }));
@@ -261,6 +364,7 @@ const dataMethods = {
         }
       },
     });
+    invalidateVocabularyCache();
     return committed.map(({ card, ref }) => ({ ...card, id: ref.id }));
   },
 
@@ -273,6 +377,7 @@ const dataMethods = {
       const candidates = cards.map((card) => ({ ...card, deckId: deck.id })).filter((card) => card.word);
       const savedCards = withUniqueLocalCardIds(candidates, library);
       writeLocal({ decks: [...library.decks, deck], cards: [...savedCards, ...library.cards] });
+      invalidateVocabularyCache();
       return { deck, cards: savedCards };
     }
 
@@ -293,10 +398,12 @@ const dataMethods = {
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, cards: library.cards.map((card) => card.id === id ? { ...card, ...normalizedChanges } : card) });
+      invalidateVocabularyCache();
       return;
     }
     if (!Object.keys(normalizedChanges).length) return;
     await updateDoc(doc(db, "vocabulary_cards", id), normalizedChanges);
+    invalidateVocabularyCache();
   },
 
   async updateCards(ids, changes) {
@@ -310,6 +417,7 @@ const dataMethods = {
         ...library,
         cards: library.cards.map((card) => (idSet.has(card.id) ? { ...card, ...normalizedChanges } : card)),
       });
+      invalidateVocabularyCache();
       return uniqueIds.length;
     }
     for (const idChunk of chunkForFirestore(uniqueIds)) {
@@ -319,6 +427,7 @@ const dataMethods = {
       });
       await batch.commit();
     }
+    invalidateVocabularyCache();
     return uniqueIds.length;
   },
 
@@ -326,9 +435,11 @@ const dataMethods = {
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, cards: library.cards.filter((card) => card.id !== id) });
+      invalidateVocabularyCache();
       return;
     }
     await deleteDoc(doc(db, "vocabulary_cards", id));
+    invalidateVocabularyCache();
   },
 
   /**
@@ -344,11 +455,13 @@ const dataMethods = {
         ...library,
         decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt } : deck)),
       });
+      invalidateVocabularyCache();
       return deletedAt;
     }
     // Chỉ đánh dấu deck là đủ để ẩn deck và toàn bộ thẻ con. Tránh 1.000 update khi
     // xoá bộ 1.000 từ; các thẻ con vẫn được giữ nguyên để khôi phục nhanh và an toàn.
     await updateDoc(doc(db, "study_decks", id), { deletedAt });
+    invalidateVocabularyCache();
     return deletedAt;
   },
 
@@ -361,6 +474,7 @@ const dataMethods = {
         // Dữ liệu guest tạo bởi phiên bản cũ có thể đã đánh dấu thẻ con.
         cards: library.cards.map((card) => (card.deckId === id && card.deletedAt ? { ...card, deletedAt: null } : card)),
       });
+      invalidateVocabularyCache();
       return;
     }
     const user = requireUser();
@@ -380,6 +494,7 @@ const dataMethods = {
     }
     // Chỉ mở deck sau khi mọi batch dữ liệu cũ đã phục hồi thành công.
     await updateDoc(doc(db, "study_decks", id), { deletedAt: null });
+    invalidateVocabularyCache();
   },
 
   async trashCards(ids) {
@@ -435,6 +550,7 @@ const dataMethods = {
         decks: library.decks.filter((deck) => !deck.deletedAt),
         cards: library.cards.filter((card) => !card.deletedAt && !trashedDeckIds.has(card.deckId)),
       });
+      invalidateVocabularyCache();
       return;
     }
     const decks = await getUserDocuments("study_decks", { serverOnly: true });
@@ -453,6 +569,7 @@ const dataMethods = {
       });
       await batch.commit();
     }
+    invalidateVocabularyCache();
   },
 };
 
@@ -465,7 +582,7 @@ const withFriendlyDataError = async (operation, args) => {
   }
 };
 
-const READ_METHODS = new Set(["getDecks", "getCards", "getTrashed"]);
+const READ_METHODS = new Set(["getDecks", "getCards", "getAllCards", "getTrashed"]);
 
 export const dataService = Object.fromEntries(
   Object.entries(dataMethods).map(([name, operation]) => [

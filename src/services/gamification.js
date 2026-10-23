@@ -18,6 +18,10 @@ export const XP_PER = {
   vstepAttempt: 25,
 };
 
+/** Tổng số bài ngữ pháp và số câu của một bài Mock Test hiện hành. */
+export const GRAMMAR_TOTAL = 30;
+export const MOCK_TEST_TOTAL = 28;
+
 /** Ngưỡng XP của từng cấp (cấp = index + 1). */
 export const LEVEL_STEPS = [0, 120, 320, 620, 1000, 1500, 2150, 2950, 3900, 5000, 6300];
 const LEVEL_TITLES = [
@@ -97,7 +101,7 @@ export function computeStats({ days = {}, streak = {}, cards = [], grammar = {},
       due: cards.filter((card) => isDue(card)).length,
       leeches: cards.filter((card) => isLeech(card)).length,
     },
-    grammar: { passed: completedGrammar.length, total: Number(grammar?.total) || 30 },
+    grammar: { passed: completedGrammar.length, total: Number(grammar?.total) || GRAMMAR_TOTAL },
     skills: {
       listening: listeningDone,
       reading: readingDone,
@@ -171,9 +175,9 @@ export const ACHIEVEMENTS = [
   { id: "streak-7", label: "Chuỗi 7 ngày", detail: "Học 7 ngày liên tiếp", icon: "flame", test: (stats) => stats.streak.current >= 7 },
   { id: "streak-30", label: "Chuỗi 30 ngày", detail: "Học 30 ngày liên tiếp", icon: "flame", test: (stats) => stats.streak.current >= 30 },
   { id: "grammar-5", label: "Ngữ pháp khá", detail: "Đạt 5 bài ngữ pháp", icon: "book", test: (stats) => stats.grammar.passed >= 5 },
-  { id: "grammar-all", label: "Trọn bộ ngữ pháp", detail: "Đạt 20/20 bài ngữ pháp", icon: "graduation", test: (stats) => stats.grammar.passed >= 20 },
+  { id: "grammar-all", label: "Trọn bộ ngữ pháp", detail: `Đạt ${GRAMMAR_TOTAL}/${GRAMMAR_TOTAL} bài ngữ pháp`, icon: "graduation", test: (stats) => stats.grammar.total > 0 && stats.grammar.passed >= stats.grammar.total },
   { id: "skills-6", label: "Luyện kỹ năng", detail: "Hoàn thành 6 bài Nghe hoặc Đọc", icon: "headphones", test: (stats) => stats.skills.listening + stats.skills.reading >= 6 },
-  { id: "mock-30", label: "Thi thử 30+", detail: "Đạt từ 30/28... điểm thi thử", icon: "target", test: (stats) => stats.skills.mockBest >= 30 },
+  { id: "mock-30", label: "Thi thử tuyệt đối", detail: `Đạt ${MOCK_TEST_TOTAL}/${MOCK_TEST_TOTAL} câu bài thi thử`, icon: "target", test: (stats) => stats.skills.mockBest >= MOCK_TEST_TOTAL },
   { id: "sentence-90", label: "Câu chuẩn 90%", detail: "Đúng 90% bài luyện câu", icon: "pen", test: (stats) => stats.skills.sentenceAttempted >= 20 && stats.skills.sentenceAccuracy >= 90 },
   { id: "accuracy-85", label: "Chính xác 85%", detail: "Tỷ lệ nhớ đúng từ 85%", icon: "sparkles", test: (stats) => stats.reviewed >= 200 && stats.accuracy >= 85 },
   { id: "leech-clean", label: "Dọn từ khó", detail: "Không còn từ nào quên quá 4 lần", icon: "shield", test: (stats) => stats.cards.total >= 25 && stats.cards.leeches === 0 },

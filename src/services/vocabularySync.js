@@ -5,8 +5,10 @@ const FALLBACK_DECK_TITLE = 'Bộ từ đã đồng bộ';
 const deckKey = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
 
 export async function loadVocabulary() {
-  const decks = await dataService.getDecks();
-  const cards = (await Promise.all(decks.map((deck) => dataService.getCards(deck.id)))).flat();
+  const [decks, cards] = await Promise.all([
+    dataService.getDecks(),
+    dataService.getAllCards(),
+  ]);
   return { decks, cards };
 }
 

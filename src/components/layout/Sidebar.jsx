@@ -2,36 +2,59 @@ import { Flame, LogIn, LogOut, Moon, Sun } from 'lucide-react'
 import ProgressAvatar from '../ui/ProgressAvatar'
 import NavIcon from '../ui/NavIcon'
 import AppMark from '../AppMark'
+import GoalRing from '../ui/GoalRing'
 import useTodayProgress from '../../hooks/useTodayProgress'
 import { navigationGroups, navigationItems } from '../../data/navigation'
 
-// Mục đang chọn phong cách Linear & Apple: dùng biến màu chủ đề tuỳ biến động
 const ACTIVE_ITEM = 'border shadow-sm'
 const IDLE_ITEM = 'border border-transparent text-slate-600 hover:border-slate-200/80 hover:bg-slate-100/70 hover:text-slate-900 dark:text-slate-400 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.05] dark:hover:text-white'
 
-export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, user, streak, onOpenAuth, onSignOut }) {
+const activeStyle = {
+  borderColor: 'rgba(var(--accent), 0.30)',
+  backgroundColor: 'rgba(var(--accent), 0.10)',
+  color: 'rgb(var(--accent))',
+  boxShadow: '0 6px 18px -10px rgba(var(--accent), 0.45)',
+}
+
+function ActiveRail() {
+  return (
+    <span
+      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full"
+      style={{ backgroundColor: 'rgb(var(--accent))' }}
+      aria-hidden="true"
+    />
+  )
+}
+
+export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onToggleTheme, user, streak, onOpenAuth, onSignOut }) {
   const currentStreak = streak?.currentStreak || 0
   const streakProgress = Math.min(100, Math.round((currentStreak / 7) * 100))
-  const { percent: todayPercent } = useTodayProgress()
+  const { today, target, percent: todayPercent } = useTodayProgress()
+
+  const prefetch = (id) => onPrefetch?.(id)
+
   return (
-    <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 backdrop-blur-2xl px-4 py-4 dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[264px] lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
-      <div className="flex items-center justify-between gap-3 lg:block">
+    <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6 no-scrollbar">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-slate-900/40 p-1 shadow-sm backdrop-blur-md">
+            <div
+              className="grid h-10 w-10 place-items-center rounded-2xl border p-1 shadow-sm backdrop-blur-md"
+              style={{ borderColor: 'rgba(var(--accent), 0.25)', background: 'linear-gradient(135deg, rgba(var(--accent), 0.16), rgba(var(--accent-2), 0.08))' }}
+            >
               <AppMark className="h-8 w-8 drop-shadow-sm transition-transform duration-200 hover:scale-105" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{
-                    backgroundColor: 'rgb(var(--accent))',
-                    boxShadow: '0 0 10px rgb(var(--accent))',
-                  }}
+                  style={{ backgroundColor: 'rgb(var(--accent))', boxShadow: '0 0 10px rgba(var(--accent), 0.7)' }}
                 />
-                <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span></p>
+                <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
+                </p>
               </div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">learning hub</p>
             </div>
           </div>
           <button onClick={onToggleTheme} className="icon-btn h-9 w-9 border border-slate-200/80 dark:border-white/10" aria-label="Đổi giao diện">
@@ -39,15 +62,14 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
           </button>
         </div>
       </div>
+
       {/* Menu trên desktop: phân nhóm tinh tế */}
-      <nav className="mt-4 hidden lg:block lg:space-y-4" aria-label="Điều hướng chính">
+      <nav className="mt-5 hidden lg:block lg:space-y-5" aria-label="Điều hướng chính">
         {navigationGroups.map((group) => {
           const items = group.itemIds.map((id) => navigationItems.find((item) => item.id === id)).filter(Boolean)
           return (
             <div key={group.id} className="space-y-1">
-              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
-                {group.label}
-              </p>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{group.label}</p>
               {items.map((item) => {
                 const isActive = activeTab === item.id
                 return (
@@ -55,21 +77,16 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
                     key={item.id}
                     type="button"
                     onClick={() => onTabChange(item.id)}
+                    onMouseEnter={() => prefetch(item.id)}
+                    onFocus={() => prefetch(item.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
-                    style={
-                      isActive
-                        ? {
-                            borderColor: 'rgba(var(--accent), 0.38)',
-                            backgroundColor: 'rgba(var(--accent), 0.12)',
-                            color: 'rgb(var(--accent))',
-                            boxShadow: '0 2px 14px -2px rgba(var(--accent), 0.22)',
-                          }
-                        : undefined
-                    }
+                    className={`relative flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+                    style={isActive ? activeStyle : undefined}
                   >
-                    <NavIcon icon={item.icon} color={item.color} size="sm" active={isActive} />
+                    {isActive && <ActiveRail />}
+                    <NavIcon icon={item.icon} color={item.color} darkColor={item.colorDark} size="sm" active={isActive} />
                     <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.label}</span>
+                    {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />}
                   </button>
                 )
               })}
@@ -78,8 +95,8 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
         })}
       </nav>
 
-      {/* Menu trên tablet (ngang cuộn): giữ danh sách phẳng mượt mà */}
-      <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden" aria-label="Điều hướng tablet">
+      {/* Menu trên tablet (ngang cuộn) */}
+      <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 lg:hidden no-scrollbar" aria-label="Điều hướng tablet">
         {navigationItems.map((item) => {
           const isActive = activeTab === item.id
           return (
@@ -87,37 +104,52 @@ export default function Sidebar({ activeTab, onTabChange, theme, onToggleTheme, 
               key={item.id}
               type="button"
               onClick={() => onTabChange(item.id)}
+              onMouseEnter={() => prefetch(item.id)}
+              onFocus={() => prefetch(item.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex h-10 min-w-max items-center gap-2.5 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
-              style={
-                isActive
-                  ? {
-                      borderColor: 'rgba(var(--accent), 0.38)',
-                      backgroundColor: 'rgba(var(--accent), 0.12)',
-                      color: 'rgb(var(--accent))',
-                      boxShadow: '0 2px 14px -2px rgba(var(--accent), 0.22)',
-                    }
-                  : undefined
-              }
+              className={`relative flex h-10 min-w-max items-center gap-2.5 rounded-xl px-3 text-left transition-all duration-200 ${isActive ? ACTIVE_ITEM : IDLE_ITEM}`}
+              style={isActive ? activeStyle : undefined}
             >
-              <NavIcon icon={item.icon} color={item.color} size="sm" active={isActive} />
+              <NavIcon icon={item.icon} color={item.color} darkColor={item.colorDark} size="sm" active={isActive} />
               <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.label}</span>
             </button>
           )
         })}
       </nav>
-      <div className="panel-flat mt-auto hidden p-4 lg:block border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.3)]"><Flame size={20} /></span>
+
+      {/* Trang chủ đã có thẻ Daily Goal đầy đủ trong Hero; tránh lặp lại trên desktop. */}
+      {activeTab !== 'home' && (
+        <div className="panel-flat mt-auto hidden p-3.5 lg:block border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p className="eyebrow">Hôm nay</p>
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300" title={`Chuỗi ${currentStreak} ngày`}>
+            <Flame size={12} />
+            {currentStreak > 0 ? `${currentStreak} ngày` : 'Bắt đầu'}
+          </span>
+        </div>
+        <div className="mt-2.5 flex items-center gap-3">
+          <GoalRing value={todayPercent} size={54} stroke={6} label="Mục tiêu hôm nay">
+            <div className="text-center">
+              <p className="metric text-sm leading-none text-slate-900 dark:text-white">{todayPercent}%</p>
+            </div>
+          </GoalRing>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">Chuỗi ngày học</p>
-            <p className="metric text-lg text-slate-900 dark:text-white">{currentStreak > 0 ? `${currentStreak} ngày` : 'Chưa bắt đầu'}</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">
+              {today}/{target} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">lượt ôn</span>
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {todayPercent >= 100 ? 'Đã đạt mục tiêu 🎉' : 'Mục tiêu hôm nay'}
+            </p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Mục tiêu tuần: 7 ngày</p>
-        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"><div className="h-full rounded-full transition-all" style={{ width: `${streakProgress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} /></div>
-      </div>
-      <div className="mt-4 hidden border-t border-slate-200/80 pt-4 lg:block dark:border-white/[0.08]">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${streakProgress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
+        </div>
+        <p className="mt-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Chuỗi tuần: {Math.min(currentStreak, 7)}/7 ngày</p>
+        </div>
+      )}
+
+      <div className="mt-4 hidden border-t border-slate-200/80 pt-4 lg:mt-auto lg:block dark:border-white/[0.08]">
         {user ? (
           <div className="flex items-center gap-3">
             <ProgressAvatar user={user} percent={todayPercent} />

@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, CheckCircle2, KeyRound, Save } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
-import { getApiKeyStorageKey, PROVIDER_STORAGE, readApiKeyForUser } from '../../services/apiKeyStorage'
+import { isApiKeyRemembered, PROVIDER_STORAGE, readApiKeyForUser, writeApiKey } from '../../services/apiKeyStorage'
 import { hasAiProxy } from '../../services/aiService'
 
 export default function ApiSettings({ user, apiKey, setApiKey }) {
   const [open, toggleSection] = useSectionState('api', false)
   const [provider, setProvider] = useState(() => localStorage.getItem(PROVIDER_STORAGE) || 'gemini')
+  const [remember, setRemember] = useState(() => isApiKeyRemembered(user))
   const [saved, setSaved] = useState(false)
   const savedTimerRef = useRef(null)
   // Dọn timer khi unmount để không set state sau khi đóng thẻ cài đặt.
@@ -18,13 +19,13 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
 
   useEffect(() => {
     setApiKey(readApiKeyForUser(user))
+    setRemember(isApiKeyRemembered(user))
     setSaved(false)
   }, [user, setApiKey])
 
   const saveSettings = () => {
-    const storageKey = getApiKeyStorageKey(user)
     const nextApiKey = apiKey.trim()
-    localStorage.setItem(storageKey, nextApiKey)
+    writeApiKey(user, nextApiKey, { remember })
     setApiKey(nextApiKey)
     localStorage.setItem(PROVIDER_STORAGE, provider)
     setSaved(true)
@@ -78,13 +79,35 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
             />
           </div>
         </label>
+        <label className="flex items-start gap-3 rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600"
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-bold text-ink/80 dark:text-white/80">Nhớ API key trên thiết bị này</span>
+            <span className="mt-0.5 block text-[11px] leading-5 text-ink/55 dark:text-white/55">
+              Mặc định key chỉ lưu trong phiên hiện tại (sessionStorage) và mất khi đóng tab.
+            </span>
+          </span>
+        </label>
+        {remember && (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-800 dark:text-amber-200">
+            Cảnh báo XSS: key lưu trong localStorage có thể bị mã độc trên trang đọc được. Chỉ bật ghi nhớ trên thiết bị cá nhân và tin cậy.
+          </p>
+        )}
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink/[0.08] pt-5 dark:border-white/[0.08]">
-        <span className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"><Check size={15} /> Key chỉ lưu trên thiết bị này</span>
+        <span className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <Check size={15} />
+          {remember ? 'Key được ghi nhớ trên thiết bị này' : 'Key chỉ lưu trong phiên hiện tại'}
+        </span>
         <button onClick={saveSettings} className="btn-primary px-4"><Save size={15} />Lưu thay đổi</button>
       </div>
-      {saved && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"><CheckCircle2 size={14} />Đã lưu cấu hình AI.</p>}
+      {saved && <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><CheckCircle2 size={14} />Đã lưu cấu hình AI.</p>}
     </CollapsibleCard>
   )
 }

@@ -1,20 +1,20 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, memo, useCallback, useEffect, useState } from 'react'
 import { Settings2, Sparkles } from 'lucide-react'
 import ModuleHero from './components/ui/ModuleHero'
 import { useLocation, useNavigate } from 'react-router-dom'
-import AuthPage from './components/Auth/AuthPage'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
 import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled } from './services/authService'
 import { subscribeGoogleReturn } from './services/googleBrowserAuth'
-import { getApiKeyStorageKey, readApiKeyForUser } from './services/apiKeyStorage'
+import { clearApiKey, readApiKeyForUser } from './services/apiKeyStorage'
 import { readGuestStreak, updateUserStreak } from './services/streakService'
 import { clearGuestVocabulary, hasGuestVocabulary, readGuestLibrary } from './services/dataService'
 import { openItem } from './services/deepLink'
 import { subscribeAppLinks } from './services/appLinks'
 import { syncVocabulary } from './services/vocabularySync'
-import { syncGuestUserDocs, userDocKeys, whenAuthSettled } from './services/userDocService'
+import { cancelAllUserDocs, flushAllUserDocs, syncGuestUserDocs, userDocKeys } from './services/userDocService'
 import { refreshRequestedEvent } from './services/syncStatus'
 import { resetHistoryCache } from './services/historyService'
+import { isCapacitor } from './services/platform'
 import useStudyReminder from './hooks/useStudyReminder'
 import useWidgetSummary from './hooks/useWidgetSummary'
 import Sidebar from './components/layout/Sidebar'
@@ -25,39 +25,92 @@ import useAppearance from './hooks/useAppearance'
 import { formatDate } from './lib/formatters'
 import MobileBottomNav from './components/MobileBottomNav'
 import MobileHeader from './components/MobileHeader'
-import AppMark from './components/AppMark'
-import SearchPalette from './components/SearchPalette'
 import Toaster from './components/ui/Toaster'
-import AiTutorPanel from './components/AiTutorPanel'
-import ShortcutsHelpModal from './components/ShortcutsHelpModal'
+import PageSkeleton from './components/ui/PageSkeleton'
+import AppBootSkeleton from './components/ui/AppBootSkeleton'
+import { lazyWithPreload, preload } from './lib/lazyWithPreload'
 import { toast } from './services/toast'
 
-const VocabularyHub = lazy(() => import('./modules/learning/VocabularyHub'))
-const HomeHub = lazy(() => import('./modules/home/HomeHub'))
-const WritingChecker = lazy(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.WritingChecker })))
-const GrammarHub = lazy(() => import('./modules/grammar/GrammarHub'))
-const SkillsHub = lazy(() => import('./modules/skills/SkillsHub'))
-const VstepHub = lazy(() => import('./modules/vstep/VstepHub'))
-const ProgressHub = lazy(() => import('./modules/progress/ProgressHub'))
-const StudyPlanner = lazy(() => import('./modules/planner/StudyPlanner'))
-const StudyMindmap = lazy(() => import('./modules/mindmap/StudyMindmap'))
-const ApiSettings = lazy(() => import('./modules/settings/ApiSettings'))
-const InstallAppPanel = lazy(() => import('./modules/settings/InstallAppPanel'))
-// Panel trong tab Cài đặt chỉ render khi người dùng mở tab đó → lazy để không nạp sớm.
-const AccountPanel = lazy(() => import('./components/AccountPanel'))
-const AccountDataPanel = lazy(() => import('./components/AccountDataPanel'))
-const AppearancePanel = lazy(() => import('./modules/settings/AppearancePanel'))
-const modules = { home: HomeHub, vocabulary: VocabularyHub, grammar: GrammarHub, skills: SkillsHub, vstep: VstepHub, writing: WritingChecker, progress: ProgressHub, planner: StudyPlanner, mindmap: StudyMindmap, settings: ApiSettings }
+/**
+ * Các module được tách chunk theo tab và có thể nạp trước khi người dùng rê chuột
+ * hoặc chạm vào mục điều hướng. Nhờ vậy lần đầu mở app không phải tải toàn bộ
+ * 10 tab, nhưng chuyển tab vẫn gần như tức thì.
+ */
+const VocabularyHub = lazyWithPreload(() => import('./modules/learning/VocabularyHub'))
+const HomeHub = lazyWithPreload(() => import('./modules/home/HomeHub'))
+const WritingChecker = lazyWithPreload(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.WritingChecker })))
+const GrammarHub = lazyWithPreload(() => import('./modules/grammar/GrammarHub'))
+const SkillsHub = lazyWithPreload(() => import('./modules/skills/SkillsHub'))
+const VstepHub = lazyWithPreload(() => import('./modules/vstep/VstepHub'))
+const ProgressHub = lazyWithPreload(() => import('./modules/progress/ProgressHub'))
+const StudyPlanner = lazyWithPreload(() => import('./modules/planner/StudyPlanner'))
+const StudyMindmap = lazyWithPreload(() => import('./modules/mindmap/StudyMindmap'))
+const ApiSettings = lazyWithPreload(() => import('./modules/settings/ApiSettings'))
+const InstallAppPanel = lazyWithPreload(() => import('./modules/settings/InstallAppPanel'))
+const AccountPanel = lazyWithPreload(() => import('./components/AccountPanel'))
+const AccountDataPanel = lazyWithPreload(() => import('./components/AccountDataPanel'))
+const AppearancePanel = lazyWithPreload(() => import('./modules/settings/AppearancePanel'))
+
+// Các lớp phủ chỉ tải khi thực sự mở → giảm mạnh gói khởi động (nhất là chỉ mục tìm kiếm).
+const AuthPage = lazyWithPreload(() => import('./components/Auth/AuthPage'))
+const SearchPalette = lazyWithPreload(() => import('./components/SearchPalette'))
+const AiTutorPanel = lazyWithPreload(() => import('./components/AiTutorPanel'))
+const ShortcutsHelpModal = lazyWithPreload(() => import('./components/ShortcutsHelpModal'))
+
+const modules = {
+  home: HomeHub,
+  vocabulary: VocabularyHub,
+  grammar: GrammarHub,
+  skills: SkillsHub,
+  vstep: VstepHub,
+  writing: WritingChecker,
+  progress: ProgressHub,
+  planner: StudyPlanner,
+  mindmap: StudyMindmap,
+  settings: ApiSettings,
+}
 const tabPaths = { home: '/home', vocabulary: '/vocabulary', grammar: '/grammar', skills: '/skills', vstep: '/vstep', writing: '/writing', progress: '/progress', planner: '/planner', mindmap: '/mindmap', settings: '/settings' }
 const pathTabs = Object.fromEntries(Object.entries(tabPaths).map(([tab, path]) => [path, tab]))
+const preloadTab = (tab) => preload(modules[tab])
+
+/**
+ * Chỉ re-render module đang mở khi props của nó thay đổi. Trước đây mỗi lần mở
+ * hộp tìm kiếm/gia sư AI (state của App) là toàn bộ module nặng bên dưới render lại.
+ */
+const Workspace = memo(function Workspace({ activeTab, ActiveModule, user, streak, apiKey, setApiKey, onStudyActivity, onNavigate, onSignOut }) {
+  return (
+    <div key={activeTab} className="animate-rise">
+      <Suspense fallback={<PageSkeleton />}>
+        <ActiveModule
+          onStudyActivity={onStudyActivity}
+          streak={streak}
+          user={user}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          onSignOut={onSignOut}
+          onNavigate={onNavigate}
+        />
+      </Suspense>
+    </div>
+  )
+})
+
+/**
+ * Widget chỉ tồn tại trong APK/WebView Capacitor. Tách thành component con để trên web
+ * không mount các hook đọc grammar/goal/thư viện thẻ chỉ phục vụ widget.
+ */
+function WidgetSummaryBridge({ streak, user }) {
+  useWidgetSummary({ streak, user })
+  return null
+}
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [streak, setStreak] = useState(() => readGuestStreak())
   const [apiKey, setApiKey] = useState('')
-  // Firebase khôi phục phiên đăng nhập bất đồng bộ: chờ biết chắc là khách hay tài khoản rồi mới
-  // render, để module không bị remount ngay sau khi mở app (trước đây trông như "tải lại trang").
-  const [authReady, setAuthReady] = useState(false)
+  // Chỉ dùng để hiện skeleton ở vùng nội dung trong lúc Firebase khôi phục phiên.
+  // App Shell (sidebar/header) được render ngay, không chặn toàn bộ trang.
+  const [authResolved, setAuthResolved] = useState(() => Boolean(auth.currentUser))
   const [searchOpen, setSearchOpen] = useState(false)
   const [tutorOpen, setTutorOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -68,25 +121,59 @@ export default function App() {
   const { theme, themeMode, setThemeMode, toggleTheme } = useTheme()
   const { appearance } = useAppearance()
   const { settings: reminderSettings, updateSettings: updateReminder, native: reminderNative } = useStudyReminder(streak, user)
-  // Widget màn hình chính (APK): đẩy thẻ đến hạn / chuỗi ngày / chủ điểm ngữ pháp ra widget.
-  useWidgetSummary({ streak, user })
-  const activeItem = navigationItems.find((item) => item.id === activeTab)
+  const activeItem = navigationItems.find((item) => item.id === activeTab) || navigationItems[0]
   const ActiveModule = modules[activeTab]
-  useEffect(() => {
-    let active = true
-    whenAuthSettled().finally(() => { if (active) setAuthReady(true) })
-    return () => { active = false }
+
+  const selectTab = useCallback((tab) => {
+    navigate(tabPaths[tab] || tabPaths.home)
+  }, [navigate])
+  const openAuth = useCallback(() => navigate('/login'), [navigate])
+  const recordStudyActivity = useCallback(
+    () => updateUserStreak(user?.uid).then(setStreak).catch(() => {}),
+    [user?.uid],
+  )
+  const handleSignOut = useCallback(async () => {
+    // Bắt buộc ghi nốt mọi thay đổi đang debounce TRƯỚC khi đăng xuất. Owner đã được
+    // khóa lúc xếp hàng nên dữ liệu luôn về đúng uid cũ, không trôi sang tài khoản khác.
+    await flushAllUserDocs().catch(() => {})
+    cancelAllUserDocs()
+    setApiKey('')
+    clearGuestVocabulary()
+    clearApiKey(user)
+    localStorage.removeItem('lingua-ai-api-key')
+    await signOut(auth)
+    navigate('/login')
+  }, [navigate, user])
+  const handleSearchSelect = useCallback((item) => {
+    selectTab(item.tab)
+    if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type })
+    setSearchOpen(false)
+  }, [selectTab])
+  const openTutorFromSearch = useCallback(() => {
+    setSearchOpen(false)
+    setTutorOpen(true)
   }, [])
+
+  // Nếu Firebase không trả callback (mạng chập chờn), mở khoá nội dung sau 3 giây
+  // thay vì treo toàn app như trước. Shell vẫn hiển thị ngay từ đầu.
+  useEffect(() => {
+    if (authResolved) return undefined
+    const timer = window.setTimeout(() => setAuthResolved(true), 3000)
+    return () => window.clearTimeout(timer)
+  }, [authResolved])
+
   useEffect(() => {
     localStorage.removeItem('lingua-ai-api-key')
     const openPractice = () => navigate(tabPaths.vocabulary)
     window.addEventListener('lingua:open-practice', openPractice)
     return () => window.removeEventListener('lingua:open-practice', openPractice)
   }, [navigate])
+
   useEffect(() => {
     if (location.pathname === '/') navigate(tabPaths.home, { replace: true })
     else if (!isLoginRoute && !pathTabs[location.pathname]) navigate(tabPaths.home, { replace: true })
   }, [isLoginRoute, location.pathname, navigate])
+
   // Widget / shortcut trên Android mở app bằng deep link `…://tab/<tab>`.
   useEffect(() => {
     let stopLinks = () => {}
@@ -97,6 +184,7 @@ export default function App() {
     }).then((stop) => { stopLinks = stop || (() => {}) })
     return () => stopLinks()
   }, [navigate])
+
   useEffect(() => {
     const openSearch = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -115,6 +203,7 @@ export default function App() {
     window.addEventListener('keydown', openSearch)
     return () => window.removeEventListener('keydown', openSearch)
   }, [])
+
   useEffect(() => {
     if (isNativeGoogleAuthEnabled()) {
       initializeNativeGoogleAuth().catch(() => toast.error('Không thể khởi tạo đăng nhập Google trên thiết bị.'))
@@ -129,6 +218,8 @@ export default function App() {
       else toast.error(payload || 'Không thể đăng nhập Google. Vui lòng thử lại.', { duration: 8000 })
     }).then((stop) => { stopGoogleReturn = stop || (() => {}) })
     const syncGuestData = async () => {
+      // Ghi nốt các thay đổi khách đang debounce xuống local trước khi đọc để chuyển lên tài khoản.
+      await flushAllUserDocs().catch(() => {})
       const syncedDocs = await syncGuestUserDocs([
         userDocKeys.planner,
         userDocKeys.mindmap,
@@ -164,6 +255,7 @@ export default function App() {
       const identityChanged = lastUid !== undefined && lastUid !== uid
       lastUid = uid
       setUser(nextUser)
+      setAuthResolved(true)
       setApiKey(readApiKeyForUser(nextUser))
       if (nextUser) {
         updateUserStreak(nextUser.uid).then(setStreak).catch(() => setStreak({ currentStreak: 0, lastActiveDate: null, totalSessions: 0 }))
@@ -178,46 +270,38 @@ export default function App() {
       unsubscribeAuth()
     }
   }, [])
+
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [location.pathname])
+
   useEffect(() => {
     if (user && isLoginRoute) navigate(tabPaths.home, { replace: true })
   }, [isLoginRoute, navigate, user])
 
-  const recordStudyActivity = () =>
-    updateUserStreak(user?.uid).then(setStreak).catch(() => {})
-  const handleSignOut = async () => {
-    setApiKey('')
-    clearGuestVocabulary()
-    localStorage.removeItem(getApiKeyStorageKey(user))
-    localStorage.removeItem('lingua-ai-api-key')
-    await signOut(auth)
-    navigate('/login')
-  }
+  // Route đăng nhập cần biết chắc trạng thái phiên để không nháy form login cho người
+  // đã đăng nhập; các route chính thì render shell ngay và chỉ chờ ở vùng nội dung.
+  if (isLoginRoute && !authResolved) return <AppBootSkeleton />
 
-  if (!authReady) {
+  if (isLoginRoute && !user) {
     return (
-      <div className="grid min-h-screen place-items-center bg-mist p-6 text-ink dark:bg-dark1 dark:text-white">
-        <div className="text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"><AppMark className="h-10 w-10" /></div>
-          <p className="mt-3 font-display text-xl font-bold text-indigo-600 dark:text-indigo-400">lingua<span className="text-ink/50 dark:text-white/45">.</span></p>
-          <p className="mt-1 text-sm text-ink/55 dark:text-white/55">Đang tải…</p>
-        </div>
-      </div>
+      <Suspense fallback={<AppBootSkeleton />}>
+        <AuthPage onGuest={() => navigate(tabPaths.home)} />
+      </Suspense>
     )
   }
-
-  if (isLoginRoute && !user) return <AuthPage onGuest={() => navigate(tabPaths.home)} />
-
-  const selectTab = (tab) => navigate(tabPaths[tab] || tabPaths.vocabulary)
 
   const bgImage = appearance?.background?.image
   const bgBlur = appearance?.background?.blur ?? 0
   const bgOverlay = appearance?.background?.overlay ?? 25
 
   return (
-    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'bg-mist dark:bg-dark1'} pt-[env(safe-area-inset-top)] text-ink transition-colors dark:text-white`}>
+    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'app-ambient bg-mist dark:bg-dark1'} pt-[env(safe-area-inset-top)] text-ink transition-colors dark:text-white`}>
+      {isCapacitor() && <WidgetSummaryBridge streak={streak} user={user} />}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-slate-900 focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl">
+        Bỏ qua điều hướng
+      </a>
+
       {/* Lớp hiển thị ảnh nền tuỳ chỉnh riêng biệt */}
       {bgImage && (
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
@@ -241,50 +325,104 @@ export default function App() {
       )}
 
       <div className="relative z-10">
-        <MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
-        <Sidebar activeTab={activeTab} onTabChange={selectTab} theme={theme} onToggleTheme={toggleTheme} user={user} streak={streak} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
-        <main className="min-h-screen pb-28 md:pb-0 lg:ml-[264px]">
+        <MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={openAuth} onSignOut={handleSignOut} />
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={selectTab}
+          onPrefetch={preloadTab}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          user={user}
+          streak={streak}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+        />
+        <main id="main-content" tabIndex={-1} className="min-h-screen pb-28 outline-none md:pb-0 lg:ml-[272px]">
           <div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12">
-            <Topbar title={activeItem.label} eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description} onOpenSearch={() => setSearchOpen(true)} onOpenTutor={() => setTutorOpen(true)} onOpenShortcuts={() => setShortcutsOpen(true)} user={user} streak={streak} />
-            <div className="animate-[fade-in_400ms_ease-out]" key={activeTab}>
-              <Suspense fallback={<div className="panel grid min-h-48 place-items-center p-6 text-sm text-ink/50 dark:text-white/50">Đang tải trang...</div>}>
-                {activeTab === 'settings' ? (
-                  <div className="max-w-3xl space-y-4">
-                    <ModuleHero icon={Settings2} eyebrow="Cài đặt" title="Tùy chỉnh không gian học" accent="#64748B" deep="#334155" illustration="settings" stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]} />
-                    <AccountPanel user={user} onOpenAuth={() => navigate('/login')} onSignOut={handleSignOut} />
-                    <AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} />
-                    <InstallAppPanel />
-                    <AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} />
-                    <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />
-                  </div>
-                ) : (
+            <Topbar
+              title={activeItem.label}
+              eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description}
+              accent={activeItem.color}
+              onOpenSearch={() => setSearchOpen(true)}
+              onPrefetchSearch={() => preload(SearchPalette)}
+              onOpenTutor={() => setTutorOpen(true)}
+              onPrefetchTutor={() => preload(AiTutorPanel)}
+              onOpenShortcuts={() => setShortcutsOpen(true)}
+              user={user}
+              streak={streak}
+            />
+            {!authResolved ? (
+              <PageSkeleton />
+            ) : activeTab === 'settings' ? (
+              <div className="max-w-3xl animate-rise space-y-4">
+                <Suspense fallback={<PageSkeleton />}>
+                  <ModuleHero
+                    icon={Settings2}
+                    eyebrow="Cài đặt"
+                    title="Tùy chỉnh không gian học"
+                    accent="#64748B"
+                    deep="#334155"
+                    illustration="settings"
+                    stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]}
+                  />
+                  <AccountPanel user={user} onOpenAuth={openAuth} onSignOut={handleSignOut} />
+                  <AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} />
+                  <InstallAppPanel />
+                  <AccountDataPanel user={user} streak={streak} reminderSettings={reminderSettings} onUpdateReminder={updateReminder} reminderNative={reminderNative} />
                   <ActiveModule onStudyActivity={recordStudyActivity} streak={streak} user={user} apiKey={apiKey} setApiKey={setApiKey} onSignOut={handleSignOut} onNavigate={selectTab} />
-                )}
-              </Suspense>
-            </div>
+                </Suspense>
+              </div>
+            ) : (
+              <Workspace
+                activeTab={activeTab}
+                ActiveModule={ActiveModule}
+                user={user}
+                streak={streak}
+                apiKey={apiKey}
+                setApiKey={setApiKey}
+                onStudyActivity={recordStudyActivity}
+                onNavigate={selectTab}
+                onSignOut={handleSignOut}
+              />
+            )}
           </div>
         </main>
-        <MobileBottomNav activeTab={activeTab} onTabChange={selectTab} />
+        <MobileBottomNav activeTab={activeTab} onTabChange={selectTab} onPrefetch={preloadTab} />
+
+        {/* Gia sư AI: nút nổi kính thích ứng theo màu chủ đề.
+            Đặt trong lớp z-10 để mọi hộp thoại (z-90) luôn nằm trên nút này. */}
+        <button
+          type="button"
+          onClick={() => setTutorOpen(true)}
+          onMouseEnter={() => preload(AiTutorPanel)}
+          onFocus={() => preload(AiTutorPanel)}
+          className="no-print fixed bottom-24 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
+          style={{
+            background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
+            boxShadow: '0 8px 25px -4px rgba(var(--accent), 0.45)',
+          }}
+          aria-label="Mở gia sư AI"
+          title="Gia sư AI — hỏi bất cứ lúc nào"
+        >
+          <Sparkles size={22} />
+        </button>
       </div>
 
-      {/* Gia sư AI: nút nổi kính Apple thích ứng theo màu chủ đề */}
-      <button
-        type="button"
-        onClick={() => setTutorOpen(true)}
-        className="no-print fixed bottom-24 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
-        style={{
-          background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
-          boxShadow: '0 8px 25px -4px rgba(var(--accent), 0.45)',
-        }}
-        aria-label="Mở gia sư AI"
-        title="Gia sư AI — hỏi bất cứ lúc nào"
-      >
-        <Sparkles size={22} />
-      </button>
-
-      {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={() => { setSearchOpen(false); setTutorOpen(true) }} onSelect={(item) => { selectTab(item.tab); if (item.type && item.type !== 'tab') openItem({ tab: item.tab, itemId: item.itemId, type: item.type }); setSearchOpen(false) }} />}
-      {tutorOpen && <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />}
-      {shortcutsOpen && <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />}
+      {searchOpen && (
+        <Suspense fallback={null}>
+          <SearchPalette onClose={() => setSearchOpen(false)} onOpenTutor={openTutorFromSearch} onSelect={handleSearchSelect} />
+        </Suspense>
+      )}
+      {tutorOpen && (
+        <Suspense fallback={null}>
+          <AiTutorPanel apiKey={apiKey} user={user} onClose={() => setTutorOpen(false)} onOpenSettings={() => { setTutorOpen(false); selectTab('settings') }} />
+        </Suspense>
+      )}
+      {shortcutsOpen && (
+        <Suspense fallback={null}>
+          <ShortcutsHelpModal onClose={() => setShortcutsOpen(false)} />
+        </Suspense>
+      )}
       <Toaster />
     </div>
   )

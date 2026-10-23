@@ -222,50 +222,6 @@ crystal clear|rõ như ban ngày, cực kỳ rõ
 fast asleep|ngủ say sưa
 heavy rain|mưa to, mưa như trút
 `,
-  essential_vocab_1: `
-approach|tiếp cận, phương pháp
-create|tạo ra, sáng tạo
-identify|nhận diện, xác định
-issue|vấn đề, phát hành
-policy|chính sách
-require|yêu cầu, đòi hỏi
-source|nguồn, xuất xứ
-theory|lý thuyết, học thuyết
-benefit|lợi ích, đem lại lợi ích
-evident|rõ ràng, hiển nhiên
-indicate|chỉ ra, biểu thị
-interpret|diễn giải, thông dịch
-major|chính, chủ yếu, ngành học
-occur|xảy ra, xuất hiện
-period|khoảng thời gian, tiết học
-principle|nguyên tắc, đạo lý
-process|quá trình, xử lý
-significant|đáng kể, quan trọng
-specific|cụ thể, riêng biệt
-structure|cấu trúc, tổ chức
-`,
-  essential_vocab_2: `
-achieve|đạt được, hoàn thành
-acquire|thu nhận, giành được
-affect|ảnh hưởng đến, tác động
-aspect|khía cạnh
-assist|hỗ trợ, giúp đỡ
-conclude|kết luận, kết thúc
-conduct|tiến hành, hành vi
-consequence|hậu quả, hệ quả
-distinction|sự khác biệt, nét đặc sắc
-element|yếu tố, thành phần
-evaluate|đánh giá, ước lượng
-impact|tác động, ảnh hưởng mạnh
-maintain|duy trì, bảo dưỡng
-obtain|đạt được, kiếm được
-potential|tiềm năng, khả năng
-previous|trước đó, tiền nhiệm
-primary|chính, hàng đầu, tiểu học
-relevant|có liên quan, thích hợp
-reside|cư trú, trú ngụ
-transfer|chuyển giao, di chuyển
-`,
   murphy_phrasal_advanced: `
 bring about|gây ra, mang lại (thay đổi)
 call off|hủy bỏ (cuộc họp, sự kiện)
@@ -306,28 +262,6 @@ bear resemblance to|có điểm tương đồng với
 substantially increase|tăng lên đáng kể
 shed light on|làm sáng tỏ điều gì
 `,
-  essential_vocab_3: `
-advocate|ủng hộ, người biện hộ
-comprehensive|toàn diện, bao quát
-coherent|mạch lạc, chặt chẽ
-empirical|thực nghiệm, dựa trên thực tế
-inevitable|không thể tránh khỏi, chắc chắn xảy ra
-mitigate|giảm nhẹ, làm dịu bớt
-perceive|nhận thức, cảm nhận
-subtle|tinh tế, khó nhận thấy
-ambiguous|mơ hồ, nước đôi
-vulnerable|dễ bị tổn thương
-trigger|kích hoạt, khơi mào
-intrinsic|thuộc về bản chất, nội tại
-preliminary|sơ bộ, chuẩn bị
-compile|biên soạn, thu thập
-controversy|cuộc tranh cãi nảy lửa
-deviate|chệch hướng, sai lệch
-integrity|sự chính trực, tính toàn vẹn
-innovate|đổi mới, cách tân
-fluctuate|dao động, biến động
-finite|có hạn, có hạn định
-`,
 }
 
 export const themeDecks = [
@@ -344,9 +278,9 @@ export const themeDecks = [
   { id: 'adverbs_collocations', title: 'Collocation: Trạng từ & Tính từ nhấn mạnh', description: 'Intensifying adverbs giúp văn phong nói và viết tự nhiên như người bản xứ.', level: 'B2', tags: ['Collocation', 'Advanced', 'B2'] },
   { id: 'murphy_phrasal_advanced', title: 'Phrasal Verbs nâng cao (Raymond Murphy)', description: '20 cụm động từ thường gặp nhất trong đề thi B2-C1 và giao tiếp đời sống.', level: 'B2', tags: ['Phrasal verb', 'Cambridge', 'Murphy'] },
   { id: 'collocations_academic', title: 'Collocation: Học thuật & Công sở', description: 'Các cụm từ cố định chuẩn Cambridge nâng band nói và viết học thuật.', level: 'B2-C1', tags: ['Collocation', 'Academic', 'Cambridge'] },
-  { id: 'essential_vocab_1', title: '4000 Essential Words: Nền tảng (Phần 1)', description: 'Bộ từ vựng cốt lõi học thuật và giao tiếp theo Paul Nation.', level: 'A2-B1', tags: ['4000 Words', 'Core', 'Paul Nation'] },
-  { id: 'essential_vocab_2', title: '4000 Essential Words: Nâng cao (Phần 2)', description: 'Bộ từ vựng học thuật quan trọng để nâng band đọc hiểu và viết.', level: 'B1-B2', tags: ['4000 Words', 'Academic', 'Paul Nation'] },
-  { id: 'essential_vocab_3', title: '4000 Essential Words: Chuyên sâu (Phần 3)', description: 'Từ vựng học thuật đỉnh cao theo Paul Nation giúp đột phá điểm đọc viết.', level: 'B2-C1', tags: ['4000 Words', 'Advanced', 'Paul Nation'] },
+  { id: 'essential_vocab_1', title: '4000 từ tiếng Anh: Nền tảng (Phần 1)', description: '4.000 từ đầu tiên, xếp từ cơ bản đến trung cấp.', level: 'A2-B1', tags: ['4000 từ', 'Cơ bản'] },
+  { id: 'essential_vocab_2', title: '4000 từ tiếng Anh: Phát triển (Phần 2)', description: '4.000 từ tiếp theo, mở rộng vốn từ trung cấp.', level: 'B1-B2', tags: ['4000 từ', 'Trung cấp'] },
+  { id: 'essential_vocab_3', title: '4000 từ tiếng Anh: Nâng cao (Phần 3)', description: '4.000 từ nâng cao, hoàn thành lộ trình 12.000 từ.', level: 'B2-C1', tags: ['4000 từ', 'Nâng cao'] },
 ]
 
 const parseLines = (raw) =>
@@ -354,19 +288,42 @@ const parseLines = (raw) =>
     .trim()
     .split('\n')
     .map((line) => {
-      const [word, meaning] = line.split('|')
-      return { word: (word || '').trim(), meaning: (meaning || '').trim() }
+      const separator = line.indexOf('|')
+      if (separator < 0) return { word: '', meaning: '' }
+      return {
+        word: line.slice(0, separator).trim(),
+        meaning: line
+          .slice(separator + 1)
+          .trim()
+          .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, '$2')
+          .replace(/\[\[([^\]]+)\]\]/g, '$1')
+          .replace(/\[\[|\]\]/g, ''),
+      }
     })
     .filter((entry) => entry.word && entry.meaning)
 
-export const themeDeckEntries = (deckId) => parseLines(deckLines[deckId] || '')
+export const themeDeckEntries = (deckId) =>
+  parseLines(deckLines[deckId] || '')
+
+const essentialVocabularyLoaders = {
+  essential_vocab_1: () => import('./essentialWordsPart1.js'),
+  essential_vocab_2: () => import('./essentialWordsPart2.js'),
+  essential_vocab_3: () => import('./essentialWordsPart3.js'),
+}
+
+export const loadThemeDeckEntries = async (deckId) => {
+  const loadVocabulary = essentialVocabularyLoaders[deckId]
+  if (!loadVocabulary) return themeDeckEntries(deckId)
+  const { essentialVocabularyLines } = await loadVocabulary()
+  return parseLines(essentialVocabularyLines)
+}
 
 export const themeDeckMeta = (deckId) => themeDecks.find((deck) => deck.id === deckId)
 
 /** Tạo deck + thẻ cho một bộ chủ đề (id sinh mới để không trùng giữa các lần tạo). */
-export const createThemeDeck = (deckId) => {
+export const createThemeDeck = async (deckId) => {
   const meta = themeDeckMeta(deckId)
-  const entries = themeDeckEntries(deckId)
+  const entries = await loadThemeDeckEntries(deckId)
   if (!meta || !entries.length) return null
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const newDeckId = `theme-${deckId}-${stamp}`

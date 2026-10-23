@@ -23,8 +23,9 @@ import { lookupWordOffline } from "../../services/dictionaryService";
 import { consumePendingItem, subscribeOpenItem } from "../../services/deepLink";
 import { findVocabularyImageSafely } from "../../services/imageService";
 import { useDebounce } from "../../hooks/useDebounce";
-import { dataService } from "../../services/dataService";
+import { dataService, invalidateVocabularyCache } from "../../services/dataService";
 import { recordStudyEvent } from "../../services/historyService";
+import { createStarterPackDeck } from "../../services/starterPackService";
 import { clearSharedDeckFromUrl, copyShareLink, readSharedDeckFromUrl, shareDeck } from "../../services/shareDeck";
 import { refreshRequestedEvent } from "../../services/syncStatus";
 import { publishCardStats } from "../../services/widgetBridge";
@@ -43,7 +44,6 @@ import VocabularyOverviewBanner from "../../components/learning/VocabularyOvervi
 import NewDeckCard from "../../components/learning/NewDeckCard";
 import NewDeckModal from "../../components/learning/NewDeckModal";
 import { dateKey, isDue, isLeech } from "../../utils/srs";
-import { createStarterDeck } from "../../data/starterDeck";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
 
 // Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
@@ -51,10 +51,6 @@ import { createThemeDeck, themeDecks } from "../../data/themeDecks";
 const SESSION_LIMIT = 50;
 const RENDER_LIMIT = 60;
 const TRASH_PAGE_SIZE = 100;
-
-// Bộ mặc định cũ và bộ mặc định mới, dùng để nâng cấp một lần cho thư viện đã có sẵn.
-const LEGACY_STARTER_TITLE = "IELTS Speaking Part 1";
-const COMMON_DECK_TITLE_MATCH = "từ tiếng Anh thông dụng";
 
 const PROVIDER_STORAGE = "lingua-ai-provider";
 const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -129,27 +125,6 @@ function VocabularyCard({ card, speakingWord, onSpeak, onStudy, onUpdate, onRemo
     <div className="absolute right-3 top-3 md:static"><button onClick={() => setMenuOpen((value) => !value)} className="icon-btn" aria-label={`Tùy chọn cho ${card.word}`} aria-expanded={menuOpen}><MoreVertical size={18} /></button>{menuOpen && <div className="absolute right-0 top-14 z-20 w-56 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><button onClick={() => { onStudy(card.id); setMenuOpen(false); }} className="menu-item"><BookOpen size={16} />Học từ này</button><label className="menu-item cursor-pointer"><span className="flex-1">Cấp độ</span><select value={card.level} onChange={(event) => onUpdate(card.id, { level: event.target.value })} className="w-14 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{levels.map((item) => <option key={item}>{item}</option>)}</select></label><label className="menu-item cursor-pointer"><span className="flex-1">Trạng thái</span><select value={card.status} onChange={(event) => onUpdate(card.id, { status: event.target.value })} className="w-20 rounded border border-ink/10 bg-transparent px-1 py-1 text-xs dark:border-white/10">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><button onClick={() => { onRemove(card.id); setMenuOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá từ</button></div>}</div>
   </article>;
 }
-
-// Chỉ tạo bộ thẻ khởi tạo một lần, kể cả khi effect chạy lại (React StrictMode)
-// hoặc hai tab cùng mở — tránh tạo trùng bộ và trùng id thẻ.
-// Bộ mặc định là 1000 từ thông dụng, được tải riêng để không làm nặng gói chính.
-let starterSeedPromise = null;
-const seedStarterDeck = () => {
-  if (!starterSeedPromise) {
-    starterSeedPromise = (async () => {
-      const { createCommonWordsDeck } = await import("../../data/commonWords");
-      const { deck: draftDeck, cards: draftCards } = createCommonWordsDeck();
-      const { deck: created, cards } = await dataService.createDeckWithCards(draftDeck.title, draftCards);
-      if (!cards.length) {
-        await dataService.deleteDeck(created.id).catch(() => {});
-        starterSeedPromise = null;
-        throw new Error("Không thể tạo bộ từ khởi tạo. Vui lòng kiểm tra kết nối và thử lại.");
-      }
-      return { decks: [{ ...created, title: draftDeck.title, description: draftDeck.description, tags: draftDeck.tags, createdAt: created.createdAt || created.created_at }], cards };
-    })();
-  }
-  return starterSeedPromise;
-};
 
 // Bản cũ sinh id theo mili-giây nên có thể trùng (bộ trùng id, thẻ trùng id).
 // Lọc bỏ bản trùng và thẻ mồ côi để render không gặp key trùng.
@@ -250,7 +225,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     mastered: deckCards.filter((card) => card.status === "mastered").length,
     leech: leechCards.length,
   }), [deckCards, dueCards, leechCards]);
-  // Số liệu cả thư viện + từng bộ, tính trong một lượt duyệt (thư viện mặc định có 1000 thẻ).
+  // Số liệu cả thư viện + từng bộ, tính trong một lượt duyệt (thư viện có thể lên tới 1000+ thẻ).
   const { libraryStats, deckStats } = useMemo(() => {
     const byDeck = new Map();
     let mastered = 0;
@@ -316,36 +291,16 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     setLibraryLoading(true);
     const loadLibrary = async () => {
       try {
-        let decks = await dataService.getDecks();
-        if (!decks.length) {
-          const seeded = await seedStarterDeck();
-          if (active) setLibrary(seeded);
-          return;
-        }
-        const cardsByDeck = await Promise.all(decks.map((deck) => dataService.getCards(deck.id)));
-        const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, cardsByDeck.flat());
-        decks = safeDecks;
-        // Bộ mặc định cũ (10 từ IELTS) chưa học gì thì thay bằng bộ 1000 từ thông dụng.
-        const legacyDeck = decks.find((deck) => {
-          if (deck.title !== LEGACY_STARTER_TITLE) return false;
-          const owned = initialCards.filter((card) => card.deckId === deck.id);
-          return owned.length > 0 && owned.length <= 12 && owned.every((card) => card.status === "new" && !card.repetition && !card.lastStudiedDate);
-        });
-        const hasCommonDeck = decks.some((deck) => deck.title.includes(COMMON_DECK_TITLE_MATCH));
-        if (legacyDeck && !hasCommonDeck) {
-          const seeded = await seedStarterDeck();
-          await dataService.deleteDeck(legacyDeck.id).catch(() => {});
-          const remainingDecks = decks.filter((deck) => deck.id !== legacyDeck.id);
-          const remainingCards = initialCards.filter((card) => card.deckId !== legacyDeck.id);
-          if (active) {
-            setLibrary({ decks: [...remainingDecks, ...seeded.decks], cards: [...remainingCards, ...seeded.cards] });
-            setNotice(`Đã thay bộ thẻ mặc định bằng ${seeded.cards.length} từ tiếng Anh thông dụng.`);
-          }
-          return;
-        }
-        if (active) setLibrary({ decks, cards: initialCards });
-        // Bộ mặc định có 1000 từ: chỉ tự tra ảnh cho thư viện nhỏ, và tối đa 8 thẻ mỗi lần tải
-        // để không gọi API hàng nghìn lần.
+        // Hai query song song thay vì 1 + N query theo từng bộ thẻ.
+        const [decks, allCards] = await Promise.all([
+          dataService.getDecks(),
+          dataService.getAllCards(),
+        ]);
+        const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, allCards);
+        // Thư viện trống: không tự tạo dữ liệu. Empty state sẽ mời người dùng chọn
+        // bộ 50 thẻ khởi đầu hoặc tự tạo bộ mới.
+        if (active) setLibrary({ decks: safeDecks, cards: initialCards });
+        // Thư viện nhỏ: tự tra ảnh tối đa 8 thẻ mỗi lần tải, tránh gọi API hàng nghìn lần.
         if (initialCards.length <= 200) {
           void Promise.all(initialCards.filter((card) => !card.imageUrl).slice(0, 8).map(async (card) => {
             const imageUrl = await findVocabularyImageSafely(card.word, card.meaning);
@@ -364,7 +319,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     return () => { active = false; };
   }, [reloadToken, setError, setNotice, user?.uid]);
   useEffect(() => {
-    const handleRefresh = () => setReloadToken((value) => value + 1);
+    const handleRefresh = () => {
+      invalidateVocabularyCache();
+      setReloadToken((value) => value + 1);
+    };
     window.addEventListener(refreshRequestedEvent, handleRefresh);
     return () => window.removeEventListener(refreshRequestedEvent, handleRefresh);
   }, []);
@@ -397,7 +355,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     const handle = (pending) => {
       if (!pending) return;
       if (pending.type === "practice") setPracticePending(true);
-      else if (pending.type === "word" && pending.itemId) {
+      else if (pending.type === "new-deck") {
+        setView("list");
+        setNewDeckOpen(true);
+      } else if (pending.type === "word" && pending.itemId) {
         setSearchQuery(pending.itemId);
         setActiveFilter("all");
         setView("deck");
@@ -688,10 +649,10 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
   // Thêm một bộ từ theo chủ đề (cụm từ/collocation) vào thư viện.
   const addThemeDeck = async (deckId) => {
-    const created = createThemeDeck(deckId);
-    if (!created) return;
     setLoading(`theme-${deckId}`);
     try {
+      const created = await createThemeDeck(deckId);
+      if (!created) return;
       const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(created.deck.title, created.cards);
       updateLibrary({
         decks: [...library.decks, { ...targetDeck, tags: created.deck.tags, description: created.deck.description }],
@@ -699,7 +660,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       });
       setSelectedDeckId(targetDeck.id);
       setThemePickerOpen(false);
-      setNotice(`Đã thêm “${created.deck.title}” với ${savedCards.length} cụm từ.`);
+      setNotice(`Đã thêm “${created.deck.title}” với ${savedCards.length} từ vựng.`);
     } catch (requestError) {
       setError(requestError.message || "Không thể thêm bộ từ theo chủ đề lúc này.");
     } finally {
@@ -707,24 +668,31 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     }
   };
 
-  const addIeltsDeck = async () => {
-    const seed = createStarterDeck();
-    const existingDeck = library.decks.find((deck) => deck.title === seed.title);
-    if (existingDeck) {
-      setSelectedDeckId(existingDeck.id);
-      return setNotice("Bộ IELTS Speaking Part 1 đã có trong thư viện.");
-    }    setLoading("add-deck");
+  const loadStarterPack = async () => {
+    if (loading === "starter-pack") return;
+    setLoading("starter-pack");
     try {
-      const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(seed.title, seed.cards);
-      updateLibrary({ decks: [...library.decks, { ...targetDeck, tags: seed.tags, description: seed.description }], cards: [...savedCards, ...library.cards] });
-      setSelectedDeckId(targetDeck.id);
-      setNotice(`Đã thêm bộ IELTS Speaking Part 1 với ${savedCards.length} từ.`);
+      const result = await createStarterPackDeck();
+      setLibrary((current) => {
+        const alreadyHasDeck = current.decks.some((deck) => deck.id === result.deck.id);
+        const knownIds = new Set(current.cards.map((card) => card.id));
+        return {
+          decks: alreadyHasDeck ? current.decks : [...current.decks, result.deck],
+          cards: [...result.cards.filter((card) => !knownIds.has(card.id)), ...current.cards],
+        };
+      });
+      setSelectedDeckId(result.deck.id);
+      setView("list");
+      setNotice(result.existing
+        ? "Bộ từ khởi đầu đã có trong thư viện của bạn."
+        : `Đã nạp ${result.cards.length} thẻ từ vựng khởi đầu.`);
     } catch (requestError) {
-      setError(requestError.message || "Không thể thêm bộ IELTS lúc này.");
+      setError(requestError.message || "Không thể nạp bộ từ khởi đầu. Vui lòng thử lại.");
     } finally {
       setLoading("");
     }
   };
+
   const removeCard = useCallback(async (cardId) => {
     const removedCard = library.cards.find((card) => card.id === cardId);
     await dataService.trashCard(cardId);
@@ -950,7 +918,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <button onClick={() => openStudy(deckCards)} disabled={!deckCards.length} className="btn-primary min-h-12 flex-1 px-5 disabled:cursor-not-allowed sm:flex-none">
                 <Sparkles size={17} />Bắt đầu học ngay
               </button>
-              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { setThemePickerOpen(true); setActionsOpen(false); }} className="menu-item"><BookOpen size={16} />Thêm bộ từ theo chủ đề</button><button onClick={() => { addIeltsDeck(); setActionsOpen(false); }} disabled={loading === "add-deck"} className="menu-item"><BookOpen size={16} />Thêm bộ IELTS mẫu</button><button onClick={() => { openTrash(); }} className="menu-item"><ArchiveRestore size={16} />Thùng rác</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
+              <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { setThemePickerOpen(true); setActionsOpen(false); }} className="menu-item"><BookOpen size={16} />Thêm bộ từ theo chủ đề</button><button onClick={() => { openTrash(); }} className="menu-item"><ArchiveRestore size={16} />Thùng rác</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
             </div>
           </div>
           <section className="panel overflow-hidden">
@@ -1088,6 +1056,47 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           </section>
           </main>
         </>
+      ) : library.decks.length === 0 ? (
+        <section className="panel relative overflow-hidden p-6 sm:p-8" aria-labelledby="vocabulary-empty-title">
+          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-indigo-500/15 blur-3xl" aria-hidden="true" />
+          <div className="relative mx-auto max-w-2xl text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-indigo-500/25 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+              <BookOpen size={26} />
+            </span>
+            <p className="eyebrow mt-4">Bắt đầu thư viện</p>
+            <h2 id="vocabulary-empty-title" className="mt-1 font-display text-2xl font-bold tracking-tight">
+              Thư viện từ vựng đang trống
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink/60 dark:text-white/60">
+              Chọn cách bắt đầu phù hợp. Lingua chỉ tạo dữ liệu khi bạn chủ động chọn — không tự nạp hàng nghìn thẻ.
+            </p>
+          </div>
+          <div className="relative mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={loadStarterPack}
+              disabled={loading === "starter-pack"}
+              className="btn-primary min-h-[64px] justify-start px-4 text-left disabled:cursor-wait disabled:opacity-70"
+            >
+              {loading === "starter-pack" ? <LoaderCircle size={20} className="shrink-0 animate-spin" /> : <Sparkles size={20} className="shrink-0" />}
+              <span className="min-w-0">
+                <span className="block text-sm font-bold">Nạp bộ từ vựng khởi đầu</span>
+                <span className="mt-0.5 block text-[11px] font-medium opacity-80">50 thẻ mẫu A1 · có thể xoá bất cứ lúc nào</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewDeckOpen(true)}
+              className="btn-secondary min-h-[64px] justify-start px-4 text-left"
+            >
+              <Plus size={20} className="shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-sm font-bold">Tạo bộ từ mới / Nhập thẻ riêng</span>
+                <span className="mt-0.5 block text-[11px] font-medium text-ink/55 dark:text-white/55">Tự đặt tên bộ và thêm từ của bạn</span>
+              </span>
+            </button>
+          </div>
+        </section>
       ) : (
         <>
           <VocabularyOverviewBanner libraryStats={libraryStats} streak={streak} onStudy={startLibraryStudy} onOpenTheme={() => setThemePickerOpen(true)} onImport={() => setDataModal("import")} onExport={() => setDataModal("export")} onTrash={openTrash} />
@@ -1117,17 +1126,17 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">Bộ từ theo chủ đề</p>
-                <h2 className="mt-1 font-display text-xl font-bold">Học theo cụm từ & sách chuẩn</h2>
+                <h2 className="mt-1 font-display text-xl font-bold">Chọn bộ từ vựng</h2>
               </div>
               <button onClick={() => { setThemePickerOpen(false); setThemeSearch(""); }} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button>
             </div>
             <p className="mt-2.5 text-xs leading-5 text-ink/60 dark:text-white/60">
-              Tổng hợp từ 3 giáo trình kinh điển: English Grammar in Use (Raymond Murphy), English Collocations in Use (Cambridge) &amp; 4000 Essential English Words (Paul Nation).
+              Ba phần 4.000 từ, sắp xếp từ nền tảng đến nâng cao; các bộ chủ đề và cụm từ hiện có vẫn được giữ lại.
             </p>
             <input
               value={themeSearch}
               onChange={(event) => setThemeSearch(event.target.value)}
-              placeholder="Tìm theo tên bộ, chủ đề hoặc sách (ví dụ: Murphy, Collocation, 4000 từ...)"
+              placeholder="Tìm theo tên bộ, chủ đề hoặc cấp độ..."
               className="mt-3.5 w-full rounded-xl border border-ink/10 bg-transparent px-3.5 py-2.5 text-xs outline-none focus:border-indigo-500 dark:border-white/10"
             />
             <ul className="mt-3 max-h-[55vh] space-y-2 overflow-y-auto">

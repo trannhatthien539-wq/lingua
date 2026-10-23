@@ -37,6 +37,24 @@ test("computeStats gộp lịch sử, thẻ và tiến độ module", () => {
   assert.equal(stats.streak.current, 3);
 });
 
+test("computeStats tách thẻ mới khỏi thẻ đến hạn", () => {
+  const stats = computeStats({
+    cards: [
+      { id: "new", status: "new" },
+      { id: "new-no-status" },
+      { id: "due", status: "learning", nextReviewDate: "2020-01-01" },
+      { id: "future", status: "learning", nextReviewDate: "2099-01-01" },
+      { id: "mastered-due", status: "mastered", nextReviewDate: "2020-01-01" },
+      { id: "no-date", status: "learning" },
+    ],
+  });
+  assert.equal(stats.cards.total, 6);
+  assert.equal(stats.cards.fresh, 2);
+  assert.equal(stats.cards.due, 2, "chỉ thẻ learning/mastered quá hạn mới tính là due");
+  assert.equal(stats.cards.learning, 3);
+  assert.equal(stats.cards.mastered, 1);
+});
+
 test("không có dữ liệu thì không chia cho 0", () => {
   const stats = computeStats({});
   assert.equal(stats.accuracy, 0);
