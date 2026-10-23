@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const FOCUSABLE = [
   "a[href]",
@@ -16,7 +17,7 @@ export default function Dialog({
   ariaLabel,
   ariaLabelledBy,
   className = "",
-  overlayClassName = "fixed inset-0 z-[100] grid place-items-center bg-ink/40 p-4 backdrop-blur-sm",
+  overlayClassName = "fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm",
   closeOnBackdrop = true,
   initialFocusRef,
 }) {
@@ -69,11 +70,12 @@ export default function Dialog({
     };
   }, []);
 
-  return (
+  return createPortal(
     <div className={overlayClassName} onMouseDown={(event) => closeOnBackdrop && event.target === event.currentTarget && onCloseRef.current()}>
       <section ref={panelRef} tabIndex={-1} className={className} role="dialog" aria-modal="true" aria-label={ariaLabel} aria-labelledby={ariaLabelledBy}>
         {children}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
