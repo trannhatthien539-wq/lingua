@@ -50,7 +50,7 @@ describe('Hệ thống SEO, Metadata và Cấu trúc dự án', () => {
     const swPath = path.resolve('public/sw.js')
     assert.ok(fs.existsSync(swPath), 'public/sw.js phải tồn tại')
     const content = fs.readFileSync(swPath, 'utf8')
-    assert.match(content, /lingua-static-v8/)
+    assert.match(content, /lingua-static-v9/)
     assert.match(content, /fonts\.gstatic\.com/)
     assert.match(content, /fonts\.googleapis\.com/)
   })

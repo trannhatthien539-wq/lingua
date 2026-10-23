@@ -11,12 +11,7 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
   return <>
     <header className="no-print sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-ink/10 bg-slab/95 px-3.5 py-2.5 backdrop-blur-md dark:border-white/10 dark:bg-dark1/95 md:hidden">
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <span
-          className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-2xl border p-1 shadow-sm backdrop-blur-md dark:border-white/15 dark:bg-white/[0.04]"
-          style={{ borderColor: 'rgba(var(--accent), 0.25)', background: 'linear-gradient(135deg, rgba(var(--accent), 0.16), rgba(var(--accent-2), 0.08))' }}
-        >
-          <AppMark className="h-8 w-8 drop-shadow-sm" />
-        </span>
+        <AppMark className="h-10 w-10 shrink-0 rounded-2xl drop-shadow-sm transition-transform active:scale-95" />
         <div className="min-w-0">
           <p className="font-display text-base font-black tracking-tight text-slate-900 dark:text-white">
             lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
