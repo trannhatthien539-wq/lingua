@@ -18,6 +18,16 @@ import { toast } from "../../services/toast";
 
 // Thời gian khớp với transition xoay 3D (ms) để tráo nội dung đúng nhịp
 const FLIP_DURATION_MS = 450;
+const flashcardSessionKey = (deckId) => `lingua_flashcard_session_${deckId}`;
+
+export const clearFlashcardSession = (deckId) => {
+  if (!deckId) return;
+  try {
+    sessionStorage.removeItem(flashcardSessionKey(deckId));
+  } catch {
+    // Session recovery is optional when browser storage is unavailable.
+  }
+};
 
 /**
  * FlashcardModal - Trình ôn tập thẻ ghi nhớ SRS chuẩn EdTech cao cấp
@@ -32,7 +42,7 @@ export default function FlashcardModal({
   onStudyActivity,
   streak,
 }) {
-  const sessionKey = deck?.id ? `lingua_flashcard_session_${deck.id}` : null;
+  const sessionKey = deck?.id ? flashcardSessionKey(deck.id) : null;
 
   // Khôi phục phiên học dở dang từ sessionStorage (nếu người dùng lỡ tay F5)
   const [initialSession] = useState(() => {
@@ -467,7 +477,7 @@ export default function FlashcardModal({
             onTouchEnd={handleTouchEnd}
             onClick={() => !locked && setFlipped((v) => !v)}
             onKeyDown={(e) => (e.key === "Enter" || e.code === "Space") && !locked && setFlipped((v) => !v)}
-            className={`relative min-h-[360px] w-full cursor-pointer touch-pan-y [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] sm:min-h-[400px] ${
+            className={`relative min-h-[min(360px,42dvh)] w-full cursor-pointer touch-pan-y [transform-style:preserve-3d] transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] sm:min-h-[min(400px,48dvh)] ${
               flipped ? "[transform:rotateY(180deg)]" : ""
             } ${locked ? "pointer-events-none" : ""}`}
             aria-label={flipped ? "Mặt sau thẻ ghi nhớ, chạm để lật lại mặt trước" : "Mặt trước thẻ ghi nhớ, chạm hoặc nhấn Space để lật"}
@@ -580,13 +590,13 @@ export default function FlashcardModal({
         </div>
 
         {/* 6. BỘ 3 NÚT ĐÁNH GIÁ SRS (Action Rating Bar) */}
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3.5 max-[700px]:grid-cols-3 max-[700px]:gap-2">
           {/* Nút 1: Chưa nhớ */}
           <button
             type="button"
             disabled={!flipped}
             onClick={() => rateCard("again")}
-            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-orange-400/40 bg-orange-500/10 px-4 py-2.5 text-left transition hover:border-orange-500 hover:bg-orange-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-500/30 dark:bg-orange-500/10"
+            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-orange-400/40 bg-orange-500/10 px-4 py-2.5 text-left transition hover:border-orange-500 hover:bg-orange-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-500/30 dark:bg-orange-500/10 max-[700px]:px-2"
           >
             <div className="flex items-center justify-between text-xs font-bold text-orange-600 dark:text-orange-400">
               <span>1 · Chưa nhớ</span>
@@ -604,7 +614,7 @@ export default function FlashcardModal({
             type="button"
             disabled={!flipped}
             onClick={() => rateCard("soon")}
-            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-amber-400/40 bg-amber-500/10 px-4 py-2.5 text-left transition hover:border-amber-500 hover:bg-amber-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-500/30 dark:bg-amber-500/10"
+            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-amber-400/40 bg-amber-500/10 px-4 py-2.5 text-left transition hover:border-amber-500 hover:bg-amber-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-500/30 dark:bg-amber-500/10 max-[700px]:px-2"
           >
             <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
               <span>2 · Nhớ vừa</span>
@@ -622,7 +632,7 @@ export default function FlashcardModal({
             type="button"
             disabled={!flipped}
             onClick={() => rateCard("mastered")}
-            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-left transition hover:border-emerald-500 hover:bg-emerald-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/10"
+            className="group relative flex min-h-[58px] flex-col justify-center rounded-2xl border-2 border-emerald-400/40 bg-emerald-500/10 px-4 py-2.5 text-left transition hover:border-emerald-500 hover:bg-emerald-500/20 active:scale-98 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/10 max-[700px]:px-2"
           >
             <div className="flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
               <span>3 · Đã thuộc</span>

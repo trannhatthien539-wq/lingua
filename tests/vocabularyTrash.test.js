@@ -40,6 +40,53 @@ test("batch lỗi thì rollback đúng các thẻ đã commit trước đó", as
   assert.equal(rolledBack.at(-1).id, "card-1000");
 });
 
+test("chạy batch với giới hạn đồng thời và trả kết quả đúng thứ tự", async () => {
+  const cards = Array.from({ length: 9 }, (_, index) => index);
+  let active = 0;
+  let peak = 0;
+  const committed = await runInBatches(cards, {
+    batchSize: 2,
+    concurrency: 2,
+    commit: async (chunk) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      active -= 1;
+      return chunk;
+    },
+  });
+
+  assert.equal(peak, 2);
+  assert.deepEqual(committed, cards);
+});
+
+test("đợi các batch đang chạy xong rồi rollback nếu một batch đồng thời lỗi", async () => {
+  const items = [1, 2, 3, 4];
+  const rolledBack = [];
+  let secondBatchFinished = false;
+
+  await assert.rejects(
+    runInBatches(items, {
+      batchSize: 1,
+      concurrency: 2,
+      commit: async ([item]) => {
+        if (item === 1) throw new Error("batch lỗi");
+        if (item === 2) {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          secondBatchFinished = true;
+        }
+      },
+      rollback: async (chunk) => {
+        assert.equal(secondBatchFinished, true);
+        rolledBack.push(...chunk);
+      },
+    }),
+    /batch lỗi/,
+  );
+
+  assert.deepEqual(rolledBack.sort(), [1, 2]);
+});
+
 
 test("buildTrashView gom card con vào deck và chỉ giữ card lẻ đã xoá", () => {
   const deckCards = Array.from({ length: 1000 }, (_, index) => ({ id: `card-${index}`, deckId: "deck-1" }));

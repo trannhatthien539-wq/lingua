@@ -335,9 +335,9 @@ const dataMethods = {
   },
 
   /**
-   * Thêm nhiều thẻ cùng lúc (dùng khi tạo bộ thẻ khởi tạo 1000 từ).
-   * - Khách: ghi localStorage đúng một lần thay vì 1000 lần.
-   * - Đã đăng nhập: gom theo batch để tránh 1000 request riêng lẻ.
+   * Thêm nhiều thẻ cùng lúc (dùng khi nạp các bộ từ vựng lớn, tối đa 4.000 từ).
+   * - Khách: ghi localStorage đúng một lần thay vì ghi từng thẻ.
+   * - Đã đăng nhập: gom theo batch có giới hạn đồng thời để giảm thời gian chờ.
    */
   async addCards(cards) {
     const normalized = cards.map((card) => normalizeCard(card)).filter((card) => card.word && card.deckId);
@@ -351,6 +351,7 @@ const dataMethods = {
     }
     const entries = normalized.map((card) => ({ card, ref: doc(collection(db, "vocabulary_cards")) }));
     const committed = await runInBatches(entries, {
+      concurrency: 3,
       commit: async (entryChunk) => {
         const batch = writeBatch(db);
         entryChunk.forEach(({ card, ref }) => batch.set(ref, withUserId(omitUndefined(cardPayload(card)))));

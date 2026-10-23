@@ -38,6 +38,20 @@ test("requestAi dùng key dự phòng khi chưa có key cá nhân", async () => 
   assert.match(calls[0], /key=fallback-a/);
 });
 
+test("requestAi ưu tiên key cá nhân và gọi Gemini trực tiếp", async () => {
+  const calls = [];
+  const answer = await withMockFetch(
+    async (url) => {
+      calls.push(String(url));
+      return geminiText("Xin chào từ key cá nhân");
+    },
+    () => requestAi("gemini", "personal-key", "hi"),
+  );
+  assert.equal(answer, "Xin chào từ key cá nhân");
+  assert.equal(calls.length, 1);
+  assert.match(calls[0], /key=personal-key/);
+});
+
 test("key bị 429 (rate-limit) tự chuyển sang key dự phòng kế tiếp", async () => {
   const calls = [];
   const answer = await withMockFetch(
@@ -86,7 +100,7 @@ test("không có key nào thì báo chưa có API key", async () => {
   );
 });
 
-test("canUseAi tính key cá nhân ở mọi provider", () => {
+test("canUseAi tính key cá nhân ở mọi provider và cần key cho provider khác", () => {
   assert.equal(canUseAi("sk-personal", "deepseek"), true);
   assert.equal(canUseAi("   ", "groq"), false);
   // Node test không nạp VITE proxy nên canUseAi chỉ true khi có key cá nhân.

@@ -105,17 +105,14 @@ async function requestModel(providerId, apiKey, prompt, json, model) {
 }
 
 /**
- * Chế độ proxy (tuỳ chọn): nếu cấu hình `VITE_AI_PROXY_URL`, mọi yêu cầu AI đi qua
- * máy chủ của bạn (xem `functions/index.js`) nên người dùng không cần dán API key.
+ * Gemini proxy là key dùng chung phía máy chủ, chỉ gọi khi người dùng chưa nhập key cá nhân.
+ * Provider khác luôn cần key riêng.
  */
 const PROXY_URL = (import.meta.env?.VITE_AI_PROXY_URL || "").trim();
 export const hasAiProxy = () => Boolean(PROXY_URL);
 
-/**
- * Production chỉ dùng proxy hoặc key cá nhân. `fallbackKeys` là tuỳ chọn dành cho test/internal
- * và không được đọc từ biến VITE_* vì mọi VITE_* đều có thể bị đọc từ bundle công khai.
- */
-export const canUseAi = (apiKey) => Boolean(PROXY_URL) || Boolean(apiKey?.trim());
+export const canUseAi = (apiKey, providerId = "gemini") =>
+  Boolean(apiKey?.trim()) || (normalizeProvider(providerId) === "gemini" && hasAiProxy());
 
 async function requestViaProxy(providerId, prompt, json) {
   const response = await fetchWithTimeout(PROXY_URL, {
@@ -137,13 +134,30 @@ async function requestViaProxy(providerId, prompt, json) {
 /** `fallbackKeys` chỉ dành cho test/internal; production không nạp key từ VITE_* hay bundle. */
 export async function requestAi(providerId, apiKey, prompt, { json = false, fallbackKeys = [] } = {}) {
   const normalizedProvider = normalizeProvider(providerId);
-  if (PROXY_URL) return requestViaProxy(normalizedProvider, prompt, json);
   const personalKey = apiKey?.trim() || "";
-  // Gemini: key cá nhân (nếu có) xếp trước, rồi đến key dự phòng; key nào
-  // sai/hết quyền/bị rate-limit thì bỏ qua, tự chuyển sang key kế tiếp.
+  if (personalKey) {
+    const models = AI_PROVIDERS[normalizedProvider].models;
+    let lastError;
+    for (const model of models) {
+      try {
+        return await requestModel(normalizedProvider, personalKey, prompt, json, model);
+      } catch (error) {
+        lastError = error;
+        if (normalizedProvider === "gemini" && fallbackKeys.length && [400, 401, 403, 429].includes(error.status)) break;
+        if (normalizedProvider === "gemini" && [404, 429, 500].includes(error.status)) continue;
+        if (error.status) throw error;
+        throw new Error("Không thể kết nối tới dịch vụ AI. Hãy kiểm tra mạng và thử lại.", { cause: error });
+      }
+    }
+    if (lastError?.status && !(normalizedProvider === "gemini" && fallbackKeys.length)) throw lastError;
+  }
+  if (normalizedProvider === "gemini" && PROXY_URL && !personalKey) {
+    return requestViaProxy(normalizedProvider, prompt, json);
+  }
+  // Fallback keys are test/internal only; production fallback uses the server proxy above.
   const keys =
     normalizedProvider === "gemini"
-      ? [...new Set([personalKey, ...fallbackKeys].filter(Boolean))]
+      ? [...new Set(fallbackKeys.filter(Boolean))]
       : [personalKey];
   if (!keys[0]) throw new Error("Chưa có API key. Hãy lưu API key trước khi sử dụng AI.");
   const models = AI_PROVIDERS[normalizedProvider].models;

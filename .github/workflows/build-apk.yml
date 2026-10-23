@@ -96,6 +96,7 @@ jobs:
       - name: Build web assets
         env:
           VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+          VITE_AI_PROXY_URL: https://us-central1-lingua-49fc1.cloudfunctions.net/aiProxy
         run: npm run build
 
       - name: Initialize Capacitor when needed

@@ -316,8 +316,8 @@ Collection: `study_decks`, `vocabulary_cards`, `user_state`, `users/{uid}` (stre
 ## 12. AI: provider, key, proxy
 
 - Provider: `gemini` (thử lần lượt `gemini-3.6-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`), `groq` (`llama-3.3-70b-versatile`) hoặc `deepseek` (`deepseek-chat`, API tương thích OpenAI: `https://api.deepseek.com/chat/completions`, key dạng `sk-...`). Chọn ở Cài đặt → API (localStorage `lingua-ai-provider`).
-- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí). Các tính năng AI khác yêu cầu key cá nhân hoặc proxy production; tuyệt đối không đặt API key trong biến `VITE_*` vì key sẽ bị nhúng vào bundle công khai.
-- Proxy production (khuyến nghị): deploy `functions/index.js` (Cloud Function v2, Secret Manager, allowlist origin và rate-limit theo IP), đặt secrets `GEMINI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, rồi build với `VITE_AI_PROXY_URL`. Khi có biến này, `requestAi` gọi proxy và bỏ qua key client.
+- Không có key: **tra từ vẫn dùng được** (từ điển miễn phí). Bản web và APK dùng Gemini dự phòng qua Cloud Function; không yêu cầu đăng nhập. Key cá nhân được ưu tiên và gọi trực tiếp; Groq/DeepSeek vẫn cần key riêng.
+- Proxy production: lưu `GEMINI_API_KEY` trong Firebase Secret Manager, deploy `functions/index.js` (Cloud Function v2, allowlist origin, giới hạn tốc độ và tối đa 2 instances), rồi build với endpoint công khai `VITE_AI_PROXY_URL`. Key bí mật không bao giờ được đưa vào biến `VITE_*` hay bundle.
 - Prompt trả JSON (Gemini `responseMimeType`, Groq `response_format`) và parse bằng `parseAiJson` — luôn bọc `try/catch` và hiển thị lỗi qua `toast`.
 
 ## 13. Biến môi trường & cấu hình

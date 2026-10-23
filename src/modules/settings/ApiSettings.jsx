@@ -13,8 +13,8 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
   const savedTimerRef = useRef(null)
   // Dọn timer khi unmount để không set state sau khi đóng thẻ cài đặt.
   useEffect(() => () => window.clearTimeout(savedTimerRef.current), [])
-  // Bản build có `VITE_AI_PROXY_URL`: AI chạy qua máy chủ riêng, người dùng không cần API key.
-  const proxied = hasAiProxy()
+  // Key Gemini dùng chung chỉ là phương án dự phòng; key cá nhân và provider khác được ưu tiên.
+  const proxied = provider === 'gemini' && hasAiProxy()
   const connected = proxied || Boolean(apiKey?.trim());
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
       <div className="max-w-xl space-y-5">
         {proxied && (
           <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
-            Bản này dùng máy chủ AI proxy riêng — mọi tính năng AI hoạt động mà không cần nhập API key.
+            Gemini có key dùng chung làm phương án dự phòng — không cần đăng nhập hoặc nhập key cá nhân.
           </p>
         )}
         <label className="block">

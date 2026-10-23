@@ -31,7 +31,7 @@ import { clearSharedDeckFromUrl, copyShareLink, readSharedDeckFromUrl, shareDeck
 import { refreshRequestedEvent } from "../../services/syncStatus";
 import { publishCardStats } from "../../services/widgetBridge";
 import { toast } from "../../services/toast";
-import FlashcardModal from "../../components/learning/FlashcardModal";
+import FlashcardModal, { clearFlashcardSession } from "../../components/learning/FlashcardModal";
 import { speakText } from "../../utils/speech";
 import ImportExportModal from "../../components/learning/ImportExportModal";
 import StudyHubModal from "../../components/learning/StudyHubModal";
@@ -48,7 +48,7 @@ import { dateKey, isDue, isLeech } from "../../utils/srs";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
 
 // Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
-// (bộ mặc định có 1000 từ nên không thể render hết cùng lúc).
+// (các bộ từ có thể chứa tới 4.000 mục nên không thể render hết cùng lúc).
 const SESSION_LIMIT = 50;
 const RENDER_LIMIT = 60;
 const TRASH_PAGE_SIZE = 100;
@@ -381,6 +381,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     // Mỗi phiên tối đa 50 thẻ, giống nút "Ôn hôm nay" trong thẻ thống kê.
     const cards = (dueCards.length ? dueCards : deckCards).slice(0, SESSION_LIMIT);
     if (!deck || !cards.length) return;
+    clearFlashcardSession(deck.id);
     setStudyCards(cards);
     setStudyDeckId(deck.id);
     setStudyMode(null);
@@ -814,6 +815,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const openStudy = (cards, deckId = selectedDeck?.id) => {
     // Mỗi phiên chỉ lấy tối đa 50 thẻ để phiên học không kéo dài vô tận với bộ 1000 từ.
     if (!deckId || !cards.length) return;
+    clearFlashcardSession(deckId);
     setStudyCards(cards.slice(0, SESSION_LIMIT));
     setStudyDeckId(deckId);
     setStudyMode(null);
@@ -836,6 +838,11 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 60);
   };
 
+  const openSingleCard = (cardId) => {
+    clearFlashcardSession(selectedDeck?.id);
+    setSingleCardId(cardId);
+  };
+
   /** Phiên ôn gộp cả thư viện: ưu tiên thẻ đến hạn, hết thì học thẻ chưa thuộc. */
   const startLibraryStudy = () => {
     const entry = library.cards.filter((card) => isDue(card, today));
@@ -850,7 +857,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   if (singleCardId) {
     const singleCard = deckCards.find((card) => card.id === singleCardId);
-    if (singleCard) return <FlashcardModal deck={selectedDeck} cards={[singleCard]} onClose={() => setSingleCardId(null)} onUpdateCard={updateCard} onStudyActivity={onStudyActivity} streak={streak} />;
+    if (singleCard) return createPortal(<FlashcardModal deck={selectedDeck} cards={[singleCard]} onClose={() => { clearFlashcardSession(selectedDeck?.id); setSingleCardId(null); }} onUpdateCard={updateCard} onStudyActivity={onStudyActivity} streak={streak} />, document.body);
   }
 
   if (studyDeckId) {
@@ -861,14 +868,14 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       (card) => card.deckId === studyDeckId,
     );
     if (practiceDeck) {
-      const closeStudy = () => { setStudyDeckId(null); setStudyMode(null); setStudyCards(null); };
+      const closeStudy = () => { clearFlashcardSession(practiceDeck.id); setStudyDeckId(null); setStudyMode(null); setStudyCards(null); };
       const chooseMode = (mode) => setStudyMode(mode);
-      if (!studyMode) return <StudyHubModal deck={practiceDeck} cards={practiceCards.map(sanitizeCard)} onSelect={chooseMode} onClose={closeStudy} />;
       const sharedProps = { deck: practiceDeck, cards: practiceCards, onClose: closeStudy, onChangeMode: () => setStudyMode(null), onUpdateCard: updateCard, onStudyActivity };
-      if (studyMode === "quiz") return <QuizView {...sharedProps} />;
-      if (studyMode === "speller") return <SpellerView {...sharedProps} />;
-      if (studyMode === "matching") return <MatchingView {...sharedProps} />;
-      return <FlashcardModal {...sharedProps} streak={streak} />;
+      if (!studyMode) return createPortal(<StudyHubModal deck={practiceDeck} cards={practiceCards.map(sanitizeCard)} onSelect={chooseMode} onClose={closeStudy} />, document.body);
+      if (studyMode === "quiz") return createPortal(<QuizView {...sharedProps} />, document.body);
+      if (studyMode === "speller") return createPortal(<SpellerView {...sharedProps} />, document.body);
+      if (studyMode === "matching") return createPortal(<MatchingView {...sharedProps} />, document.body);
+      return createPortal(<FlashcardModal {...sharedProps} streak={streak} />, document.body);
     }
   }
 
@@ -1044,7 +1051,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               </div>
             ) : (
               <div>
-                {visibleCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={setSingleCardId} onUpdate={updateCard} onRemove={removeCard} selectMode={selectMode} selected={selectedIds.includes(card.id)} onToggleSelect={toggleSelect} />)}
+                {visibleCards.map((card) => <VocabularyCard key={card.id} card={card} speakingWord={speakingWord} onSpeak={speak} onStudy={openSingleCard} onUpdate={updateCard} onRemove={removeCard} selectMode={selectMode} selected={selectedIds.includes(card.id)} onToggleSelect={toggleSelect} />)}
                 {filteredCards.length > visibleCards.length && (
                   <div className="border-t border-ink/[0.08] p-4 text-center dark:border-white/[0.08]">
                     <button onClick={() => setVisibleCount((value) => value + RENDER_LIMIT)} className="btn-secondary px-4">

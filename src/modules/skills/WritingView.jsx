@@ -72,12 +72,12 @@ export default function WritingView({ apiKey, user, onStudyActivity, onNavigate 
       return
     }
     const key = apiKey || readApiKeyForUser(user)
-    if (!canUseAi(key)) {
+    const provider = localStorage.getItem(PROVIDER_STORAGE) || 'gemini'
+    if (!canUseAi(key, provider)) {
       toast.error('Vui lòng nhập API Key trong mục Cài đặt để AI chấm bài.')
       onNavigate?.('settings')
       return
     }
-    const provider = localStorage.getItem(PROVIDER_STORAGE) || 'gemini'
     setGrading(true)
     try {
       const prompt = `Bạn là giám khảo tiếng Anh chuyên nghiệp chấm bài viết cấp độ B1 theo khung CEFR.

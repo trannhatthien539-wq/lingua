@@ -15,26 +15,48 @@ export function chunkForFirestore(items, batchSize = FIRESTORE_BATCH_SIZE) {
 }
 
 /** Chạy ghi theo batch và rollback các phần đã commit nếu một batch sau lỗi. */
-export async function runInBatches(items, { batchSize = FIRESTORE_BATCH_SIZE, commit, rollback } = {}) {
+export async function runInBatches(items, {
+  batchSize = FIRESTORE_BATCH_SIZE,
+  concurrency = 1,
+  commit,
+  rollback,
+} = {}) {
   if (typeof commit !== "function") throw new TypeError("Thiếu hàm commit batch.");
-  const committed = [];
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new RangeError("Số batch chạy đồng thời phải là số nguyên dương.");
+  }
+  const chunks = chunkForFirestore(items, batchSize);
+  const committed = new Array(chunks.length);
   const attempted = [];
-  try {
-    for (const chunk of chunkForFirestore(items, batchSize)) {
+  let nextChunkIndex = 0;
+  let failed = false;
+  let failure;
+
+  const worker = async () => {
+    while (!failed && nextChunkIndex < chunks.length) {
+      const chunkIndex = nextChunkIndex++;
+      const chunk = chunks[chunkIndex];
       attempted.push(...chunk);
-      await commit(chunk);
-      committed.push(...chunk);
-    }
-    return committed;
-  } catch (error) {
-    // Batch đang commit có thể đã đến server dù response bị mất; xoá cả batch đó để tránh sót dữ liệu.
-    if (rollback && attempted.length) {
       try {
-        await rollback(attempted);
-      } catch {
-        // Giữ lỗi gốc để UI báo đúng nguyên nhân batch thất bại.
+        await commit(chunk);
+        committed[chunkIndex] = chunk;
+      } catch (error) {
+        if (!failed) failure = error;
+        failed = true;
       }
     }
-    throw error;
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, chunks.length) }, worker));
+  if (!failed) return committed.flat();
+
+  // Wait for all in-flight commits before rolling them back.
+  if (rollback && attempted.length) {
+    try {
+      await rollback(attempted);
+    } catch {
+      // Keep the original commit error so the UI reports the cause of the failed write.
+    }
   }
+  throw failure;
 }
