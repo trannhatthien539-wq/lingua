@@ -42,11 +42,13 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
       } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-colors duration-300 md:gap-5`}
     >
       <div className={`min-w-0 flex-1 ${isHome ? 'hidden md:block' : ''}`}>
-        <p className="eyebrow flex items-center gap-1.5 truncate">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}80` }} aria-hidden="true" />
-          <span className="truncate text-slate-600 dark:text-slate-300">{eyebrow}</span>
-        </p>
-        <h1 className="mt-1 truncate font-display text-xl font-black tracking-tight text-slate-900 md:text-[1.9rem] dark:text-white">{title}</h1>
+        {!isHome && eyebrow && (
+          <p className="eyebrow flex items-center gap-1.5 truncate">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}80` }} aria-hidden="true" />
+            <span className="truncate text-slate-600 dark:text-slate-300">{eyebrow}</span>
+          </p>
+        )}
+        <h1 className={`${!isHome ? 'mt-1' : ''} truncate font-display text-xl font-black tracking-tight text-slate-900 md:text-[1.9rem] dark:text-white`}>{title}</h1>
       </div>
 
       <div className={`flex shrink-0 items-center gap-2 ${isHome ? 'w-full justify-end md:w-auto' : ''}`}>

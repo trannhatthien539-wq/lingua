@@ -68,12 +68,11 @@ function FirstRunCard({ busy, onStarterPack, onCreateDeck }) {
           <BookOpen size={21} />
         </span>
         <div className="min-w-0">
-          <p className="eyebrow">Bắt đầu thư viện</p>
-          <h3 id="first-run-title" className="mt-1 font-display text-lg font-bold text-slate-900 dark:text-white">
+          <h3 id="first-run-title" className="font-display text-base font-bold text-slate-900 dark:text-white">
             Thư viện từ vựng đang trống
           </h3>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Chọn cách bắt đầu phù hợp. Lingua chỉ tạo dữ liệu khi bạn chủ động chọn — không tự nạp hàng nghìn thẻ.
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Chọn cách bắt đầu để thêm từ vựng vào tài khoản.
           </p>
         </div>
       </div>
@@ -82,24 +81,18 @@ function FirstRunCard({ busy, onStarterPack, onCreateDeck }) {
           type="button"
           onClick={onStarterPack}
           disabled={busy}
-          className="btn-primary min-h-[52px] justify-start px-4 text-left disabled:cursor-wait disabled:opacity-70"
+          className="btn-primary min-h-[44px] justify-start px-4 text-xs font-bold disabled:cursor-wait disabled:opacity-70"
         >
-          {busy ? <LoaderCircle size={18} className="shrink-0 animate-spin" /> : <Sparkles size={18} className="shrink-0" />}
-          <span className="min-w-0">
-            <span className="block text-sm font-bold">Nạp bộ từ vựng khởi đầu</span>
-            <span className="mt-0.5 block text-[11px] font-medium opacity-80">50 thẻ mẫu A1 · có thể xoá bất cứ lúc nào</span>
-          </span>
+          {busy ? <LoaderCircle size={16} className="shrink-0 animate-spin" /> : <Sparkles size={16} className="shrink-0" />}
+          <span>Nạp 50 từ khởi đầu (A1)</span>
         </button>
         <button
           type="button"
           onClick={onCreateDeck}
-          className="btn-secondary min-h-[52px] justify-start px-4 text-left"
+          className="btn-secondary min-h-[44px] justify-start px-4 text-xs font-semibold"
         >
-          <Plus size={18} className="shrink-0" />
-          <span className="min-w-0">
-            <span className="block text-sm font-bold">Tạo bộ từ mới / Nhập thẻ</span>
-            <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">Tự đặt tên bộ và thêm từ của bạn</span>
-          </span>
+          <Plus size={16} className="shrink-0" />
+          <span>Tạo bộ từ mới / Nhập thẻ</span>
         </button>
       </div>
     </section>
@@ -136,33 +129,33 @@ function CefrProgressCard({ stats, onNavigate }) {
   const nextLevel = CEFR_LEVELS[Math.min(currentLevelIndex + 1, CEFR_LEVELS.length - 1)];
   const criteria = [
     {
-      title: "Ngữ pháp trọng điểm",
+      title: "Ngữ pháp",
       value: `${grammarPassed}/${targetGrammar}`,
       unit: "bài",
       percent: Math.min(100, Math.round((grammarPassed / targetGrammar) * 100)),
       done: grammarPassed >= targetGrammar,
       icon: GraduationCap,
-      action: grammarPassed >= targetGrammar ? "Ôn lại" : "Học bài tiếp",
+      action: grammarPassed >= targetGrammar ? "Ôn lại" : "Học",
       destination: "grammar",
     },
     {
-      title: "Kho từ vựng cốt lõi",
+      title: "Từ vựng",
       value: `${cardsMastered}/${targetCards}`,
       unit: "từ",
       percent: Math.min(100, Math.round((cardsMastered / targetCards) * 100)),
       done: cardsMastered >= targetCards,
       icon: Layers,
-      action: cardsMastered >= targetCards ? "Mở kho từ" : "Học từ mới",
+      action: cardsMastered >= targetCards ? "Mở kho" : "Học",
       destination: "vocabulary",
     },
     {
-      title: "Điểm VSTEP thực chiến",
+      title: "Điểm VSTEP",
       value: vstepBest.toFixed(1),
-      unit: `/ 10đ (mục tiêu ≥ ${targetVstep.toFixed(1)})`,
+      unit: "/ 10",
       percent: Math.min(100, Math.round((vstepBest / targetVstep) * 100)),
       done: vstepBest >= targetVstep,
       icon: Award,
-      action: vstepBest >= targetVstep ? "Luyện đề" : "Thi thử VSTEP",
+      action: vstepBest >= targetVstep ? "Luyện đề" : "Thi thử",
       destination: "vstep",
     },
   ];
@@ -172,14 +165,11 @@ function CefrProgressCard({ stats, onNavigate }) {
   return (
     <section className="panel p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="eyebrow">Lộ trình chuẩn hóa</p>
-          <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">
-            Mục tiêu bậc {nextLevel.id} · {nextLevel.label}
-          </h3>
-        </div>
+        <h3 className="font-display text-base font-bold text-slate-900 dark:text-white">
+          Mục tiêu {nextLevel.id} · {nextLevel.label}
+        </h3>
         <span className="chip border border-indigo-500/25 bg-indigo-500/10 font-mono text-[11px] font-bold text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-400/10 dark:text-indigo-300">
-          {completed}/3 tiêu chí · {progressPercent}%
+          {completed}/3 đạt · {progressPercent}%
         </span>
       </div>
 
@@ -209,11 +199,6 @@ function CefrProgressCard({ stats, onNavigate }) {
                   </span>
                   <div className={`h-1 flex-1 rounded-full ${index === CEFR_LEVELS.length - 1 ? "invisible" : index < currentLevelIndex ? "bg-emerald-500" : index === currentLevelIndex ? "bg-gradient-to-r from-emerald-500 to-indigo-500" : "bg-slate-200 dark:bg-white/10"}`} />
                 </div>
-                <span className={`mt-1 text-[9px] font-bold ${
-                  isCurrent ? "text-emerald-700 dark:text-emerald-300" : isTarget ? "text-indigo-700 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500"
-                }`}>
-                  {isCurrent ? "Hiện tại" : isTarget ? "Mục tiêu" : level.id}
-                </span>
               </div>
             );
           })}
@@ -354,11 +339,8 @@ export default function HomeHub({ user, streak, onNavigate }) {
               {greetingByHour()}{displayName ? `, ${displayName}` : ""}
             </p>
             <h2 className="mt-1 font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-[1.75rem]">
-              Hôm nay mình học gì?
+              Hôm nay học gì?
             </h2>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-              Kiên trì ôn tập mỗi ngày để tiến bộ tự nhiên và vững chắc.
-            </p>
             <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
@@ -385,7 +367,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Mục tiêu hôm nay</p>
-                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{goalToday}/{target} lượt ôn</p>
+                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{goalToday}/{target} lượt</p>
               </div>
               <span className="metric text-lg text-slate-900 dark:text-white">{goalPercent}%</span>
             </div>
@@ -401,7 +383,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
             </div>
             <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
               <Flame size={13} className="text-amber-500" />
-              {streak?.currentStreak > 0 ? `Chuỗi ${streak.currentStreak} ngày học liên tục` : "Bắt đầu chuỗi học hôm nay"}
+              {streak?.currentStreak > 0 ? `Chuỗi ${streak.currentStreak} ngày` : "Bắt đầu chuỗi hôm nay"}
             </p>
           </div>
         </div>
@@ -422,13 +404,10 @@ export default function HomeHub({ user, streak, onNavigate }) {
         <div className="lg:col-span-5">
           <section className="panel space-y-3.5 p-5">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="eyebrow flex items-center gap-1.5">
-                  <TrendingUp size={13} className="text-[rgb(var(--accent))]" />
-                  Phong độ học tập
-                </p>
-                <h3 className="mt-0.5 font-display text-base font-bold text-slate-900 dark:text-white">Thống kê 14 ngày</h3>
-              </div>
+              <h3 className="flex items-center gap-2 font-display text-base font-bold text-slate-900 dark:text-white">
+                <TrendingUp size={16} className="text-[rgb(var(--accent))]" />
+                Thống kê 14 ngày
+              </h3>
               <button
                 type="button"
                 onClick={() => onNavigate?.("progress")}
@@ -441,22 +420,13 @@ export default function HomeHub({ user, streak, onNavigate }) {
             <StudyHistoryChart days={14} />
 
             <div className="grid grid-cols-2 gap-2 pt-0.5">
-              <StatTile icon={Layers} color="#0EA5E9" label="Từ vựng đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
-              <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp đã qua" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
-              <StatTile icon={Award} color="#F43F5E" label="Đề thi VSTEP" value={`${stats.vstep.attempts} đề`} />
-              <StatTile icon={Trophy} color="#10B981" label="Độ chính xác" value={`${stats.accuracy}%`} />
+              <StatTile icon={Layers} color="#0EA5E9" label="Đã thuộc" value={`${stats.cards.mastered}/${stats.cards.total}`} />
+              <StatTile icon={GraduationCap} color="#8B5CF6" label="Ngữ pháp" value={`${stats.grammar.passed}/${stats.grammar.total}`} />
+              <StatTile icon={Award} color="#F43F5E" label="Đề VSTEP" value={`${stats.vstep.attempts} đề`} />
+              <StatTile icon={Trophy} color="#10B981" label="Chính xác" value={`${stats.accuracy}%`} />
             </div>
           </section>
         </div>
-      </div>
-
-      {/* Mẹo nhỏ tinh gọn ở chân trang */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-2.5 text-xs text-slate-500 backdrop-blur-md dark:border-white/[0.07] dark:bg-white/[0.03] dark:text-slate-400">
-        <span className="inline-flex items-center gap-2">
-          <BookOpen size={14} className="text-[rgb(var(--accent))]" />
-          Nhấn <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">Ctrl</kbd> + <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold dark:border-white/15 dark:bg-white/10">K</kbd> để tìm kiếm nhanh mọi bài học.
-        </span>
-        <span className="font-semibold text-slate-600 dark:text-slate-300">Tiến bộ 1% mỗi ngày là đủ.</span>
       </div>
     </div>
   );

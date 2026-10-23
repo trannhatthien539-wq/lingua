@@ -35,10 +35,9 @@ export default function StudyHistoryChart({ days = 14 }) {
   const labelEvery = chartDays.length > 10 ? 3 : 2;
 
   return (
-    <div className="mt-5 border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]">
+    <div className="pt-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/55">{days} ngày gần đây</p>
           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-ink/55 dark:text-white/50">
             <span className="h-2 w-2 rounded-full bg-gradient-to-t from-[rgb(var(--accent))] to-[rgb(var(--accent-2))]" aria-hidden="true" />
             Đã ôn
@@ -49,12 +48,12 @@ export default function StudyHistoryChart({ days = 14 }) {
           </span>
         </div>
         <p className="text-xs font-semibold text-ink/60 dark:text-white/55">
-          {summary.reviewed} lượt ôn · {summary.activeDays} ngày có học · đúng {summary.accuracy}%
+          {summary.reviewed} lượt · {summary.activeDays} ngày · đúng {summary.accuracy}%
         </p>
       </div>
 
       {summary.reviewed === 0 ? (
-        <p className="mt-3 text-xs text-ink/60 dark:text-white/55">Chưa có dữ liệu. Hoàn thành một lượt luyện tập để bắt đầu thống kê.</p>
+        <p className="mt-3 text-xs text-ink/60 dark:text-white/55">Chưa có dữ liệu học tập.</p>
       ) : (
         <div
           className="mt-4 flex h-32 items-end gap-1 sm:gap-1.5"
