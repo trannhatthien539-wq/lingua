@@ -50,9 +50,24 @@ describe('Hệ thống SEO, Metadata và Cấu trúc dự án', () => {
     const swPath = path.resolve('public/sw.js')
     assert.ok(fs.existsSync(swPath), 'public/sw.js phải tồn tại')
     const content = fs.readFileSync(swPath, 'utf8')
-    assert.match(content, /lingua-static-v7/)
+    assert.match(content, /lingua-static-v8/)
     assert.match(content, /fonts\.gstatic\.com/)
     assert.match(content, /fonts\.googleapis\.com/)
+  })
+
+  it('manifest.json có đầy đủ icon any và maskable adaptive không viền trắng', () => {
+    const manifestPath = path.resolve('public/manifest.json')
+    assert.ok(fs.existsSync(manifestPath), 'manifest.json phải tồn tại')
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    assert.equal(manifest.background_color, '#0B0F17')
+    assert.equal(manifest.theme_color, '#0B0F17')
+    const purposes = manifest.icons.map((i) => i.purpose)
+    assert.ok(purposes.includes('any'), 'Cần có icon purpose any')
+    assert.ok(purposes.includes('maskable'), 'Cần có icon purpose maskable')
+    for (const icon of manifest.icons) {
+      const p = path.resolve('public', icon.src.replace(/^\.\//, ''))
+      assert.ok(fs.existsSync(p), `Icon file ${p} phải tồn tại`)
+    }
   })
 
   it('navigationItems có đủ 10 module, không trùng id và đủ nhãn', () => {

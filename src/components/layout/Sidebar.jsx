@@ -38,7 +38,7 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
             <div
-              className="grid h-10 w-10 place-items-center rounded-2xl border p-1 shadow-sm backdrop-blur-md"
+              className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl border p-1 shadow-sm backdrop-blur-md dark:border-white/15 dark:bg-white/[0.04]"
               style={{ borderColor: 'rgba(var(--accent), 0.25)', background: 'linear-gradient(135deg, rgba(var(--accent), 0.16), rgba(var(--accent-2), 0.08))' }}
             >
               <AppMark className="h-8 w-8 drop-shadow-sm transition-transform duration-200 hover:scale-105" />

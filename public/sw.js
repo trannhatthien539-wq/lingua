@@ -1,5 +1,5 @@
-const CACHE_NAME = 'lingua-static-v7';
-const APP_SHELL = ['./', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/tree.svg'];
+const CACHE_NAME = 'lingua-static-v8';
+const APP_SHELL = ['./', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/tree.svg', './icons/icon-maskable-192.png', './icons/icon-maskable-512.png'];
 /** Chỉ đệm tài nguyên tĩnh cùng origin và Google Fonts; API/Firebase và luồng media luôn đi mạng. */
 const CACHEABLE_DESTINATIONS = new Set(['script', 'style', 'image', 'font', 'manifest']);
 
