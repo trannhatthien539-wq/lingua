@@ -37,7 +37,7 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
     <header
       className={`no-print md:sticky md:top-0 md:z-30 md:-mx-8 md:-mt-9 md:mb-5 md:border-b md:px-8 md:pb-4 md:pt-6 lg:-mx-12 lg:px-12 ${
         scrolled
-          ? 'md:border-slate-200/70 md:bg-mist/85 md:shadow-[0_16px_40px_-28px_rgba(15,23,42,0.35)] md:backdrop-blur-xl dark:md:border-white/[0.07] dark:md:bg-dark1/80'
+          ? 'md:border-slate-200/70 md:bg-[#F8FAFC]/85 md:shadow-[0_16px_40px_-28px_rgba(15,23,42,0.35)] md:backdrop-blur-xl dark:md:border-white/[0.07] dark:md:bg-[#0B0F17]/85'
           : 'md:border-transparent md:bg-transparent'
       } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-colors duration-300 md:gap-5`}
     >

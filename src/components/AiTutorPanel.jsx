@@ -151,15 +151,15 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
   const currentScenario = SCENARIOS.find((item) => item.id === scenario) || SCENARIOS[0];
 
   return (
-    <Dialog onClose={onClose} ariaLabel="Gia sư AI" overlayClassName="fixed inset-0 z-[95] flex items-end justify-end bg-ink/30 p-0 backdrop-blur-sm sm:p-5 dark:bg-black/50" className="panel flex h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-b-none sm:h-[min(640px,88vh)] sm:rounded-2xl">
-      <header className="flex items-center justify-between gap-3 border-b border-ink/[0.08] px-4 py-3 dark:border-white/[0.08]">
+    <Dialog onClose={onClose} ariaLabel="Gia sư AI" overlayClassName="fixed inset-0 z-[95] flex items-end justify-end bg-slate-950/40 p-0 backdrop-blur-sm sm:p-5 dark:bg-black/60" className="panel flex h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-b-none sm:h-[min(640px,88vh)] sm:rounded-2xl">
+      <header className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-3 dark:border-white/[0.08]">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
             <Bot size={19} />
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="truncate font-display font-bold">Gia sư AI</p>
+              <p className="truncate font-display font-bold text-slate-900 dark:text-white">Gia sư AI</p>
               <button
                 type="button"
                 onClick={() => setShowConfig(!showConfig)}
@@ -168,7 +168,7 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
                 {currentScenario.label} · {level} <ChevronDown size={11} className="inline" />
               </button>
             </div>
-            <p className="truncate text-xs text-ink/55 dark:text-white/55">{currentScenario.desc}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{currentScenario.desc}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -273,7 +273,7 @@ export default function AiTutorPanel({ apiKey, user, onClose, onOpenSettings }) 
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 overflow-x-auto px-3.5 py-2 scrollbar-none border-t border-ink/[0.06] bg-slate-50/50 dark:bg-white/[0.02] dark:border-white/[0.06]">
+      <div className="flex items-center gap-1.5 overflow-x-auto px-3.5 py-2 scrollbar-none border-t border-slate-200/80 bg-slate-50/50 dark:bg-white/[0.02] dark:border-white/[0.06]">
         <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Gợi ý:</span>
         {QUICK_CHIPS.map((chip) => (
           <button

@@ -18,12 +18,12 @@ export default class ErrorBoundary extends Component {
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <main className="grid min-h-screen place-items-center bg-mist p-6 text-ink dark:bg-dark1 dark:text-white">
+      <main className="grid min-h-screen place-items-center bg-slate-50 p-6 text-slate-900 dark:bg-[#0B0F17] dark:text-white">
         <section className="panel max-w-md p-8 text-center">
           <p className="eyebrow">Lingua cần khởi động lại</p>
-          <h1 className="mt-2 font-display text-2xl font-bold">Đã xảy ra lỗi không mong muốn</h1>
-          <p className="mt-3 text-sm leading-6 text-ink/55 dark:text-white/55">Dữ liệu đã lưu vẫn được giữ nguyên. Hãy tải lại ứng dụng để tiếp tục phiên học.</p>
-          <button onClick={this.handleReload} className="mt-6 btn-primary px-5 py-3 text-sm">Tải lại ứng dụng</button>
+          <h1 className="mt-2 font-display text-2xl font-bold text-slate-900 dark:text-white">Đã xảy ra lỗi không mong muốn</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">Dữ liệu đã lưu vẫn được giữ nguyên. Hãy tải lại ứng dụng để tiếp tục phiên học.</p>
+          <button onClick={this.handleReload} className="btn-primary mt-6 px-5 py-3 text-sm">Tải lại ứng dụng</button>
         </section>
       </main>
     );

@@ -19,6 +19,7 @@ export default [
       ".github/**",
       "android/**",
       "scripts/**",
+      ".agents/**",
     ],
   },
   js.configs.recommended,

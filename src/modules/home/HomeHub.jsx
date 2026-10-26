@@ -44,7 +44,7 @@ const greetingByHour = () => {
 
 function StatTile({ icon: Icon, color, label, value }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 backdrop-blur-md dark:border-white/[0.06] dark:bg-white/[0.02]">
+    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/70 bg-white/70 p-2.5 shadow-2xs backdrop-blur-md transition-all duration-200 hover:border-slate-300/90 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-white/15">
       <span
         className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
         style={{ backgroundColor: `${color}18`, color }}

@@ -137,18 +137,18 @@ export default function MistakeBankCard({ apiKey = "", provider = "gemini" }) {
       eyebrow="Ôn tập cá nhân"
       title="Sổ câu sai (Ngữ pháp · Nghe · Đọc · VSTEP)"
       description={items.length ? `${items.length} câu bạn từng làm sai — luyện lại hoặc chuyển thành flashcard` : "Câu làm sai ở Ngữ pháp, Nghe, Đọc, VSTEP sẽ tự động vào đây"}
-      badge={<span className={`chip ${items.length ? "bg-warnbg text-warn" : "bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60"}`}>{items.length} câu</span>}
+      badge={<span className={`chip ${items.length ? "border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300 font-bold" : "border border-slate-200/80 bg-slate-100/70 text-slate-500 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-400"}`}>{items.length} câu</span>}
       open={open}
       onToggle={toggleOpen}
     >
       {!items.length ? (
-        <p className="text-sm text-ink/60 dark:text-white/60">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Chưa có câu sai nào. Làm bài luyện tập hoặc thi thử — câu sai sẽ được lưu tự động để bạn ôn lại sau.
         </p>
       ) : (
         <>
           {summary && (
-            <p className="text-xs font-bold uppercase tracking-[0.06em] text-ink/55 dark:text-white/55">{summary}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">{summary}</p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => setQuizOpen((value) => !value)} className="btn-primary px-4">
@@ -159,7 +159,7 @@ export default function MistakeBankCard({ apiKey = "", provider = "gemini" }) {
               <Layers size={16} />
               {busy === "deck" ? "Đang tạo…" : "Tạo bộ flashcard"}
             </button>
-            <button type="button" onClick={handleClear} className="btn-ghost px-3 text-xs text-danger dark:text-dangerfgdark">
+            <button type="button" onClick={handleClear} className="btn-ghost px-3 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10">
               <Trash2 size={14} />
               Xoá sổ
             </button>
@@ -192,26 +192,26 @@ export default function MistakeBankCard({ apiKey = "", provider = "gemini" }) {
 
           <ul className="mt-4 space-y-2">
             {items.slice(0, 20).map((item) => (
-              <li key={item.key} className="rounded-xl border border-ink/[0.08] p-3 dark:border-white/[0.08]">
+              <li key={item.key} className="rounded-xl border border-slate-200/80 bg-white/70 p-3.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 text-sm font-semibold leading-6">{item.prompt}</p>
-                  <span className="chip shrink-0 bg-ink/[0.06] text-ink/70 dark:bg-white/10 dark:text-white/70">
+                  <p className="min-w-0 flex-1 text-sm font-semibold leading-6 text-slate-900 dark:text-white">{item.prompt}</p>
+                  <span className="chip shrink-0 border border-slate-200/80 bg-slate-100/70 text-slate-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300">
                     {MISTAKE_SOURCE_LABELS[item.source] || "Ngữ pháp"}
                   </span>
                 </div>
-                <p className="mt-1.5 text-xs text-ink/70 dark:text-white/70">
-                  Bạn trả lời: <span className="font-bold">{item.response || "(bỏ trống)"}</span>
+                <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  Bạn trả lời: <span className="font-bold text-slate-800 dark:text-slate-200">{item.response || "(bỏ trống)"}</span>
                 </p>
-                <p className="mt-0.5 text-xs text-ink/70 dark:text-white/70">
+                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                   Đáp án: <span className="font-bold text-emerald-600 dark:text-emerald-400">{item.answer || "(xem giải thích)"}</span>
                 </p>
-                {item.explain && <p className="mt-1 text-xs text-ink/60 dark:text-white/60">{item.explain}</p>}
+                {item.explain && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.explain}</p>}
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="chip bg-warnbg text-warn">sai {item.count} lần</span>
+                  <span className="chip border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300 font-bold">sai {item.count} lần</span>
                   <button
                     type="button"
                     onClick={() => handleRemove(item)}
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 font-bold text-danger transition hover:bg-danger/10 dark:text-dangerfgdark"
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2.5 font-bold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
                   >
                     <Trash2 size={13} />Đã hiểu, xoá
                   </button>
@@ -220,7 +220,7 @@ export default function MistakeBankCard({ apiKey = "", provider = "gemini" }) {
             ))}
           </ul>
           {items.length > 20 && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/55 dark:text-white/55">
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <ListChecks size={13} />Còn {items.length - 20} câu khác trong sổ — bấm “Luyện lại” để ôn hết.
             </p>
           )}

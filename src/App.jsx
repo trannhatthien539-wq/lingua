@@ -296,7 +296,7 @@ export default function App() {
   const bgOverlay = appearance?.background?.overlay ?? 25
 
   return (
-    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'app-ambient bg-mist dark:bg-dark1'} pt-[env(safe-area-inset-top)] text-ink transition-colors dark:text-white`}>
+    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'app-ambient bg-[#F8FAFC] dark:bg-[#0B0F17]'} pt-[env(safe-area-inset-top)] text-slate-900 transition-colors dark:text-white`}>
       {isCapacitor() && <WidgetSummaryBridge streak={streak} user={user} />}
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-slate-900 focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl">
         Bỏ qua điều hướng

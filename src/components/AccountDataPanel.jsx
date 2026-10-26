@@ -102,8 +102,6 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
 
   /**
    * Chọn giờ nhắc = muốn được nhắc: lưu giờ, và nếu nhắc học đang tắt thì xin quyền + bật luôn.
-   * Hộp chọn giờ của Android trả về chuỗi rỗng khi người dùng bấm huỷ — bỏ qua để không ghi
-   * đè bằng giá trị rỗng (trước đây làm ô giờ nhảy về 20:00 như bị reset).
    */
   const changeTime = async (value) => {
     const time = normalizeTime(value);
@@ -185,160 +183,160 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
       open={open}
       onToggle={toggleSection}
     >
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-bold">
-          <ShieldCheck size={15} className="text-emerald-500" />
-          Trạng thái đồng bộ
-        </div>
-        <div className="flex items-center gap-2">
-          <SyncStatusBadge user={user} />
-          <button
-            type="button"
-            onClick={syncNow}
-            disabled={busy === "sync"}
-            className="btn-secondary h-11 px-3.5 text-xs"
-          >
-            <RefreshCw size={14} className={busy === "sync" ? "animate-spin" : ""} />
-            Đồng bộ lại
-          </button>
-        </div>
-      </div>
-
-      <div className="panel-flat p-4">
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-sm font-bold">
-            <BellRing size={16} /> Nhắc học hằng ngày
-          </p>
-          <button
-            type="button"
-            onClick={() => toggleReminder(!settings.enabled)}
-            role="switch"
-            aria-checked={Boolean(settings.enabled)}
-            aria-label="Bật nhắc học hằng ngày"
-            className="flex h-11 w-14 shrink-0 items-center"
-          >
-            <span className={`relative h-7 w-12 rounded-full transition ${settings.enabled ? "bg-indigo-600 dark:bg-indigo-500" : "bg-ink/15 dark:bg-white/25"}`}>
-              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-slab shadow transition-all dark:bg-dark3 ${settings.enabled ? "left-[22px]" : "left-0.5"}`} />
-            </span>
-          </button>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs font-semibold">
-            Giờ nhắc
-            <input
-              type="time"
-              value={settings.time || "20:00"}
-              onChange={(event) => changeTime(event.target.value)}
-              className="h-11 rounded-xl border border-ink/10 bg-transparent px-2.5 text-sm outline-none dark:border-white/10"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={testNotification}
-            className="btn-secondary h-11 px-3.5 text-xs"
-          >
-            Thử thông báo
-          </button>
-        </div>
-        <p className="mt-3 text-xs leading-5 text-ink/60 dark:text-white/55">
-          {settings.enabled ? `Lần nhắc tới: ${describeNextReminder(settings) || "chưa xác định"}. ` : "Chọn giờ để Lingua bật nhắc học và xin quyền thông báo. "}
-          {isDevice ? nativeStatusLabels[reminderNative?.status] || nativeStatusLabels.unknown : permissionLabels[permission] || permissionLabels.default}
-        </p>
-        {!isDevice && (
-          <p className="mt-1 text-xs leading-5 text-ink/60 dark:text-white/55">
-            Trên web, thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy).
-          </p>
-        )}
-        {isDevice && reminderNative?.status === "denied" && (
-          <p className="mt-1 text-xs leading-5 text-danger">
-            Lingua cũng sẽ thử nhắc ngay trong lúc app đang mở, nhưng cách chắc chắn nhất là bật quyền
-            thông báo cho Lingua trong cài đặt Android.
-          </p>
-        )}
-      </div>
-
-      <div className="panel-flat p-4">
-        <p className="flex items-center gap-2 text-sm font-bold">
-          <Grid2x2 size={16} /> Widget màn hình chính
-        </p>
-        {widgetSummary ? (
-          <div className="mt-2 rounded-xl border border-ink/[0.08] bg-ink/[0.03] p-3 dark:border-white/[0.08] dark:bg-white/[0.05]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink/55 dark:text-white/55">{widgetSummary.title}</p>
-            <p className="mt-1 font-display text-base font-bold text-indigo-600 dark:text-indigo-400">{widgetSummary.primary}</p>
-            <p className="mt-0.5 text-xs text-ink/80 dark:text-white/80">{widgetSummary.secondary}</p>
-            <p className="text-xs text-ink/65 dark:text-white/65">{widgetSummary.tertiary}</p>
-            {widgetSummary.progressMax > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10 dark:bg-white/15">
-                  <span
-                    className="block h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600"
-                    style={{ width: `${Math.round((Math.min(widgetSummary.progressValue, widgetSummary.progressMax) / widgetSummary.progressMax) * 100)}%` }}
-                  />
-                </span>
-                <span className="text-[11px] font-semibold text-ink/60 dark:text-white/60">
-                  {widgetSummary.progressValue}/{widgetSummary.progressMax}
-                </span>
-              </div>
-            )}
-            <p className="mt-1 text-[11px] text-ink/50 dark:text-white/50">{widgetSummary.footer}</p>
-            <p className="mt-1 text-[11px] text-ink/50 dark:text-white/50">
-              Nút trên widget: Ôn ngay · Ngữ pháp · VSTEP · Tiến độ
-            </p>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <ShieldCheck size={15} className="text-emerald-500" />
+            Trạng thái đồng bộ
           </div>
-        ) : (
-          <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
-            Mở tab Từ vựng một lần để Lingua tính số thẻ đến hạn và gửi ra widget.
-          </p>
-        )}
-        {isDevice && (
-          <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
-            {widgetStatus?.ok
-              ? `Đã gửi nội dung ra widget${widgetStatus.at ? ` ${new Date(widgetStatus.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : ""}.`
-              : `Chưa gửi được ra widget: ${widgetStatus?.error || "đang chờ dữ liệu"}.`}
-          </p>
-        )}
-        <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
-          Trên app Android: giữ vào chỗ trống ở màn hình chính → <strong>Widgets</strong> → <strong>Lingua</strong> → kéo widget ra. Widget tự cập nhật mỗi 30 phút và ngay khi bạn học trong app.
-        </p>
-      </div>
-
-      <div className="panel-flat p-4">
-        <p className="flex items-center gap-2 text-sm font-bold">
-          <CloudDownload size={16} /> Sao lưu &amp; khôi phục
-        </p>
-        <p className="mt-2 text-xs leading-5 text-ink/60 dark:text-white/55">
-          File sao lưu gồm bộ thẻ, tiến độ từ vựng, kế hoạch học, mindmap, bản nháp ngữ pháp, nhắc học và streak.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={exportAll}
-            disabled={busy === "export"}
-            className="btn-primary px-4 text-xs"
-          >
-            <CloudDownload size={16} />
-            {busy === "export" ? "Đang xuất..." : "Xuất toàn bộ dữ liệu"}
-          </button>
-          <input ref={fileRef} type="file" accept=".json" onChange={restoreFile} className="hidden" />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={busy === "import"}
-            className="btn-secondary px-4 text-xs"
-          >
-            <CloudUpload size={16} />
-            {busy === "import" ? "Đang khôi phục..." : "Nhập bản sao lưu"}
-          </button>
+          <div className="flex items-center gap-2">
+            <SyncStatusBadge user={user} />
+            <button
+              type="button"
+              onClick={syncNow}
+              disabled={busy === "sync"}
+              className="btn-secondary h-10 px-3.5 text-xs"
+            >
+              <RefreshCw size={14} className={busy === "sync" ? "animate-spin" : ""} />
+              Đồng bộ lại
+            </button>
+          </div>
         </div>
-      </div>
 
-      {message && (
-        <p className="rounded-xl bg-ink/[0.05] px-3 py-2.5 text-xs leading-5 dark:bg-white/10" role="status">
-          {message}
-        </p>
-      )}
-    </div>
+        <div className="panel-flat p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+              <BellRing size={16} /> Nhắc học hằng ngày
+            </p>
+            <button
+              type="button"
+              onClick={() => toggleReminder(!settings.enabled)}
+              role="switch"
+              aria-checked={Boolean(settings.enabled)}
+              aria-label="Bật nhắc học hằng ngày"
+              className="flex h-11 w-14 shrink-0 items-center"
+            >
+              <span className={`relative h-7 w-12 rounded-full transition ${settings.enabled ? "bg-indigo-600 dark:bg-indigo-500" : "bg-slate-200 dark:bg-white/20"}`}>
+                <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all dark:bg-slate-800 ${settings.enabled ? "left-[22px]" : "left-0.5"}`} />
+              </span>
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Giờ nhắc
+              <input
+                type="time"
+                value={settings.time || "20:00"}
+                onChange={(event) => changeTime(event.target.value)}
+                className="h-10 rounded-xl border border-slate-200/80 bg-white/70 px-2.5 text-sm text-slate-900 outline-none backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={testNotification}
+              className="btn-secondary h-10 px-3.5 text-xs"
+            >
+              Thử thông báo
+            </button>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            {settings.enabled ? `Lần nhắc tới: ${describeNextReminder(settings) || "chưa xác định"}. ` : "Chọn giờ để Lingua bật nhắc học và xin quyền thông báo. "}
+            {isDevice ? nativeStatusLabels[reminderNative?.status] || nativeStatusLabels.unknown : permissionLabels[permission] || permissionLabels.default}
+          </p>
+          {!isDevice && (
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              Trên web, thông báo chỉ hiện khi Lingua đang mở (tab hoặc PWA đang chạy).
+            </p>
+          )}
+          {isDevice && reminderNative?.status === "denied" && (
+            <p className="mt-1 text-xs leading-5 text-rose-500">
+              Lingua cũng sẽ thử nhắc ngay trong lúc app đang mở, nhưng cách chắc chắn nhất là bật quyền
+              thông báo cho Lingua trong cài đặt Android.
+            </p>
+          )}
+        </div>
+
+        <div className="panel-flat p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+            <Grid2x2 size={16} /> Widget màn hình chính
+          </p>
+          {widgetSummary ? (
+            <div className="mt-2 rounded-xl border border-slate-200/80 bg-white/70 p-3.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{widgetSummary.title}</p>
+              <p className="mt-1 font-display text-base font-bold text-indigo-600 dark:text-indigo-400">{widgetSummary.primary}</p>
+              <p className="mt-0.5 text-xs font-medium text-slate-800 dark:text-slate-200">{widgetSummary.secondary}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">{widgetSummary.tertiary}</p>
+              {widgetSummary.progressMax > 0 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/15">
+                    <span
+                      className="block h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600"
+                      style={{ width: `${Math.round((Math.min(widgetSummary.progressValue, widgetSummary.progressMax) / widgetSummary.progressMax) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    {widgetSummary.progressValue}/{widgetSummary.progressMax}
+                  </span>
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{widgetSummary.footer}</p>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                Nút trên widget: Ôn ngay · Ngữ pháp · VSTEP · Tiến độ
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              Mở tab Từ vựng một lần để Lingua tính số thẻ đến hạn và gửi ra widget.
+            </p>
+          )}
+          {isDevice && (
+            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {widgetStatus?.ok
+                ? `Đã gửi nội dung ra widget${widgetStatus.at ? ` ${new Date(widgetStatus.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : ""}.`
+                : `Chưa gửi được ra widget: ${widgetStatus?.error || "đang chờ dữ liệu"}.`}
+            </p>
+          )}
+          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Trên app Android: giữ vào chỗ trống ở màn hình chính → <strong>Widgets</strong> → <strong>Lingua</strong> → kéo widget ra. Widget tự cập nhật mỗi 30 phút và ngay khi bạn học trong app.
+          </p>
+        </div>
+
+        <div className="panel-flat p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+            <CloudDownload size={16} /> Sao lưu &amp; khôi phục
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            File sao lưu gồm bộ thẻ, tiến độ từ vựng, kế hoạch học, mindmap, bản nháp ngữ pháp, nhắc học và streak.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={exportAll}
+              disabled={busy === "export"}
+              className="btn-primary px-4 text-xs"
+            >
+              <CloudDownload size={16} />
+              {busy === "export" ? "Đang xuất..." : "Xuất toàn bộ dữ liệu"}
+            </button>
+            <input ref={fileRef} type="file" accept=".json" onChange={restoreFile} className="hidden" />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy === "import"}
+              className="btn-secondary px-4 text-xs"
+            >
+              <CloudUpload size={16} />
+              {busy === "import" ? "Đang khôi phục..." : "Nhập bản sao lưu"}
+            </button>
+          </div>
+        </div>
+
+        {message && (
+          <p className="rounded-xl border border-slate-200/80 bg-white/80 px-3.5 py-2.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300" role="status">
+            {message}
+          </p>
+        )}
+      </div>
     </CollapsibleCard>
   );
 }
