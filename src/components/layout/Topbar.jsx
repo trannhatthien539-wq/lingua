@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Command, Flame, HelpCircle, Search, Sparkles } from 'lucide-react'
-import SyncStatusBadge from '../ui/SyncStatusBadge'
+import { Command, Search, Sparkles } from 'lucide-react'
 import NotificationBell from '../NotificationBell'
 
 /**
@@ -8,10 +7,10 @@ import NotificationBell from '../NotificationBell'
  *
  * Trên desktop thanh này dính ở đầu vùng nội dung và chỉ hiện nền kính khi đã cuộn
  * (giống Linear/Notion) — vừa giữ ngữ cảnh, vừa không chiếm thêm diện tích khi ở đầu trang.
+ * Các trạng thái đồng bộ / streak đã được đưa về đúng một nơi (Sidebar & hero) để giảm nhiễu.
  */
-export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, onOpenSearch, onPrefetchSearch, onOpenTutor, onPrefetchTutor, onOpenShortcuts, user, streak }) {
+export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, onOpenSearch, onPrefetchSearch, onOpenTutor, onPrefetchTutor, streak }) {
   const [scrolled, setScrolled] = useState(false)
-  const streakDays = Number(streak?.currentStreak) || 0
   const isHome = activeTab === 'home' || title === 'Trang chủ'
 
   useEffect(() => {
@@ -53,21 +52,11 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
       </div>
 
       <div className={`flex shrink-0 items-center gap-2.5 ${isHome ? 'w-full justify-end md:w-auto' : ''}`}>
-        {streakDays > 0 && (
-          <span
-            className="hidden h-10 items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 text-xs font-bold text-amber-700 shadow-sm backdrop-blur-xl dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-300 lg:inline-flex"
-            title={`Chuỗi ${streakDays} ngày học`}
-          >
-            <Flame size={15} className="text-amber-500 animate-pulse" />
-            {streakDays} ngày
-          </span>
-        )}
-        <span className="hidden md:block"><SyncStatusBadge user={user} /></span>
         <button
           onClick={onOpenTutor}
           onMouseEnter={onPrefetchTutor}
           onFocus={onPrefetchTutor}
-          className={`${tutorButtonClass} ${isHome ? 'inline-flex' : 'hidden sm:inline-flex'}`}
+          className={`${tutorButtonClass} hidden sm:inline-flex`}
           aria-label="Mở gia sư AI"
         >
           <Sparkles size={15} className="text-emerald-500" />
@@ -87,10 +76,6 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
           <span className="ml-1.5 hidden items-center gap-0.5 rounded-lg border border-slate-200/90 bg-slate-100/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500 sm:flex dark:border-white/10 dark:bg-white/[0.08] dark:text-slate-400">
             <Command size={10} />K
           </span>
-        </button>
-        <button onClick={onOpenShortcuts} className="btn-secondary hidden h-10 px-3.5 text-xs md:inline-flex" aria-label="Xem phím tắt" title="Phím tắt (?)">
-          <HelpCircle size={15} />
-          <span>Phím tắt</span>
         </button>
       </div>
     </header>

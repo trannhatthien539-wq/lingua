@@ -23,7 +23,7 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className="hidden sm:block"><SyncStatusBadge user={user} compact /></span>
+          <span className="hidden sm:block"><SyncStatusBadge user={user} compact attentionOnly /></span>
           <NotificationBell streak={streak} plain />
           <button
             onClick={onToggleTheme}

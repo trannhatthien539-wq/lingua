@@ -347,8 +347,6 @@ export default function App() {
               onPrefetchSearch={() => preload(SearchPalette)}
               onOpenTutor={() => setTutorOpen(true)}
               onPrefetchTutor={() => preload(AiTutorPanel)}
-              onOpenShortcuts={() => setShortcutsOpen(true)}
-              user={user}
               streak={streak}
             />
             {!authResolved ? (
@@ -387,7 +385,7 @@ export default function App() {
           onClick={() => setTutorOpen(true)}
           onMouseEnter={() => preload(AiTutorPanel)}
           onFocus={() => preload(AiTutorPanel)}
-          className="no-print fixed bottom-24 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
+          className="no-print fixed bottom-20 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:hidden"
           style={{
             background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
             boxShadow: '0 8px 25px -4px rgba(var(--accent), 0.45)',

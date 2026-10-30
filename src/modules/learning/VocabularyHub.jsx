@@ -1157,9 +1157,9 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <p className="eyebrow">Thư viện của bạn</p>
-                <h2 className="mt-1 font-display text-xl font-bold tracking-tight">Bộ thẻ của bạn</h2>
+                <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Bộ thẻ của bạn</h2>
               </div>
-              <span className="text-xs font-semibold text-ink/55 dark:text-white/55">{library.decks.length} bộ · {libraryStats.total} từ</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{library.decks.length} bộ · {libraryStats.total} từ</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {library.decks.map((deck, index) => {

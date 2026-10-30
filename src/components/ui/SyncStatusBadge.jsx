@@ -8,10 +8,12 @@ const formatTime = (timestamp) => {
   return new Date(timestamp).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 };
 
-export default function SyncStatusBadge({ user, compact = false }) {
+export default function SyncStatusBadge({ user, compact = false, attentionOnly = false }) {
   const [status, setStatus] = useState({ online: true, pending: 0, lastSyncedAt: null, error: "" });
 
   useEffect(() => subscribeSyncStatus(setStatus), []);
+
+  const idle = status.online && !status.pending && !status.error;
 
   const tone = !status.online
     ? "border-warn/30 bg-warnbg text-warn dark:border-amber-400/40 dark:bg-amber-950/40 dark:text-amber-200"
@@ -48,6 +50,8 @@ export default function SyncStatusBadge({ user, compact = false }) {
       setBusy(false);
     }
   }, [user]);
+
+  if (attentionOnly && idle) return null;
 
   return (
     <div className="relative">
