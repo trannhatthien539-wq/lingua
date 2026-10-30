@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Clock3, GraduationCap, History, Sparkles, Target, Trash2 } from "lucide-react";
-import ModuleHero from "../../components/ui/ModuleHero";
 import ModuleTabs from "../../components/ui/ModuleTabs";
 import VstepExamRunner from "./VstepExamRunner";
 import VstepResult from "./VstepResult";
@@ -123,22 +122,7 @@ export default function VstepHub({ apiKey, onStudyActivity }) {
 
   return (
     <div className="space-y-5">
-      <ModuleHero
-        icon={GraduationCap}
-        eyebrow="VSTEP · B1 – B2 – C1"
-        title="Sẵn sàng cho kỳ thi VSTEP"
-        accent="#F43F5E"
-        deep="#BE123C"
-        illustration="exam"
-        progress={Math.round((attempts.length / Math.max(1, examsByLevel('all').length)) * 100)}
-        progressLabel="Số đề đã từng thử"
-        stats={[{ label: 'Đã thi', value: attempts.length }, { label: 'Điểm gần nhất', value: attempts.length ? `${attempts[attempts.length - 1].average}/10` : '—' }, { label: 'Bản nháp', value: draftCount }]}
-        action="Thử đề đầu tiên"
-        onAction={() => examsByLevel('all')[0] && openExam(examsByLevel('all')[0].id, 'exam')}
-        actionDisabled={loadingId === examsByLevel('all')[0]?.id}
-      >
-        <ModuleTabs items={VIEWS} value={view} onChange={setView} ariaLabel="Chọn nội dung VSTEP" />
-      </ModuleHero>
+      <ModuleTabs items={VIEWS} value={view} onChange={setView} ariaLabel="Chọn nội dung VSTEP" />
 
       <div className="hidden grid-cols-2 gap-2 sm:grid sm:grid-cols-4">
         {SKILL_SUMMARY.map((item) => <div key={item.label} className="rounded-xl border border-ink/[0.08] bg-white px-3 py-2 shadow-sm dark:border-white/[0.08] dark:bg-dark1"><p className="text-xs font-bold">{item.label}</p><p className="text-xs text-ink/50 dark:text-white/50">{item.detail}</p></div>)}

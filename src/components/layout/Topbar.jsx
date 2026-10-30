@@ -31,33 +31,34 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
     }
   }, [])
 
-  const buttonClass = 'inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-white/70 px-3.5 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur-md transition-all hover:border-slate-300 hover:bg-white hover:text-slate-900 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-white/20 dark:hover:bg-white/[0.08] dark:hover:text-white'
+  const buttonClass = 'inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-white/80 px-3.5 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-900 active:translate-y-0 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-300 dark:hover:border-white/20 dark:hover:bg-white/[0.09] dark:hover:text-white'
+  const tutorButtonClass = 'inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-500/15 active:translate-y-0 active:scale-[0.98] dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300 dark:hover:border-emerald-400/50'
 
   return (
     <header
-      className={`no-print md:sticky md:top-0 md:z-30 md:-mx-8 md:-mt-9 md:mb-5 md:border-b md:px-8 md:pb-4 md:pt-6 lg:-mx-12 lg:px-12 ${
+      className={`no-print md:sticky md:top-0 md:z-30 md:-mx-8 md:-mt-9 md:mb-6 md:border-b md:px-8 md:pb-4 md:pt-6 lg:-mx-12 lg:px-12 ${
         scrolled
-          ? 'md:border-slate-200/70 md:bg-[#F8FAFC]/85 md:shadow-[0_16px_40px_-28px_rgba(15,23,42,0.35)] md:backdrop-blur-xl dark:md:border-white/[0.07] dark:md:bg-[#0B0F17]/85'
+          ? 'md:border-slate-200/70 md:bg-[#F8FAFC]/90 md:shadow-[0_16px_40px_-20px_rgba(15,23,42,0.15)] md:backdrop-blur-2xl dark:md:border-white/[0.08] dark:md:bg-[#0B0F17]/90'
           : 'md:border-transparent md:bg-transparent'
-      } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-colors duration-300 md:gap-5`}
+      } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-all duration-300 md:gap-5`}
     >
       <div className={`min-w-0 flex-1 ${isHome ? 'hidden md:block' : ''}`}>
         {!isHome && eyebrow && (
           <p className="eyebrow flex items-center gap-1.5 truncate">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}80` }} aria-hidden="true" />
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}` }} aria-hidden="true" />
             <span className="truncate text-slate-600 dark:text-slate-300">{eyebrow}</span>
           </p>
         )}
-        <h1 className={`${!isHome ? 'mt-1' : ''} truncate font-display text-xl font-black tracking-tight text-slate-900 md:text-[1.9rem] dark:text-white`}>{title}</h1>
+        <h1 className={`${!isHome ? 'mt-1' : ''} truncate font-display text-xl font-black tracking-tight text-slate-900 md:text-[2rem] dark:text-white`}>{title}</h1>
       </div>
 
-      <div className={`flex shrink-0 items-center gap-2 ${isHome ? 'w-full justify-end md:w-auto' : ''}`}>
+      <div className={`flex shrink-0 items-center gap-2.5 ${isHome ? 'w-full justify-end md:w-auto' : ''}`}>
         {streakDays > 0 && (
           <span
-            className="hidden h-10 items-center gap-1.5 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 text-xs font-bold text-amber-700 backdrop-blur-md dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300 lg:inline-flex"
+            className="hidden h-10 items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 text-xs font-bold text-amber-700 shadow-sm backdrop-blur-xl dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-300 lg:inline-flex"
             title={`Chuỗi ${streakDays} ngày học`}
           >
-            <Flame size={15} className="text-amber-500" />
+            <Flame size={15} className="text-amber-500 animate-pulse" />
             {streakDays} ngày
           </span>
         )}
@@ -66,7 +67,7 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
           onClick={onOpenTutor}
           onMouseEnter={onPrefetchTutor}
           onFocus={onPrefetchTutor}
-          className={`${buttonClass} ${isHome ? 'inline-flex' : 'hidden sm:inline-flex'}`}
+          className={`${tutorButtonClass} ${isHome ? 'inline-flex' : 'hidden sm:inline-flex'}`}
           aria-label="Mở gia sư AI"
         >
           <Sparkles size={15} className="text-emerald-500" />
@@ -83,7 +84,7 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
         >
           <Search size={15} className="text-slate-400 transition-colors group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300" />
           <span className="hidden sm:inline">Tìm kiếm</span>
-          <span className="ml-1.5 hidden items-center gap-0.5 rounded-md border border-slate-200 bg-slate-100/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500 sm:flex dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-400">
+          <span className="ml-1.5 hidden items-center gap-0.5 rounded-lg border border-slate-200/90 bg-slate-100/90 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500 sm:flex dark:border-white/10 dark:bg-white/[0.08] dark:text-slate-400">
             <Command size={10} />K
           </span>
         </button>

@@ -1,6 +1,5 @@
 import { Suspense, memo, useCallback, useEffect, useState } from 'react'
-import { Settings2, Sparkles } from 'lucide-react'
-import ModuleHero from './components/ui/ModuleHero'
+import { Sparkles } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
 import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled } from './services/authService'
@@ -357,15 +356,6 @@ export default function App() {
             ) : activeTab === 'settings' ? (
               <div className="max-w-3xl animate-rise space-y-4">
                 <Suspense fallback={<PageSkeleton />}>
-                  <ModuleHero
-                    icon={Settings2}
-                    eyebrow="Cài đặt"
-                    title="Tùy chỉnh không gian học"
-                    accent="#64748B"
-                    deep="#334155"
-                    illustration="settings"
-                    stats={[{ label: 'Tài khoản', value: user ? 'Đã đăng nhập' : 'Khách' }, { label: 'Đồng bộ', value: user ? 'Đang bật' : 'Thiết bị' }]}
-                  />
                   <AccountPanel user={user} onOpenAuth={openAuth} onSignOut={handleSignOut} />
                   <AppearancePanel themeMode={themeMode} onThemeMode={setThemeMode} />
                   <InstallAppPanel />

@@ -44,16 +44,20 @@ const greetingByHour = () => {
 
 function StatTile({ icon: Icon, color, label, value }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200/70 bg-white/70 p-2.5 shadow-2xs backdrop-blur-md transition-all duration-200 hover:border-slate-300/90 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-white/15">
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-xs backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:hover:border-white/20">
       <span
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-        style={{ backgroundColor: `${color}18`, color }}
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl shadow-xs"
+        style={{
+          background: `linear-gradient(135deg, ${color}25, ${color}10)`,
+          border: `1px solid ${color}35`,
+          color
+        }}
       >
-        <Icon size={15} />
+        <Icon size={18} strokeWidth={2.2} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="metric text-sm leading-tight text-slate-900 dark:text-white">{value}</p>
-        <p className="truncate text-[10px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="metric text-base leading-tight text-slate-900 dark:text-white">{value}</p>
+        <p className="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</p>
       </div>
     </div>
   );
@@ -163,18 +167,21 @@ function CefrProgressCard({ stats, onNavigate }) {
   const progressPercent = Math.round(criteria.reduce((total, criterion) => total + criterion.percent, 0) / criteria.length);
 
   return (
-    <section className="panel p-5">
+    <section className="panel p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-base font-bold text-slate-900 dark:text-white">
-          Mục tiêu {nextLevel.id} · {nextLevel.label}
-        </h3>
-        <span className="chip border border-indigo-500/25 bg-indigo-500/10 font-mono text-[11px] font-bold text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-400/10 dark:text-indigo-300">
+        <div>
+          <p className="eyebrow text-xs text-indigo-600 dark:text-indigo-400">Lộ trình trình độ</p>
+          <h3 className="mt-1 font-display text-lg font-black text-slate-900 dark:text-white">
+            Mục tiêu {nextLevel.id} · {nextLevel.label}
+          </h3>
+        </div>
+        <span className="chip border border-indigo-500/30 bg-indigo-500/15 font-mono text-xs font-bold text-indigo-700 shadow-xs dark:border-indigo-400/30 dark:bg-indigo-400/15 dark:text-indigo-300">
           {completed}/3 đạt · {progressPercent}%
         </span>
       </div>
 
       {/* Stepper thang bậc CEFR */}
-      <div className="mt-3.5 rounded-xl border border-slate-200/70 bg-white/60 p-2.5 backdrop-blur-xs dark:border-white/[0.06] dark:bg-white/[0.02]">
+      <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 p-3.5 backdrop-blur-md dark:border-white/[0.06] dark:bg-white/[0.03]">
         <div className="flex items-center justify-between gap-1">
           {CEFR_LEVELS.map((level, index) => {
             const isPast = index < currentLevelIndex;
@@ -185,51 +192,54 @@ function CefrProgressCard({ stats, onNavigate }) {
                 <div className="flex w-full items-center">
                   <div className={`h-1 flex-1 rounded-full ${index === 0 ? "invisible" : index <= currentLevelIndex ? "bg-emerald-500" : "bg-slate-200 dark:bg-white/10"}`} />
                   <span
-                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[11px] font-black transition-transform ${
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full font-mono text-xs font-black transition-all ${
                       isCurrent
-                        ? "scale-105 border-2 border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                        ? "scale-110 border-2 border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
                         : isTarget
-                          ? "border-2 border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200"
+                          ? "scale-105 border-2 border-indigo-500 bg-indigo-500/20 text-indigo-700 dark:text-indigo-200"
                           : isPast
-                            ? "border border-emerald-600/30 bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200"
-                            : "bg-slate-100 text-slate-500 dark:bg-white/[0.05] dark:text-slate-400"
+                            ? "border border-emerald-600/30 bg-emerald-100 text-emerald-800 dark:bg-emerald-400/20 dark:text-emerald-300"
+                            : "bg-slate-100 text-slate-400 dark:bg-white/[0.05] dark:text-slate-500"
                     }`}
                   >
                     {level.id}
                   </span>
                   <div className={`h-1 flex-1 rounded-full ${index === CEFR_LEVELS.length - 1 ? "invisible" : index < currentLevelIndex ? "bg-emerald-500" : index === currentLevelIndex ? "bg-gradient-to-r from-emerald-500 to-indigo-500" : "bg-slate-200 dark:bg-white/10"}`} />
                 </div>
+                <span className={`mt-1.5 text-[10px] font-bold ${isCurrent ? "text-emerald-600 dark:text-emerald-400" : isTarget ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400 dark:text-slate-500"}`}>
+                  {level.label}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* 3 Tiêu chí dạng thanh tiến độ ngang gọn gàng */}
-      <div className="mt-3.5 space-y-2.5">
+      {/* 3 Tiêu chí dạng thanh tiến độ ngang */}
+      <div className="mt-4 space-y-3">
         {criteria.map((item) => (
           <div
             key={item.title}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 bg-white/60 p-2.5 backdrop-blur-xs transition-colors hover:border-slate-300/80 dark:border-white/[0.06] dark:bg-white/[0.02]"
+            className="flex items-center justify-between gap-4 rounded-xl border border-slate-200/70 bg-white/70 p-3 backdrop-blur-md transition-all hover:border-slate-300 hover:shadow-xs dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-white/15"
           >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+            <div className="flex min-w-0 flex-1 items-center gap-3.5">
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl shadow-xs ${
                 item.done
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+                  ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400"
+                  : "bg-indigo-500/15 text-indigo-600 border border-indigo-500/30 dark:text-indigo-400"
               }`}>
-                {item.done ? <CheckCircle2 size={16} /> : <item.icon size={16} />}
+                {item.done ? <CheckCircle2 size={18} /> : <item.icon size={18} />}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{item.title}</span>
-                  <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                  <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
                     {item.value} <span className="text-[10px] font-normal text-slate-400">{item.unit}</span>
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200/70 dark:bg-white/10">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[rgb(var(--accent))] transition-all duration-500"
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-indigo-500 transition-all duration-700"
                     style={{ width: `${item.percent}%` }}
                   />
                 </div>
@@ -238,9 +248,9 @@ function CefrProgressCard({ stats, onNavigate }) {
             <button
               type="button"
               onClick={() => onNavigate?.(item.destination)}
-              className="btn-secondary h-7 shrink-0 px-2.5 text-[11px] font-semibold"
+              className="btn-secondary h-8 shrink-0 px-3 text-xs font-bold"
             >
-              {item.action} <ArrowRight size={11} />
+              {item.action} <ArrowRight size={12} />
             </button>
           </div>
         ))}
@@ -326,65 +336,81 @@ export default function HomeHub({ user, streak, onNavigate }) {
 
   return (
     <div className="space-y-5">
-      {/* Hero Banner: Tinh gọn, rõ trọng tâm học hôm nay */}
-      <section className="home-hero relative overflow-hidden rounded-[24px] border border-slate-200/80 p-5 text-slate-900 shadow-soft backdrop-blur-2xl dark:border-white/10 dark:text-white sm:p-6">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[rgba(var(--accent),0.12)] blur-3xl dark:bg-[rgba(var(--accent),0.18)]" aria-hidden="true" />
-        <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-[rgba(var(--accent-2),0.10)] blur-3xl" aria-hidden="true" />
-        <div className="surface-dots pointer-events-none absolute inset-0 opacity-40" aria-hidden="true" />
+      {/* Hero Banner: Aurora Glass Command Center */}
+      <section className="home-hero relative overflow-hidden rounded-[28px] border border-slate-200/80 p-6 text-slate-900 shadow-xl backdrop-blur-3xl dark:border-white/10 dark:text-white sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-[rgba(var(--accent),0.20)] blur-3xl dark:bg-[rgba(var(--accent),0.25)]" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-[rgba(14,165,233,0.15)] blur-3xl" aria-hidden="true" />
+        <div className="surface-dots pointer-events-none absolute inset-0 opacity-30" aria-hidden="true" />
 
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="eyebrow flex items-center gap-1.5 text-xs">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
               {greetingByHour()}{displayName ? `, ${displayName}` : ""}
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-[1.75rem]">
+            </div>
+            <h2 className="mt-3 font-display text-3xl font-black leading-tight tracking-tight text-slate-900 dark:text-white sm:text-4xl">
               Hôm nay học gì?
             </h2>
-            <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              Duy trì nhịp học mỗi ngày để đạt chuẩn CEFR và bứt phá mục tiêu của bạn.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={primaryAction}
                 disabled={cardsLoading}
-                className="btn-primary min-h-[44px] px-4 text-xs font-bold shadow-md disabled:cursor-wait disabled:opacity-70"
+                className="btn-primary min-h-[48px] px-6 text-sm font-bold shadow-lg shadow-indigo-500/25 disabled:cursor-wait disabled:opacity-70"
               >
-                {cardsLoading ? <LoaderCircle size={15} className="animate-spin" /> : <PlayCircle size={15} />}
-                {primaryLabel}
+                {cardsLoading ? <LoaderCircle size={18} className="animate-spin" /> : <PlayCircle size={18} />}
+                <span>{primaryLabel}</span>
               </button>
               <button
                 type="button"
                 onClick={() => onNavigate?.("grammar")}
-                className="btn-secondary min-h-[44px] px-3.5 text-xs font-semibold"
+                className="btn-secondary min-h-[48px] px-5 text-sm font-bold"
               >
-                <GraduationCap size={15} />
-                Luyện ngữ pháp
+                <GraduationCap size={18} />
+                <span>Luyện ngữ pháp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate?.("vstep")}
+                className="btn-secondary min-h-[48px] px-5 text-sm font-bold"
+              >
+                <Award size={18} />
+                <span>Thi thử VSTEP</span>
               </button>
             </div>
           </div>
 
           {/* Ô tiến độ mục tiêu & chuỗi học */}
-          <div className="w-full rounded-2xl border border-slate-200/80 bg-white/70 p-3.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.05] sm:max-w-[260px]">
+          <div className="w-full rounded-2xl border border-slate-200/90 bg-white/80 p-5 shadow-md backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] lg:max-w-[280px]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Mục tiêu hôm nay</p>
-                <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{goalToday}/{target} lượt</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Mục tiêu hôm nay</p>
+                <p className="mt-1 font-display text-sm font-bold text-slate-900 dark:text-white">{goalToday} / {target} <span className="text-xs font-normal text-slate-500">lượt</span></p>
               </div>
-              <span className="metric text-lg text-slate-900 dark:text-white">{goalPercent}%</span>
+              <span className="metric font-display text-2xl font-black text-indigo-600 dark:text-indigo-400">{goalPercent}%</span>
             </div>
             <div
-              className="mt-2.5 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"
+              className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10"
               role="progressbar"
               aria-label="Tiến độ mục tiêu hôm nay"
               aria-valuenow={goalPercent}
               aria-valuemin={0}
               aria-valuemax={100}
             >
-              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[rgb(var(--accent))] transition-all" style={{ width: `${goalPercent}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-indigo-500 to-purple-500 transition-all duration-700" style={{ width: `${goalPercent}%` }} />
             </div>
-            <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              <Flame size={13} className="text-amber-500" />
-              {streak?.currentStreak > 0 ? `Chuỗi ${streak.currentStreak} ngày` : "Bắt đầu chuỗi hôm nay"}
-            </p>
+            <div className="mt-3.5 flex items-center justify-between border-t border-slate-200/60 pt-3 dark:border-white/[0.08]">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                <Flame size={15} className="text-amber-500 animate-pulse" />
+                {streak?.currentStreak > 0 ? `Chuỗi ${streak.currentStreak} ngày` : "Bắt đầu chuỗi"}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                {goalPercent >= 100 ? "Hoàn thành! 🎉" : "Đang tiến hành"}
+              </span>
+            </div>
           </div>
         </div>
       </section>

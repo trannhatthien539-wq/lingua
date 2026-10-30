@@ -177,7 +177,7 @@ export default function ModuleHero({
               type="button"
               onClick={onAction}
               disabled={actionDisabled}
-              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-bold shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
                 compact
                   ? `col-span-full min-h-11 w-full px-4 text-xs sm:col-auto sm:w-auto sm:px-5 ${
                       action.length > 20 ? "sm:text-sm" : ""
@@ -185,10 +185,11 @@ export default function ModuleHero({
                   : "min-h-12 px-6 text-sm"
               }`}
               style={{
-                boxShadow: `0 4px 20px ${accent}40`,
+                background: `linear-gradient(135deg, ${accent}, ${deep})`,
+                boxShadow: `0 6px 20px -2px ${accent}60, inset 0 1px 1px 0 rgba(255,255,255,0.4)`,
               }}
             >
-              <Sparkles size={compact ? 15 : 17} className="text-indigo-400 dark:text-indigo-600" />
+              <Sparkles size={compact ? 15 : 17} />
               {action}
             </button>
           )}

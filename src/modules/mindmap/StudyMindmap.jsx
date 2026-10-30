@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
-  BrainCircuit,
   Check,
   ChevronDown,
   ChevronRight,
@@ -15,7 +14,6 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import ModuleHero from "../../components/ui/ModuleHero";
 import { canUseAi, parseAiJson, requestAi } from "../../services/aiService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { createDebouncedSync, loadUserDoc, userDocKeys } from "../../services/userDocService";
@@ -756,19 +754,6 @@ export default function StudyMindmap({ apiKey }) {
   };
   return (
     <div className="space-y-5">
-      <ModuleHero
-        icon={BrainCircuit}
-        eyebrow="Lộ trình học tập"
-        title={mapName || "Roadmap học tập"}
-        accent="#3B82F6"
-        deep="#1D4ED8"
-        illustration="mindmap"
-        progress={progress}
-        progressLabel="Chủ điểm đã hoàn thành"
-        stats={[{ label: 'Chủ điểm', value: nodes.length }, { label: 'Mục con', value: edges.length }, { label: 'Đã hoàn thành', value: `${progress}%` }]}
-        action="Lưu lộ trình"
-        onAction={saveMap}
-      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <input

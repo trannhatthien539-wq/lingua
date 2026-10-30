@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Headphones, BookOpen, Mic, PenLine, ListChecks, Sparkles } from 'lucide-react'
-import ModuleHero from '../../components/ui/ModuleHero'
 import ModuleTabs from '../../components/ui/ModuleTabs'
 import ListeningView from './ListeningView'
 import ReadingView from './ReadingView'
@@ -11,8 +10,6 @@ import MockTestView from './MockTestView'
 import useSkillsProgress from '../../hooks/useSkillsProgress'
 import useMistakeBank from '../../hooks/useMistakeBank'
 import { consumePendingItem } from '../../services/deepLink'
-import { listeningLessons } from '../../data/skills/listening'
-import { readingPassages } from '../../data/skills/reading'
 
 const TABS = [
   { id: 'listening', label: 'Nghe', icon: Headphones },
@@ -38,30 +35,9 @@ export default function SkillsHub({ onStudyActivity, apiKey, user, onNavigate })
     if (pending.itemId && pending.type !== 'sentence') setFocusId(pending.itemId)
   }, [])
 
-  const listeningDone = Object.keys(progress.listening || {}).length
-  const readingDone = Object.keys(progress.reading || {}).length
-  const sentenceAccuracy = progress.sentence?.attempted
-    ? Math.round((progress.sentence.correct / progress.sentence.attempted) * 100)
-    : 0
-
   return (
     <div className="space-y-5">
-      <ModuleHero
-        icon={Headphones}
-        eyebrow="Luyện kỹ năng · B1"
-        title="Luyện 4 kỹ năng toàn diện"
-        accent="#06B6D4"
-        deep="#0891B2"
-        illustration="skills"
-        compact
-        progress={Math.round(((listeningDone + readingDone) / Math.max(1, listeningLessons.length + readingPassages.length)) * 100)}
-        progressLabel="Nghe + Đọc đã hoàn thành"
-        stats={[{ label: 'Bài nghe', value: `${listeningDone}/${listeningLessons.length}` }, { label: 'Bài đọc', value: `${readingDone}/${readingPassages.length}` }, { label: 'Luyện câu', value: `${sentenceAccuracy}%` }]}
-        action="Bắt đầu luyện nghe"
-        onAction={() => setTab('listening')}
-      >
-        <ModuleTabs items={TABS} value={tab} onChange={setTab} ariaLabel="Chọn kỹ năng luyện tập" />
-      </ModuleHero>
+      <ModuleTabs items={TABS} value={tab} onChange={setTab} ariaLabel="Chọn kỹ năng luyện tập" />
 
       {tab === 'listening' && (
         <ListeningView

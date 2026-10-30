@@ -6,21 +6,21 @@ import GoalRing from '../ui/GoalRing'
 import useTodayProgress from '../../hooks/useTodayProgress'
 import { navigationGroups, navigationItems } from '../../data/navigation'
 
-const ACTIVE_ITEM = 'border shadow-sm'
-const IDLE_ITEM = 'border border-transparent text-slate-600 hover:border-slate-200/80 hover:bg-slate-100/70 hover:text-slate-900 dark:text-slate-400 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.05] dark:hover:text-white'
+const ACTIVE_ITEM = 'border shadow-md font-bold'
+const IDLE_ITEM = 'border border-transparent text-slate-600 hover:border-slate-200/80 hover:bg-slate-100/70 hover:text-slate-900 dark:text-slate-400 dark:hover:border-white/[0.08] dark:hover:bg-white/[0.05] dark:hover:text-white font-medium'
 
 const activeStyle = {
-  borderColor: 'rgba(var(--accent), 0.30)',
-  backgroundColor: 'rgba(var(--accent), 0.10)',
+  borderColor: 'rgba(var(--accent), 0.35)',
+  background: 'linear-gradient(135deg, rgba(var(--accent), 0.14) 0%, rgba(var(--accent-2), 0.08) 100%)',
   color: 'rgb(var(--accent))',
-  boxShadow: '0 6px 18px -10px rgba(var(--accent), 0.45)',
+  boxShadow: '0 8px 20px -6px rgba(var(--accent), 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.4)',
 }
 
 function ActiveRail() {
   return (
     <span
-      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full"
-      style={{ backgroundColor: 'rgb(var(--accent))' }}
+      className="absolute left-0 top-1/2 h-5 w-[3.5px] -translate-y-1/2 rounded-r-full shadow-sm"
+      style={{ backgroundColor: 'rgb(var(--accent))', boxShadow: '0 0 10px rgba(var(--accent), 0.8)' }}
       aria-hidden="true"
     />
   )
@@ -37,20 +37,20 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
     <aside className="no-print hidden w-full shrink-0 flex-col border-b border-slate-200/80 bg-white/80 px-4 py-4 backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#0B0F17]/90 md:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-[272px] lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6 no-scrollbar">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <AppMark className="h-10 w-10 shrink-0 rounded-2xl drop-shadow-sm transition-transform duration-200 hover:scale-105" />
+          <AppMark className="h-10 w-10 shrink-0 rounded-2xl drop-shadow-md transition-transform duration-200 hover:scale-105" />
           <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: 'rgb(var(--accent))', boxShadow: '0 0 10px rgba(var(--accent), 0.7)' }}
-                />
-                <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                  lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
-                </p>
-              </div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">learning hub</p>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="h-2 w-2 rounded-full animate-pulse"
+                style={{ backgroundColor: 'rgb(var(--accent))', boxShadow: '0 0 10px rgba(var(--accent), 0.9)' }}
+              />
+              <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
+              </p>
             </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent))]">AI Learning Hub</p>
           </div>
+        </div>
           <button onClick={onToggleTheme} className="icon-btn h-9 w-9 border border-slate-200/80 dark:border-white/10" aria-label="Đổi giao diện">
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>

@@ -7,6 +7,7 @@ import {
   CalendarClock,
   Check,
   ChevronDown,
+  FileUp,
   LoaderCircle,
   MoreVertical,
   Pencil,
@@ -40,9 +41,8 @@ import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
 import SafeImage from "../../components/ui/SafeImage";
-import VocabularyDeckCard from "../../components/learning/VocabularyDeckCard";
-import VocabularyOverviewBanner from "../../components/learning/VocabularyOverviewBanner";
 import NewDeckCard from "../../components/learning/NewDeckCard";
+import VocabularyDeckCard from "../../components/learning/VocabularyDeckCard";
 import NewDeckModal from "../../components/learning/NewDeckModal";
 import { dateKey, isDue, isLeech } from "../../utils/srs";
 import { createThemeDeck, themeDecks } from "../../data/themeDecks";
@@ -1107,7 +1107,51 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         </section>
       ) : (
         <>
-          <VocabularyOverviewBanner libraryStats={libraryStats} streak={streak} onStudy={startLibraryStudy} onOpenTheme={() => setThemePickerOpen(true)} onImport={() => setDataModal("import")} onExport={() => setDataModal("export")} onTrash={openTrash} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+                Kho từ vựng
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {libraryStats.mastered}/{libraryStats.total} từ đã thuộc · {library.decks.length} bộ thẻ
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={startLibraryStudy}
+                disabled={!libraryStats.total}
+                className="btn-primary min-h-[40px] px-4 text-xs font-bold disabled:cursor-not-allowed"
+              >
+                <Sparkles size={15} />Ôn tất cả
+              </button>
+              <button
+                type="button"
+                onClick={() => setThemePickerOpen(true)}
+                className="btn-secondary min-h-[40px] px-3.5 text-xs font-semibold"
+              >
+                Bộ từ theo chủ đề
+              </button>
+              <button
+                type="button"
+                onClick={() => setDataModal("import")}
+                className="btn-secondary min-h-[40px] px-3 text-xs"
+                title="Nhập / Xuất thẻ"
+                aria-label="Nhập hoặc xuất thẻ"
+              >
+                <FileUp size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={openTrash}
+                className="btn-secondary min-h-[40px] px-3 text-xs"
+                title="Thùng rác"
+                aria-label="Thùng rác"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
 
           <section className="space-y-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2">

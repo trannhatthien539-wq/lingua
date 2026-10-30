@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, BadgeCheck, GraduationCap, Layers, Sparkles, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BadgeCheck, ClipboardCheck, GraduationCap, Layers, PlayCircle, Sparkles, Trash2 } from 'lucide-react'
 import CollapsibleCard from '../../components/ui/CollapsibleCard'
 import useSectionState from '../../hooks/useSectionState'
 import useGrammarProgress from '../../hooks/useGrammarProgress'
@@ -11,7 +11,6 @@ import { grammarConfusingPairs } from '../../data/grammarConfusingPairs'
 import { consumePendingItem } from '../../services/deepLink'
 import { dataService } from '../../services/dataService'
 import { toast } from '../../services/toast'
-import GrammarOverviewBanner from '../../components/learning/GrammarOverviewBanner'
 import GrammarLessonCard from '../../components/learning/GrammarLessonCard'
 
 const MISTAKE_DECK_TITLE = 'Ngữ pháp · câu hay sai'
@@ -139,15 +138,34 @@ export default function GrammarHub({ onStudyActivity, apiKey }) {
   return (
     <div className="space-y-4">
       {!examOpen && view !== 'lesson' && (
-        <GrammarOverviewBanner
-          completedCount={completedCount}
-          total={total}
-          percent={percent}
-          nextLesson={nextLesson}
-          mistakesCount={mistakes.length}
-          onStart={() => openLesson(initialLesson.id)}
-          onExam={() => setExamOpen(true)}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Chương trình ngữ pháp Cambridge
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {completedCount}/{total} bài đã hoàn thành ({percent}%){nextLesson ? ` · Bài tiếp theo: ${nextLesson.title}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openLesson(initialLesson.id)}
+              disabled={!nextLesson}
+              className="btn-primary min-h-[40px] px-4 text-xs font-bold"
+            >
+              <PlayCircle size={15} />
+              {completedCount ? 'Tiếp tục học' : 'Bắt đầu học'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setExamOpen(true)}
+              className="btn-secondary min-h-[40px] px-3.5 text-xs font-semibold"
+            >
+              <ClipboardCheck size={15} />Thi tổng hợp
+            </button>
+          </div>
+        </div>
       )}
 
       {view !== 'lesson' && <CollapsibleCard

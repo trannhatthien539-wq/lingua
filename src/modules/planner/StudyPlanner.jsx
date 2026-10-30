@@ -17,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
-import ModuleHero from "../../components/ui/ModuleHero";
 import useCloudDoc from "../../hooks/useCloudDoc";
 import { toast as notify } from "../../services/toast";
 import { userDocKeys } from "../../services/userDocService";
@@ -759,19 +758,6 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         />
       )}
       <div className="space-y-6">
-        <ModuleHero
-          icon={Target}
-          eyebrow="Todo & Lịch học"
-          title="Kế hoạch học hôm nay"
-          accent="#A855F7"
-          deep="#6D28D9"
-          illustration="planner"
-          progress={taskProgress}
-          progressLabel="Việc học hôm nay"
-          stats={[{ label: 'Đã hoàn thành', value: `${completedCount}/${tasks.length}` }, { label: 'Phiên tập trung', value: timer.sessions }, { label: 'Chế độ', value: timer.mode === 'focus' ? 'Tập trung' : 'Nghỉ' }]}
-          action={timer.isRunning ? 'Tạm dừng phiên học' : 'Bắt đầu phiên học'}
-          onAction={toggleTimer}
-        />
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="panel relative isolate overflow-hidden p-5">
             {audio.sound === "custom" && audio.customBackground?.mediaType === "video" && audio.customBackground.dataUrl && (
