@@ -28,7 +28,6 @@ function ActiveRail() {
 
 export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onToggleTheme, user, streak, onOpenAuth, onSignOut }) {
   const currentStreak = streak?.currentStreak || 0
-  const streakProgress = Math.min(100, Math.round((currentStreak / 7) * 100))
   const { today, target, percent: todayPercent } = useTodayProgress()
 
   const prefetch = (id) => onPrefetch?.(id)
@@ -38,18 +37,9 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <AppMark className="h-10 w-10 shrink-0 rounded-2xl drop-shadow-md transition-transform duration-200 hover:scale-105" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span
-                className="h-2 w-2 rounded-full animate-pulse"
-                style={{ backgroundColor: 'rgb(var(--accent))', boxShadow: '0 0 10px rgba(var(--accent), 0.9)' }}
-              />
-              <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
-              </p>
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[rgb(var(--accent))]">AI Learning Hub</p>
-          </div>
+          <p className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            lingua<span style={{ color: 'rgb(var(--accent))' }}>.</span>
+          </p>
         </div>
           <button onClick={onToggleTheme} className="icon-btn h-9 w-9 border border-slate-200/80 dark:border-white/10" aria-label="Đổi giao diện">
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
@@ -79,7 +69,6 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
                     {isActive && <ActiveRail />}
                     <NavIcon icon={item.icon} color={item.color} darkColor={item.colorDark} size="sm" active={isActive} />
                     <span className="min-w-0 truncate text-[13px] font-bold tracking-tight">{item.label}</span>
-                    {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />}
                   </button>
                 )
               })}
@@ -114,7 +103,7 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
       {activeTab !== 'home' && (
         <div className="panel-flat mt-auto hidden p-3.5 lg:block border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
         <div className="flex items-center justify-between gap-2">
-          <p className="eyebrow">Hôm nay</p>
+          <p className="eyebrow">Mục tiêu hôm nay</p>
           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300" title={`Chuỗi ${currentStreak} ngày`}>
             <Flame size={12} />
             {currentStreak > 0 ? `${currentStreak} ngày` : 'Bắt đầu'}
@@ -131,14 +120,10 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
               {today}/{target} <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">lượt ôn</span>
             </p>
             <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              {todayPercent >= 100 ? 'Đã đạt mục tiêu 🎉' : 'Mục tiêu hôm nay'}
+              {todayPercent >= 100 ? 'Đã đạt mục tiêu' : `Còn ${Math.max(0, target - today)} lượt`}
             </p>
           </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-white/10">
-          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${streakProgress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
-        </div>
-        <p className="mt-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Chuỗi tuần: {Math.min(currentStreak, 7)}/7 ngày</p>
         </div>
       )}
 
