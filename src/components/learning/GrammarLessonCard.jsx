@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { CheckCircle2, GraduationCap, PlayCircle } from "lucide-react";
 
-export default function GrammarLessonCard({ lesson, result, index, onOpen }) {
+export default memo(function GrammarLessonCard({ lesson, result, index, onOpen }) {
   const passed = Boolean(result?.passed);
   const questionCount = lesson.questions?.length || 0;
   const score = result?.total ? Math.round((result.best / result.total) * 100) : 0;
@@ -38,4 +39,4 @@ export default function GrammarLessonCard({ lesson, result, index, onOpen }) {
       </div>
     </article>
   );
-}
+});

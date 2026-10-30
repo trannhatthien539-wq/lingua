@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { BookOpen, GraduationCap, LoaderCircle, PlayCircle } from "lucide-react";
 import { bandFor } from "../../data/vstep/bands";
 
@@ -19,7 +20,7 @@ const LEVEL_STYLES = {
   },
 };
 
-export default function VstepExamCard({ exam, best, last, loading, onOpen }) {
+export default memo(function VstepExamCard({ exam, best, last, loading, onOpen }) {
   const theme = LEVEL_STYLES[exam.level] || LEVEL_STYLES.B1;
   const score = best?.average ? Math.max(0, Math.min(100, Math.round(best.average * 10))) : 0;
 
@@ -111,4 +112,4 @@ export default function VstepExamCard({ exam, best, last, loading, onOpen }) {
       </div>
     </article>
   );
-}
+});

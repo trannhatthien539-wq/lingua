@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { BookOpen, CheckCircle2, Eye, Sparkles } from "lucide-react";
 import SafeImage from "../ui/SafeImage";
 
@@ -10,7 +11,7 @@ const COVER_TONES = [
 
 const percentOf = (value, total) => (total ? Math.round((value / total) * 100) : 0);
 
-export default function VocabularyDeckCard({ deck, index, entry, onOpen, onStudy }) {
+export default memo(function VocabularyDeckCard({ deck, index, entry, onOpen, onStudy }) {
   const total = entry.total || 0;
   const mastered = entry.mastered || 0;
   const due = entry.due || 0;
@@ -93,4 +94,4 @@ export default function VocabularyDeckCard({ deck, index, entry, onOpen, onStudy
       </div>
     </article>
   );
-}
+});
