@@ -99,8 +99,8 @@ export default function Sidebar({ activeTab, onTabChange, onPrefetch, theme, onT
         })}
       </nav>
 
-      {/* Trang chủ đã có thẻ Daily Goal đầy đủ trong Hero; tránh lặp lại trên desktop. */}
-      {activeTab !== 'home' && (
+      {/* Trang chủ và Tiến độ đã có thẻ mục tiêu riêng; tránh lặp lại trên desktop. */}
+      {!['home', 'progress'].includes(activeTab) && (
         <div className="panel-flat mt-auto hidden p-3.5 lg:block border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <p className="eyebrow">Mục tiêu hôm nay</p>

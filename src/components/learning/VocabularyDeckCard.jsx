@@ -17,14 +17,15 @@ export default function VocabularyDeckCard({ deck, index, entry, onOpen, onStudy
   const percent = percentOf(mastered, total);
   const coverImage = entry.cards.find((card) => card.imageUrl)?.imageUrl;
   const coverTone = COVER_TONES[index % COVER_TONES.length];
-  const reviewLabel = due ? `${due} cần ôn hôm nay` : total ? "Đã lên lịch ôn" : "Chưa có từ";
+  const newCount = entry.cards.filter((card) => !card.status || card.status === "new").length;
+  const reviewLabel = due ? `${due} cần ôn hôm nay` : newCount ? `${newCount} từ mới` : total ? "Đã lên lịch ôn" : "Chưa có từ";
 
   return (
     <article className="panel group flex h-full flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-400/50 hover:shadow-[0_16px_36px_-10px_rgba(99,102,241,0.16)] dark:hover:border-indigo-500/40">
       <button
         type="button"
         onClick={() => onOpen(deck.id)}
-        className="relative block aspect-[21/9] w-full overflow-hidden text-left"
+        className="relative block aspect-[24/9] w-full overflow-hidden text-left"
         aria-label={`Mở bộ thẻ ${deck.title}`}
       >
         {coverImage ? (

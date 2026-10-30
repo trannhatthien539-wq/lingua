@@ -143,11 +143,13 @@ export default function TodayPlanCard({
 
   return (
     <section className="panel p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="eyebrow">Kế hoạch hôm nay</p>
-          <h3 className="mt-1 font-display text-lg font-bold">Hôm nay học gì?</h3>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-display text-base font-bold text-slate-900 dark:text-white">
+          Nhiệm vụ hôm nay
+        </h3>
+        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          {visibleRows.length} việc cần làm
+        </span>
       </div>
 
       {showGoal && target > 0 && (

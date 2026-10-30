@@ -38,21 +38,20 @@ export default function ApiSettings({ user, apiKey, setApiKey }) {
     <CollapsibleCard
       id="settings-api"
       icon={KeyRound}
-      eyebrow="Nhà cung cấp"
       title="Kết nối AI"
-      description="Sinh từ vựng, chấm chữa và gợi ý mindmap"
+      description="Dùng cho gia sư AI, sửa bài viết và gợi ý từ vựng"
       badge={
         <span className={`chip ${connected ? 'bg-okbg text-ok dark:bg-okdark dark:text-okfgdark' : 'bg-ink/[0.06] text-ink/60 dark:bg-white/10 dark:text-white/60'}`}>
-          {proxied && !apiKey?.trim() ? 'Máy chủ proxy' : connected ? 'Đã cấu hình' : 'Chưa kết nối'}
+          {proxied && !apiKey?.trim() ? 'Sẵn sàng (Proxy)' : connected ? 'Đã kết nối' : 'Chưa kết nối'}
         </span>
       }
       open={open}
       onToggle={toggleSection}
     >
-      <div className="max-w-xl space-y-5">
+      <div className="max-w-xl space-y-4">
         {proxied && (
           <p className="rounded-xl bg-okbg px-3 py-2 text-xs font-semibold leading-5 text-ok dark:bg-okdark dark:text-okfgdark">
-            Gemini có key dùng chung làm phương án dự phòng — không cần đăng nhập hoặc nhập key cá nhân.
+            Hệ thống có sẵn AI dự phòng. Bạn có thể nhập thêm API key cá nhân để tăng tốc và mở rộng hạn mức.
           </p>
         )}
         <label className="block">

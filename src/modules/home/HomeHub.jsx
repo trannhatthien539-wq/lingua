@@ -148,7 +148,7 @@ function CefrProgressCard({ stats, onNavigate }) {
     <section className="panel p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Lộ trình trình độ</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Lộ trình CEFR</p>
           <h3 className="mt-0.5 font-display text-lg font-black text-slate-900 dark:text-white">
             {currentLevel} → {nextLevel.id} · {nextLevel.label}
           </h3>
@@ -166,7 +166,7 @@ function CefrProgressCard({ stats, onNavigate }) {
         />
       </div>
       <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-        Hoàn thành 3 tiêu chí để mở khoá {nextLevel.id}
+        Đạt 3 tiêu chí để lên {nextLevel.id}
       </p>
 
       <div className="mt-3 divide-y divide-slate-100 dark:divide-white/[0.06]">
@@ -314,7 +314,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
                 className="btn-secondary min-h-[48px] px-5 text-sm font-bold"
               >
                 <GraduationCap size={18} />
-                <span>Luyện ngữ pháp</span>
+                <span>Ngữ pháp</span>
               </button>
             </div>
           </div>

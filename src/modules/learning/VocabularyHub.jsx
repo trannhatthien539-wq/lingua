@@ -41,7 +41,6 @@ import SpellerView from "../../components/learning/SpellerView";
 import MatchingView from "../../components/learning/MatchingView";
 import { sanitizeCard } from "../../utils/sanitizeCard";
 import SafeImage from "../../components/ui/SafeImage";
-import NewDeckCard from "../../components/learning/NewDeckCard";
 import VocabularyDeckCard from "../../components/learning/VocabularyDeckCard";
 import NewDeckModal from "../../components/learning/NewDeckModal";
 import { dateKey, isDue, isLeech } from "../../utils/srs";
@@ -1106,70 +1105,71 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
           </div>
         </section>
       ) : (
-        <>
+        <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Kho từ vựng
+              <h2 className="font-display text-lg font-black tracking-tight text-slate-900 dark:text-white sm:text-xl">
+                Bộ thẻ từ vựng
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {libraryStats.mastered}/{libraryStats.total} từ đã thuộc · {library.decks.length} bộ thẻ
+              <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                {library.decks.length} bộ · {libraryStats.total} từ · {libraryStats.mastered} đã thuộc{libraryStats.due > 0 ? ` · ${libraryStats.due} cần ôn` : ''}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={startLibraryStudy}
-                disabled={!libraryStats.total}
-                className="btn-primary min-h-[40px] px-4 text-xs font-bold disabled:cursor-not-allowed"
-              >
-                <Sparkles size={15} />Ôn tất cả
-              </button>
+              {libraryStats.due > 0 && (
+                <button
+                  type="button"
+                  onClick={startLibraryStudy}
+                  className="btn-primary h-10 px-3.5 text-xs font-bold shadow-md shadow-indigo-500/20"
+                >
+                  <Sparkles size={14} />
+                  <span>Ôn {Math.min(libraryStats.due, 50)} từ</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setThemePickerOpen(true)}
-                className="btn-secondary min-h-[40px] px-3.5 text-xs font-semibold"
+                className="btn-secondary h-10 px-3 text-xs font-semibold"
               >
-                Bộ từ theo chủ đề
+                <BookOpen size={14} />
+                <span>Chủ đề mẫu</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewDeckOpen(true)}
+                className="btn-secondary h-10 px-3 text-xs font-semibold"
+              >
+                <Plus size={14} />
+                <span>Tạo bộ thẻ</span>
               </button>
               <button
                 type="button"
                 onClick={() => setDataModal("import")}
-                className="btn-secondary min-h-[40px] px-3 text-xs"
+                className="btn-secondary h-10 px-2.5 text-xs"
                 title="Nhập / Xuất thẻ"
                 aria-label="Nhập hoặc xuất thẻ"
               >
-                <FileUp size={15} />
+                <FileUp size={14} />
               </button>
               <button
                 type="button"
                 onClick={openTrash}
-                className="btn-secondary min-h-[40px] px-3 text-xs"
+                className="btn-secondary h-10 px-2.5 text-xs"
                 title="Thùng rác"
                 aria-label="Thùng rác"
               >
-                <Trash2 size={15} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
 
-          <section className="space-y-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div>
-                <p className="eyebrow">Thư viện của bạn</p>
-                <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Bộ thẻ của bạn</h2>
-              </div>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{library.decks.length} bộ · {libraryStats.total} từ</span>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {library.decks.map((deck, index) => {
-                const entry = deckStats.get(deck.id) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
-                return <VocabularyDeckCard key={deck.id} deck={deck} index={index} entry={entry} onOpen={openDeck} onStudy={openStudy} />;
-              })}
-              <NewDeckCard onClick={() => setNewDeckOpen(true)} />
-            </div>
-          </section>
-        </>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {library.decks.map((deck, index) => {
+              const entry = deckStats.get(deck.id) || { total: 0, mastered: 0, due: 0, cards: [], dueCards: [] };
+              return <VocabularyDeckCard key={deck.id} deck={deck} index={index} entry={entry} onOpen={openDeck} onStudy={openStudy} />;
+            })}
+          </div>
+        </section>
       )}
       {newDeckOpen && <NewDeckModal value={deckInput} onChange={setDeckInput} onSubmit={addDeck} onClose={() => { setNewDeckOpen(false); setDeckInput(""); }} busy={loading === "new-deck"} />}
       {themePickerOpen && createPortal(

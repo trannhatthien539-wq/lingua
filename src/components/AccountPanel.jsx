@@ -12,7 +12,7 @@ export default function AccountPanel({ user, onOpenAuth, onSignOut }) {
         <div className="min-w-0">
           <p className="eyebrow">Tài khoản</p>
           <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-            {user ? 'Đã đăng nhập' : 'Đang dùng với tư cách Khách'}
+            {user ? 'Tài khoản đám mây' : 'Chưa đăng nhập'}
           </h2>
         </div>
       </div>
@@ -44,11 +44,11 @@ export default function AccountPanel({ user, onOpenAuth, onSignOut }) {
         </>
       ) : (
         <>
-          <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Đăng nhập để đồng bộ bộ thẻ, tiến độ, kế hoạch học và streak trên mọi thiết bị. Dữ liệu đang có trên thiết bị này vẫn được giữ nguyên và gộp vào tài khoản sau khi đăng nhập.
+          <p className="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Đăng nhập để tự động đồng bộ thẻ từ vựng, tiến độ và chuỗi học streak trên mọi thiết bị.
           </p>
-          <button onClick={onOpenAuth} className="btn-primary mt-4 w-full">
-            <LogIn size={17} />Đăng nhập / Tạo tài khoản
+          <button onClick={onOpenAuth} className="btn-primary mt-3 h-10 w-full text-xs font-bold">
+            <LogIn size={15} />Đăng nhập hoặc Tạo tài khoản
           </button>
         </>
       )}

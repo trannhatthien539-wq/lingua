@@ -62,6 +62,16 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
           <Sparkles size={15} className="text-emerald-500" />
           <span>Gia sư AI</span>
         </button>
+        <button
+          onClick={onOpenTutor}
+          onMouseEnter={onPrefetchTutor}
+          onFocus={onPrefetchTutor}
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-0 text-xs font-bold text-emerald-700 shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/50 hover:bg-emerald-500/15 active:translate-y-0 active:scale-[0.98] dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-400/15 sm:hidden"
+          aria-label="Mở gia sư AI"
+          title="Gia sư AI"
+        >
+          <Sparkles size={17} className="text-emerald-500" />
+        </button>
         <span className="hidden sm:block"><NotificationBell streak={streak} /></span>
         <button
           onClick={onOpenSearch}

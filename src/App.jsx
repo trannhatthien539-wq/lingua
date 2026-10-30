@@ -1,5 +1,4 @@
 import { Suspense, memo, useCallback, useEffect, useState } from 'react'
-import { Sparkles } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { auth, onAuthStateChanged, signOut } from './services/firebase'
 import { getGoogleRedirectResult, initializeNativeGoogleAuth, isNativeGoogleAuthEnabled } from './services/authService'
@@ -377,24 +376,6 @@ export default function App() {
           </div>
         </main>
         <MobileBottomNav activeTab={activeTab} onTabChange={selectTab} onPrefetch={preloadTab} />
-
-        {/* Gia sư AI: nút nổi kính thích ứng theo màu chủ đề.
-            Đặt trong lớp z-10 để mọi hộp thoại (z-90) luôn nằm trên nút này. */}
-        <button
-          type="button"
-          onClick={() => setTutorOpen(true)}
-          onMouseEnter={() => preload(AiTutorPanel)}
-          onFocus={() => preload(AiTutorPanel)}
-          className="no-print fixed bottom-20 right-4 z-40 grid h-12 w-12 place-items-center rounded-2xl border border-white/25 text-white backdrop-blur-xl transition hover:scale-105 active:scale-95 md:hidden"
-          style={{
-            background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))',
-            boxShadow: '0 8px 25px -4px rgba(var(--accent), 0.45)',
-          }}
-          aria-label="Mở gia sư AI"
-          title="Gia sư AI — hỏi bất cứ lúc nào"
-        >
-          <Sparkles size={22} />
-        </button>
       </div>
 
       {searchOpen && (

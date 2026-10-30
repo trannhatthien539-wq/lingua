@@ -177,9 +177,8 @@ export default function AccountDataPanel({ user, streak, reminderSettings, onUpd
     <CollapsibleCard
       id="settings-data"
       icon={Database}
-      eyebrow="Dữ liệu"
-      title="Đồng bộ, nhắc học & sao lưu"
-      description="Trạng thái đám mây, nhắc học hằng ngày, xuất và khôi phục dữ liệu"
+      title="Nhắc học & Sao lưu dữ liệu"
+      description="Lên lịch thông báo học tập, xuất và khôi phục dữ liệu"
       open={open}
       onToggle={toggleSection}
     >

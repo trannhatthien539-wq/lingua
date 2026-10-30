@@ -1,8 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, BookOpen, CalendarCheck, Flame, LoaderCircle, Sparkles, Star, Target, TrendingUp, Trophy } from "lucide-react";
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  CalendarCheck,
+  ChevronDown,
+  Flame,
+  LoaderCircle,
+  Sparkles,
+  Star,
+  Target,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import StudyHistoryChart from "../../components/ui/StudyHistoryChart";
 import TodayPlanCard from "../../components/TodayPlanCard";
 import MistakeBankCard from "../../components/MistakeBankCard";
+import CollapsibleCard from "../../components/ui/CollapsibleCard";
+import SectionHeader from "../../components/ui/SectionHeader";
+import useSectionState from "../../hooks/useSectionState";
 import useGrammarProgress from "../../hooks/useGrammarProgress";
 import useSkillsProgress from "../../hooks/useSkillsProgress";
 import useVstepProgress from "../../hooks/useVstepProgress";
@@ -32,10 +48,23 @@ const ACHIEVEMENT_ICONS = {
 function StatTile({ label, value, note }) {
   return (
     <div className="panel-flat p-3.5">
-      <p className="text-xs font-semibold text-ink/60 dark:text-white/60">{label}</p>
-      <p className="metric mt-1.5 text-2xl">{value}</p>
-      {note && <p className="mt-0.5 text-xs text-ink/50 dark:text-white/50">{note}</p>}
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="metric mt-1.5 text-2xl text-slate-900 dark:text-white">{value}</p>
+      {note && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{note}</p>}
     </div>
+  );
+}
+
+function AchievementItem({ achievement }) {
+  const Icon = ACHIEVEMENT_ICONS[achievement.icon] || Award;
+  return (
+    <li className={`rounded-xl border p-3 transition-colors ${achievement.earned ? "border-amber-500/30 bg-amber-500/[0.06]" : "border-slate-200/70 opacity-70 dark:border-white/[0.08]"}`}>
+      <span className={`grid h-9 w-9 place-items-center rounded-lg ${achievement.earned ? "border border-amber-500/30 bg-amber-500/20 text-amber-600 dark:text-amber-400" : "bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-white/50"}`}>
+        <Icon size={17} />
+      </span>
+      <p className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-200">{achievement.label}</p>
+      <p className="mt-0.5 text-xs leading-4 text-slate-500 dark:text-slate-400">{achievement.detail}</p>
+    </li>
   );
 }
 
@@ -48,7 +77,8 @@ export default function ProgressHub({ user, streak, onNavigate }) {
   const [days, setDays] = useState(() => getHistoryDays());
   // Một query duy nhất cho toàn bộ thẻ, dùng chung với Trang chủ/widget.
   const { cards, loading } = useVocabularyCards({ user });
-  const [customGoal, setCustomGoal] = useState("");
+  const [showUnearned, setShowUnearned] = useState(false);
+  const [statsOpen, toggleStats] = useSectionState("progress-detailed-stats", false);
 
   useEffect(() => {
     let active = true;
@@ -77,116 +107,66 @@ export default function ProgressHub({ user, streak, onNavigate }) {
   );
   const { stats, xp, achievements } = summary;
   const level = levelFor(xp);
-  const earnedCount = achievements.filter((achievement) => achievement.earned).length;
-  const goalPercent = target ? Math.min(100, Math.round((stats.goal.today / target) * 100)) : 0;
+  const earned = achievements.filter((achievement) => achievement.earned);
+  const unearned = achievements.filter((achievement) => !achievement.earned);
   const last14 = useMemo(() => recentHistory(14, days), [days]);
   const bestWeek = last14.reduce((best, day) => Math.max(best, day.reviewed), 0);
 
   return (
     <div className="space-y-5">
-      <div className="no-print flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 dark:text-white">Toàn cảnh hành trình học</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Cấp {level.level} · {xp} XP · {earnedCount}/{achievements.length} huy hiệu</p>
+      <SectionHeader
+        title="Tiến độ học tập"
+        meta={`${earned.length}/${achievements.length} huy hiệu · ${stats.activeDays} ngày có học`}
+        action={
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="btn-secondary h-10 px-3.5 text-xs font-semibold"
+          >
+            <Award size={15} />
+            Xuất báo cáo
+          </button>
+        }
+      />
+
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 text-[11px] font-bold text-slate-600 dark:text-slate-300">Cấp {level.level}</span>
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+          <div
+            className="h-full rounded-full bg-indigo-500 transition-all duration-500"
+            style={{ width: `${level.percent}%` }}
+          />
         </div>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="btn-secondary min-h-[40px] px-3.5 text-xs font-semibold"
-        >
-          <Award size={15} />Xuất báo cáo
-        </button>
+        <span className="shrink-0 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          {level.nextAt ? `Còn ${level.toNext} XP` : "Cấp cao nhất"}
+        </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TodayPlanCard
-          cards={cards}
-          target={target}
-          goalToday={stats.goal.today}
-          streak={streak}
-          onNavigate={onNavigate}
-        />
-        <section className="panel p-5 print-report">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Mục tiêu hôm nay</p>
-              <h3 className="mt-1 font-display text-lg font-bold">{stats.goal.today}/{target} lượt ôn</h3>
-            </div>
-            <span className={`chip ${goalPercent >= 100 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" : "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25"}`}>
-              {goalPercent}%
-            </span>
-          </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${goalPercent}%`, background: goalPercent >= 100 ? '#10B981' : 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
-          </div>
-          <p className="mt-3 text-xs text-ink/60 dark:text-white/60">
-            {goalPercent >= 100
-              ? "Đã đạt mục tiêu hôm nay. Nghỉ ngơi hoặc học thêm cho vui nhé!"
-              : `Còn ${Math.max(0, target - stats.goal.today)} lượt ôn nữa để đạt mục tiêu.`}
-          </p>
-          <div className="no-print mt-4 flex flex-wrap items-center gap-2">
-            {GOAL_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                onClick={() => setGoal(preset)}
-                aria-pressed={target === preset}
-                className={`min-h-[40px] rounded-xl px-3.5 text-xs font-bold transition ${target === preset ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/10"}`}
-              >
-                {preset} lượt/ngày
-              </button>
-            ))}
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                const value = Number(customGoal);
-                if (!value || value <= 0) return;
-                setGoal(value);
-                setCustomGoal("");
-              }}
-              className="flex items-center gap-2"
-            >
-              <input
-                value={customGoal}
-                onChange={(event) => setCustomGoal(event.target.value)}
-                inputMode="numeric"
-                placeholder="Tùy chỉnh"
-                className="h-10 w-24 rounded-xl border border-ink/10 bg-transparent px-3 text-xs outline-none dark:border-white/15"
-                aria-label="Mục tiêu tùy chỉnh"
-              />
-              <button className="btn-ghost h-10 px-3 text-xs">Lưu</button>
-            </form>
-          </div>
-        </section>
+      <TodayPlanCard
+        cards={cards}
+        target={target}
+        goalToday={stats.goal.today}
+        onNavigate={onNavigate}
+        onSetGoal={setGoal}
+        goalPresets={GOAL_PRESETS}
+      />
 
-        <section className="panel p-5 print-report">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="eyebrow">Cấp độ</p>
-              <h3 className="mt-1 font-display text-lg font-bold">Cấp {level.level} · {level.title}</h3>
-            </div>
-            <span className="chip bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 font-bold">{xp} XP</span>
-          </div>
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${level.percent}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }} />
-          </div>
-          <p className="mt-3 text-xs text-ink/60 dark:text-white/60">
-            {level.nextAt ? `Còn ${level.toNext} XP để lên cấp ${level.level + 1}.` : "Bạn đã đạt cấp cao nhất — quá đỉnh!"}
-          </p>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl bg-ink/[0.04] p-3 dark:bg-white/[0.06]">
-              <p className="metric text-lg">{stats.streak.current}</p>
-              <p className="text-xs text-ink/55 dark:text-white/55">Chuỗi ngày</p>
-            </div>
-            <div className="rounded-xl bg-ink/[0.04] p-3 dark:bg-white/[0.06]">
-              <p className="metric text-lg">{stats.activeDays}</p>
-              <p className="text-xs text-ink/55 dark:text-white/55">Ngày có học</p>
-            </div>
-            <div className="rounded-xl bg-ink/[0.04] p-3 dark:bg-white/[0.06]">
-              <p className="metric text-lg">{stats.accuracy}%</p>
-              <p className="text-xs text-ink/55 dark:text-white/55">Tỷ lệ nhớ</p>
-            </div>
-          </div>
-        </section>
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="panel-flat p-3 text-center">
+          <Flame size={16} className="mx-auto text-amber-500" />
+          <p className="metric mt-1 text-lg text-slate-900 dark:text-white">{stats.streak.current}</p>
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Chuỗi ngày</p>
+        </div>
+        <div className="panel-flat p-3 text-center">
+          <CalendarCheck size={16} className="mx-auto text-indigo-500" />
+          <p className="metric mt-1 text-lg text-slate-900 dark:text-white">{stats.activeDays}</p>
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Ngày có học</p>
+        </div>
+        <div className="panel-flat p-3 text-center">
+          <Target size={16} className="mx-auto text-emerald-500" />
+          <p className="metric mt-1 text-lg text-slate-900 dark:text-white">{stats.accuracy}%</p>
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Tỷ lệ nhớ</p>
+        </div>
       </div>
 
       <MistakeBankCard />
@@ -195,32 +175,63 @@ export default function ProgressHub({ user, streak, onNavigate }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Trophy size={18} className="text-amber-500" />
-            <h3 className="font-display text-lg font-bold">Huy hiệu ({earnedCount}/{achievements.length})</h3>
+            <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+              Huy hiệu <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">({earned.length}/{achievements.length})</span>
+            </h3>
           </div>
-          <p className="text-xs text-ink/55 dark:text-white/55">Mở khoá bằng cách học đều mỗi ngày</p>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Mở khoá bằng cách học đều mỗi ngày</p>
         </div>
-        <ul className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
-          {achievements.map((achievement) => {
-            const Icon = ACHIEVEMENT_ICONS[achievement.icon] || Award;
-            return (
-              <li key={achievement.id} className={`rounded-xl border p-3 transition-colors ${achievement.earned ? "border-amber-500/30 bg-amber-500/[0.06]" : "border-ink/[0.08] opacity-60 dark:border-white/[0.08]"}`}>
-                <span className={`grid h-9 w-9 place-items-center rounded-lg ${achievement.earned ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30" : "bg-ink/[0.06] text-ink/50 dark:bg-white/10 dark:text-white/50"}`}>
-                  <Icon size={17} />
-                </span>
-                <p className="mt-2 text-sm font-bold">{achievement.label}</p>
-                <p className="mt-0.5 text-xs leading-4 text-ink/60 dark:text-white/60">{achievement.detail}</p>
-              </li>
-            );
-          })}
-        </ul>
+
+        {earned.length > 0 ? (
+          <ul className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+            {earned.map((achievement) => (
+              <AchievementItem key={achievement.id} achievement={achievement} />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+            Chưa có huy hiệu nào. Học bài đầu tiên để bắt đầu mở khoá.
+          </p>
+        )}
+
+        {unearned.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowUnearned((value) => !value)}
+              className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+              aria-expanded={showUnearned}
+            >
+              {showUnearned ? "Ẩn huy hiệu chưa mở" : `Xem ${unearned.length} huy hiệu chưa mở`}
+              <ChevronDown size={14} className={`transition-transform ${showUnearned ? "rotate-180" : ""}`} />
+            </button>
+            {showUnearned && (
+              <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                {unearned.map((achievement) => (
+                  <AchievementItem key={achievement.id} achievement={achievement} />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
       </section>
 
-      <section className="panel p-5 print-report">
-        <p className="eyebrow">Thống kê gộp</p>
+      <CollapsibleCard
+        id="progress-detailed-stats"
+        icon={BarChart3}
+        title="Thống kê chi tiết"
+        description="14 chỉ số gộp từ mọi module và lịch sử 14 ngày."
+        badge={<span className="chip bg-slate-100 text-[11px] font-bold text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">{stats.reviewed} lượt ôn</span>}
+        open={statsOpen}
+        onToggle={toggleStats}
+        className="print-report"
+      >
         {loading ? (
-          <p className="mt-3 flex items-center gap-2 text-sm text-ink/60 dark:text-white/60"><LoaderCircle size={15} className="animate-spin" />Đang tải dữ liệu từ vựng…</p>
+          <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <LoaderCircle size={15} className="animate-spin" />Đang tải dữ liệu từ vựng…
+          </p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
             <StatTile label="Tổng lượt ôn" value={stats.reviewed} note={`7 ngày: ${stats.last7.reviewed}`} />
             <StatTile label="Từ đã thuộc" value={stats.cards.mastered} note={`/${stats.cards.total} thẻ`} />
             <StatTile label="Cần ôn hôm nay" value={stats.cards.due} note="thẻ đến hạn" />
@@ -237,13 +248,17 @@ export default function ProgressHub({ user, streak, onNavigate }) {
             <StatTile label="Từ đã học" value={Math.max(0, stats.cards.total - stats.cards.fresh)} note={`${stats.cards.fresh} từ chưa học`} />
           </div>
         )}
-        <p className="mt-4 text-xs text-ink/55 dark:text-white/55">Ngày tốt nhất trong 2 tuần gần đây: {bestWeek} lượt ôn.</p>
-      </section>
 
-      <section className="panel p-5 print-report">
-        <p className="eyebrow">Lịch sử học</p>
-        <div className="mt-3"><StudyHistoryChart days={14} /></div>
-      </section>
+        <div className="mt-5 border-t border-slate-200/70 pt-4 dark:border-white/[0.08]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Lịch sử 14 ngày</p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Ngày tốt nhất: {bestWeek} lượt ôn</p>
+          </div>
+          <div className="mt-3">
+            <StudyHistoryChart days={14} />
+          </div>
+        </div>
+      </CollapsibleCard>
     </div>
   );
 }

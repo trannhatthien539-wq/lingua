@@ -772,17 +772,16 @@ export default function StudyPlanner({ onStudyActivity, user }) {
             )}
             <div className="flex items-start justify-between">
               <div>
-                <p className="eyebrow">Danh sách hôm nay</p>
-                <h2 className="mt-1 font-display text-lg font-bold">
-                  Việc học hôm nay
+                <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">
+                  Danh sách việc cần làm
                 </h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {completedCount}/{tasks.length} đã hoàn thành
+                </p>
               </div>
               <div className="text-right">
-                <p className="font-display text-2xl font-bold">
+                <p className="font-display text-2xl font-black text-indigo-600 dark:text-indigo-400">
                   {taskProgress}%
-                </p>
-                <p className="text-xs text-ink/40 dark:text-white/40">
-                  {completedCount}/{tasks.length} hoàn thành
                 </p>
               </div>
             </div>
