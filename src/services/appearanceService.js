@@ -156,22 +156,52 @@ export const WALLPAPER_PRESETS = [
     thumbnail: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=300&auto=format&fit=crop',
   },
   {
+    id: 'study-desk',
+    name: 'Bàn học tối giản',
+    url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'library',
+    name: 'Thư viện Cozy',
+    url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=300&auto=format&fit=crop',
+  },
+  {
     id: 'cyberpunk',
     name: 'Đêm Cyberpunk',
     url: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=1920&auto=format&fit=crop',
     thumbnail: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=300&auto=format&fit=crop',
   },
   {
-    id: 'study',
-    name: 'Góc học tập Cozy',
-    url: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0d0?q=80&w=1920&auto=format&fit=crop',
-    thumbnail: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0d0?q=80&w=300&auto=format&fit=crop',
+    id: 'forest',
+    name: 'Rừng thông sương',
+    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'sunset',
+    name: 'Hoàng hôn biển',
+    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=300&auto=format&fit=crop',
   },
   {
     id: 'fluid',
-    name: 'Lụa kính Apple Silk',
+    name: 'Lụa kính Apple',
     url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop',
     thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'lofi-cafe',
+    name: 'Quán cà phê Lofi',
+    url: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?q=80&w=300&auto=format&fit=crop',
+  },
+  {
+    id: 'gradient',
+    name: 'Sắc màu Gradient',
+    url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1920&auto=format&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=300&auto=format&fit=crop',
   },
 ]
 
@@ -295,8 +325,14 @@ export const normalizeAppearance = (input) => {
   const font = FONTS.find((item) => item.id === input?.fontId)
   const scale = FONT_SCALES.find((item) => item.id === input?.fontScale)
 
+  let bgImage = typeof input?.background?.image === 'string' && input.background.image.trim() ? input.background.image : null
+  // Tự động thay thế link ảnh Unsplash cũ đã bị 404 sang ảnh bàn học/thư viện hợp lệ
+  if (bgImage && bgImage.includes('photo-1513475382585-d06e58bcb0d0')) {
+    bgImage = 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=1920&auto=format&fit=crop'
+  }
+
   const background = {
-    image: typeof input?.background?.image === 'string' && input.background.image.trim() ? input.background.image : null,
+    image: bgImage,
     blur: typeof input?.background?.blur === 'number' ? clamp(input.background.blur, 0, 30) : defaultBackground.blur,
     overlay: typeof input?.background?.overlay === 'number' ? clamp(input.background.overlay, 0, 85) : defaultBackground.overlay,
     transparency: typeof input?.background?.transparency === 'number' ? clamp(input.background.transparency, 15, 95) : defaultBackground.transparency,

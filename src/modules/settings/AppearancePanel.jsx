@@ -260,8 +260,16 @@ export default function AppearancePanel({ themeMode, onThemeMode }) {
                   <img
                     src={preset.thumbnail}
                     alt={preset.name}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
                     loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      if (e.currentTarget.parentElement) {
+                        e.currentTarget.parentElement.classList.add('bg-gradient-to-br', 'from-indigo-600', 'to-slate-800');
+                      }
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-1.5 flex flex-col justify-end">
                     <span className="truncate text-[10px] font-bold text-white">{preset.name}</span>

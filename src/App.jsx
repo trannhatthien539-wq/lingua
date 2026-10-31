@@ -122,6 +122,26 @@ export default function App() {
   const activeItem = navigationItems.find((item) => item.id === activeTab) || navigationItems[0]
   const ActiveModule = modules[activeTab]
 
+  const bgImage = appearance?.background?.image
+  const bgBlur = appearance?.background?.blur ?? 0
+  const bgOverlay = appearance?.background?.overlay ?? 25
+  const [bgFailed, setBgFailed] = useState(false)
+
+  useEffect(() => {
+    if (!bgImage) {
+      setBgFailed(false)
+      return
+    }
+    setBgFailed(false)
+    const img = new Image()
+    img.referrerPolicy = 'no-referrer'
+    img.crossOrigin = 'anonymous'
+    img.src = bgImage
+    img.onerror = () => setBgFailed(true)
+  }, [bgImage])
+
+  const hasValidBg = Boolean(bgImage) && !bgFailed
+
   const selectTab = useCallback((tab) => {
     navigate(tabPaths[tab] || tabPaths.home)
   }, [navigate])
@@ -289,19 +309,15 @@ export default function App() {
     )
   }
 
-  const bgImage = appearance?.background?.image
-  const bgBlur = appearance?.background?.blur ?? 0
-  const bgOverlay = appearance?.background?.overlay ?? 25
-
   return (
-    <div className={`relative min-h-screen ${bgImage ? 'bg-transparent' : 'app-ambient bg-[#F8FAFC] dark:bg-[#0B0F17]'} pt-[env(safe-area-inset-top)] text-slate-900 transition-colors dark:text-white`}>
+    <div className={`relative min-h-screen ${hasValidBg ? 'bg-transparent' : 'app-ambient bg-[#F8FAFC] dark:bg-[#0B0F17]'} pt-[env(safe-area-inset-top)] text-slate-900 transition-colors dark:text-white`}>
       {isCapacitor() && <WidgetSummaryBridge streak={streak} user={user} />}
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-slate-900 focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl">
         Bỏ qua điều hướng
       </a>
 
       {/* Lớp hiển thị ảnh nền tuỳ chỉnh riêng biệt */}
-      {bgImage && (
+      {hasValidBg && (
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
           <div
             className="absolute inset-0 bg-cover bg-center transition-all duration-700"
