@@ -9,6 +9,7 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
   const parts = exam.reading?.parts || [];
   const [activePartId, setActivePartId] = useState(parts[0]?.id);
   const [activePassageId, setActivePassageId] = useState(parts[0]?.passages?.[0]?.id);
+  const [mobileTab, setMobileTab] = useState("passage"); // 'passage' | 'questions'
   const part = parts.find((item) => item.id === activePartId) || parts[0];
   const passages = part?.passages || [];
   const passage = passages.find((item) => item.id === activePassageId) || passages[0];
@@ -20,10 +21,20 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
   const ordered = examQuestions(exam, "reading");
   const numberOf = (questionId) => ordered.findIndex((item) => item.id === questionId) + 1 + startIndex;
 
+  const passageQuestions = passage.questions || [];
+  const passageTotal = passageQuestions.length;
+  const passageDone = passageQuestions.filter((q) => answers[q.id]).length;
+
   const selectPart = (partId) => {
     const next = parts.find((item) => item.id === partId);
     setActivePartId(partId);
     setActivePassageId(next?.passages?.[0]?.id);
+    setMobileTab("passage");
+  };
+
+  const selectPassage = (passageId) => {
+    setActivePassageId(passageId);
+    setMobileTab("passage");
   };
 
   return (
@@ -53,7 +64,7 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
             <button
               key={entry.id}
               type="button"
-              onClick={() => setActivePassageId(entry.id)}
+              onClick={() => selectPassage(entry.id)}
               aria-pressed={entry.id === passage.id}
               className={`min-h-[40px] min-w-max rounded-xl px-3 text-xs font-bold transition ${entry.id === passage.id ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "border border-ink/[0.1] text-ink/65 hover:bg-ink/[0.04] dark:border-white/[0.1] dark:text-white/65"}`}
             >
@@ -68,8 +79,34 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
         <p className="mt-1 text-sm leading-6 text-ink/70 dark:text-white/70">{part.instruction}</p>
       </section>
 
+      {/* Điều hướng chuyển đổi Bài đọc / Câu hỏi trên điện thoại */}
+      <div className="sticky top-14 z-20 flex rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-md backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95 xl:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileTab("passage")}
+          className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition ${
+            mobileTab === "passage"
+              ? "bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          }`}
+        >
+          📖 Bài đọc
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("questions")}
+          className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition ${
+            mobileTab === "questions"
+              ? "bg-slate-900 text-white shadow-xs dark:bg-white dark:text-slate-900"
+              : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          }`}
+        >
+          ✍️ Trả lời câu hỏi ({passageDone}/{passageTotal})
+        </button>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-2">
-        <section className="panel h-fit p-4 sm:p-5">
+        <section className={`panel h-fit p-4 sm:p-5 ${mobileTab === "questions" ? "hidden xl:block" : "block"}`}>
           <div className="flex items-center gap-2">
             <BookMarked size={16} className="text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-display text-base font-bold">{passage.title}</h3>
@@ -87,10 +124,28 @@ export default function ReadingSection({ exam, answers = {}, onAnswer, mode = "e
               <p className="mt-2 text-xs text-ink/45 dark:text-white/45">Bấm biểu tượng ＋ để lưu từ vào bộ thẻ cá nhân.</p>
             </details>
           )}
+
+          {/* Nút chuyển nhanh sang câu hỏi trên mobile */}
+          <button
+            type="button"
+            onClick={() => setMobileTab("questions")}
+            className="btn-primary mt-4 w-full justify-center py-2.5 text-xs font-bold shadow-md shadow-indigo-500/20 xl:hidden"
+          >
+            <span>Sang phần câu hỏi ({passageDone}/{passageTotal}) →</span>
+          </button>
         </section>
 
-        <section className="panel p-4 sm:p-5">
-          <p className="eyebrow">Câu hỏi</p>
+        <section className={`panel p-4 sm:p-5 ${mobileTab === "passage" ? "hidden xl:block" : "block"}`}>
+          <div className="flex items-center justify-between">
+            <p className="eyebrow">Câu hỏi</p>
+            <button
+              type="button"
+              onClick={() => setMobileTab("passage")}
+              className="text-xs font-bold text-indigo-600 underline hover:text-indigo-500 dark:text-indigo-400 xl:hidden"
+            >
+              ← Xem lại bài đọc
+            </button>
+          </div>
           <ol className="mt-3 space-y-3">
             {(passage.questions || []).map((question) => {
               const detail = reviewByQuestion.get(question.id);

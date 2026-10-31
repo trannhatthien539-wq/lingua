@@ -73,14 +73,42 @@ export default function FlashcardModal({
   const [history, setHistory] = useState(() => initialSession?.history || []);
   const [speaking, setSpeaking] = useState("");
   const [imageError, setImageError] = useState(false);
+  const [autoPronounce, setAutoPronounce] = useState(() => {
+    try {
+      return localStorage.getItem("lingua_flashcard_autopronounce") !== "false";
+    } catch {
+      return true;
+    }
+  });
 
   const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const flipTimer = useRef(null);
   const currentCard = queue[index];
 
   const totalCards = queue.length;
   const isComplete = totalCards > 0 && index >= totalCards;
   const progressPercent = totalCards ? Math.min(100, Math.round((index / totalCards) * 100)) : 0;
+
+  const toggleAutoPronounce = useCallback(() => {
+    setAutoPronounce((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("lingua_flashcard_autopronounce", String(next));
+      } catch {
+        // Ignored
+      }
+      toast.success(next ? "Đã bật tự động phát âm khi lật thẻ" : "Đã tắt tự động phát âm");
+      return next;
+    });
+  }, []);
+
+  // Tự động phát âm khi lật thẻ sang mặt sau (nếu bật chế độ auto-pronounce)
+  useEffect(() => {
+    if (flipped && autoPronounce && currentCard?.word && !locked) {
+      handleSpeak(currentCard.word, `${currentCard.id}-auto`);
+    }
+  }, [flipped, autoPronounce, currentCard?.word, currentCard?.id, locked]);
 
   // Dọn dẹp âm thanh & timer khi component unmount
   useEffect(() => {
@@ -244,21 +272,43 @@ export default function FlashcardModal({
     await restorePromise;
   }, [advanceAfterFlip, history, index, locked, onUpdateCard]);
 
-  // Cử chỉ vuốt trên màn hình cảm ứng di động
+  // Cử chỉ vuốt trên màn hình cảm ứng di động (Swipe: Phải = Đã thuộc, Trái = Chưa nhớ, Chạm/Vuốt = Lật)
   const handleTouchStart = (event) => {
     touchStartX.current = event.changedTouches[0]?.clientX ?? null;
+    touchStartY.current = event.changedTouches[0]?.clientY ?? null;
   };
 
   const handleTouchEnd = (event) => {
-    if (touchStartX.current === null) return;
-    const distance = event.changedTouches[0].clientX - touchStartX.current;
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const diffX = event.changedTouches[0].clientX - touchStartX.current;
+    const diffY = event.changedTouches[0].clientY - touchStartY.current;
     touchStartX.current = null;
-    if (locked || Math.abs(distance) < 50) return;
+    touchStartY.current = null;
 
-    if (distance > 0) {
-      goPrevious();
-    } else if (distance < 0 && index < queue.length - 1) {
-      advanceAfterFlip(() => setIndex((curr) => curr + 1));
+    if (locked) return;
+
+    // Vuốt dọc xuống mạnh từ đỉnh để đóng trên điện thoại
+    if (diffY > 120 && Math.abs(diffX) < 60) {
+      onClose?.();
+      return;
+    }
+
+    // Vuốt ngang cảm ứng
+    if (Math.abs(diffX) >= 50 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(12);
+      }
+      if (flipped) {
+        // Mặt sau: vuốt phải = Đã thuộc, vuốt trái = Chưa nhớ
+        if (diffX > 0) {
+          rateCard("mastered");
+        } else {
+          rateCard("again");
+        }
+      } else {
+        // Mặt trước: vuốt ngang = lật thẻ sang mặt sau
+        setFlipped(true);
+      }
     }
   };
 
@@ -282,6 +332,9 @@ export default function FlashcardModal({
         event.preventDefault();
         const ratingMap = { "1": "again", "2": "soon", "3": "mastered" };
         rateCard(ratingMap[event.key]);
+      } else if (event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        toggleAutoPronounce();
       } else if (event.key.toLowerCase() === "r" && currentCard) {
         event.preventDefault();
         handleSpeak(
@@ -293,7 +346,7 @@ export default function FlashcardModal({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [currentCard, flipped, goPrevious, isComplete, locked, onClose, rateCard]);
+  }, [currentCard, flipped, goPrevious, isComplete, locked, onClose, rateCard, toggleAutoPronounce]);
 
   // 2. EDGE CASE 1: Bộ thẻ rỗng (Empty State)
   if (!cards || cards.length === 0) {
@@ -417,8 +470,11 @@ export default function FlashcardModal({
       className="fixed inset-0 z-[90] flex flex-col justify-between overflow-y-auto bg-slate-950/85 p-4 text-slate-900 backdrop-blur-xl dark:text-white sm:p-7"
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-between">
+        {/* Thanh kéo vuốt đóng trên điện thoại */}
+        <div className="mx-auto mb-2 h-1 w-12 rounded-full bg-white/25 sm:hidden" aria-hidden="true" />
+
         {/* Header điều hướng & Phím tắt */}
-        <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-3.5">
+        <header className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 sm:gap-4 sm:pb-3.5">
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-md border border-white/20 bg-white/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-300">
@@ -433,12 +489,30 @@ export default function FlashcardModal({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Nút bật/tắt Tự động phát âm khi lật thẻ */}
+            <button
+              type="button"
+              onClick={toggleAutoPronounce}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-2 text-xs font-bold backdrop-blur-md transition sm:px-3 ${
+                autoPronounce
+                  ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-sm"
+                  : "border-white/15 bg-white/10 text-slate-400 hover:bg-white/15 hover:text-white"
+              }`}
+              title="Tự động phát âm khi lật thẻ (Phím A)"
+            >
+              <Volume2 size={15} className={autoPronounce ? "text-emerald-400" : ""} />
+              <span className="hidden sm:inline">Tự đọc</span>
+              <kbd className="hidden rounded bg-black/30 px-1 py-0.5 font-mono text-[10px] sm:inline-block">
+                A
+              </kbd>
+            </button>
+
             <button
               type="button"
               disabled={index === 0 || !history.length}
               onClick={goPrevious}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-slate-200 backdrop-blur-md transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-slate-200 backdrop-blur-md transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30 sm:px-3"
               title="Quay lại thẻ trước (Phím Z hoặc phím Mũi tên trái)"
             >
               <ChevronLeft size={15} />
@@ -571,19 +645,22 @@ export default function FlashcardModal({
               </div>
 
               <p className="text-xs text-slate-400">
-                Nhấn phím{" "}
-                <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
-                  1
-                </kbd>
-                ,{" "}
-                <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
-                  2
-                </kbd>
-                ,{" "}
-                <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
-                  3
-                </kbd>{" "}
-                để đánh giá tốc độ nhớ
+                <span className="hidden sm:inline">
+                  Nhấn phím{" "}
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
+                    1
+                  </kbd>
+                  ,{" "}
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
+                    2
+                  </kbd>
+                  ,{" "}
+                  <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-slate-700 dark:border-white/20 dark:bg-white/10 dark:text-slate-300">
+                    3
+                  </kbd>{" "}
+                  hoặc{" "}
+                </span>
+                <span>Vuốt phải 👉 Đã thuộc · Vuốt trái 👈 Chưa nhớ</span>
               </p>
             </div>
           </div>
