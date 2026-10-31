@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { LogIn, LogOut, Moon, Sun, X } from 'lucide-react';
+import { LogIn, LogOut, Moon, Search, Sun, X } from 'lucide-react';
 import AppMark from './AppMark';
 import NotificationBell from './NotificationBell';
 import SyncStatusBadge from './ui/SyncStatusBadge';
 
-export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, theme, onToggleTheme }) {
+export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, theme, onToggleTheme, onOpenSearch }) {
   const [open, setOpen] = useState(false);
   const initials = (user?.displayName || user?.email || 'Guest').trim().slice(0, 1).toUpperCase();
 
@@ -23,6 +23,15 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {onOpenSearch && (
+            <button
+              onClick={onOpenSearch}
+              className="grid h-10 w-10 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/[0.08] dark:hover:text-white"
+              aria-label="Tìm kiếm nhanh"
+            >
+              <Search size={17} />
+            </button>
+          )}
           <span className="hidden sm:block"><SyncStatusBadge user={user} compact attentionOnly /></span>
           <NotificationBell streak={streak} plain />
           <button

@@ -323,7 +323,15 @@ export default function App() {
       )}
 
       <div className="relative z-10">
-        <MobileHeader user={user} streak={streak} theme={theme} onToggleTheme={toggleTheme} onOpenAuth={openAuth} onSignOut={handleSignOut} />
+        <MobileHeader
+          user={user}
+          streak={streak}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenAuth={openAuth}
+          onSignOut={handleSignOut}
+          onOpenSearch={() => setSearchOpen(true)}
+        />
         <Sidebar
           activeTab={activeTab}
           onTabChange={selectTab}
@@ -336,7 +344,7 @@ export default function App() {
           onSignOut={handleSignOut}
         />
         <main id="main-content" tabIndex={-1} className="min-h-screen pb-28 outline-none md:pb-0 lg:ml-[272px]">
-          <div className="mx-auto max-w-[1360px] px-4 py-6 sm:px-8 sm:py-9 lg:px-12">
+          <div className="mx-auto max-w-[1360px] px-3.5 py-3.5 sm:px-8 sm:py-9 lg:px-12">
             <Topbar
               title={activeItem.label}
               eyebrow={activeTab === 'home' || activeTab === 'vocabulary' ? `Hôm nay · ${formatDate()}` : activeItem.description}

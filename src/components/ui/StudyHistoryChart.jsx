@@ -13,6 +13,16 @@ const dayAria = (day) =>
 /** Biểu đồ 14 ngày gần nhất: số từ đã ôn và số từ trả lời đúng. */
 export default function StudyHistoryChart({ days = 14 }) {
   const [allDays, setAllDays] = useState(() => getHistoryDays());
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -29,10 +39,11 @@ export default function StudyHistoryChart({ days = 14 }) {
     };
   }, []);
 
-  const chartDays = recentHistory(days, allDays);
-  const summary = historySummary(days, allDays);
+  const effectiveDays = isMobile ? Math.min(days, 7) : days;
+  const chartDays = recentHistory(effectiveDays, allDays);
+  const summary = historySummary(effectiveDays, allDays);
   const peak = Math.max(1, ...chartDays.map((day) => day.reviewed));
-  const labelEvery = chartDays.length > 10 ? 3 : 2;
+  const labelEvery = chartDays.length > 10 ? 3 : 1;
 
   return (
     <div className="pt-1">

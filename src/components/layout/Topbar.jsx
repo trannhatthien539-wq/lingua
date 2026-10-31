@@ -39,7 +39,7 @@ export default function Topbar({ title, eyebrow, accent = '#4F46E5', activeTab, 
         scrolled
           ? 'md:border-slate-200/70 md:bg-[#F8FAFC]/90 md:shadow-[0_16px_40px_-20px_rgba(15,23,42,0.15)] md:backdrop-blur-2xl dark:md:border-white/[0.08] dark:md:bg-[#0B0F17]/90'
           : 'md:border-transparent md:bg-transparent'
-      } flex items-center justify-between gap-3 ${isHome ? 'max-md:pb-1 max-md:pt-0' : 'pb-4'} transition-all duration-300 md:gap-5`}
+      } ${isHome ? 'hidden md:flex' : 'flex'} items-center justify-between gap-3 pb-4 transition-all duration-300 md:gap-5`}
     >
       <div className={`min-w-0 flex-1 ${isHome ? 'hidden md:block' : ''}`}>
         {!isHome && eyebrow && (
