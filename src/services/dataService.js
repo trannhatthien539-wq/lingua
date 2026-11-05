@@ -15,6 +15,14 @@ import { isSafeImageSource } from "./imageService";
 import { trackPendingWrite } from "./syncStatus";
 import { chunkForFirestore, runInBatches } from "./firestoreBatch";
 import { buildTrashView } from "./vocabularyTrash";
+import {
+  clearCachedLibrary,
+  clearPendingDeckImport,
+  loadCachedLibrary,
+  saveCachedLibrary,
+  savePendingDeckImport,
+  updatePendingDeckImportProgress,
+} from "./vocabularyStorage";
 
 const STORAGE_KEY = "lingua-vocabulary-library";
 const OLD_STORAGE_KEY = "lingua-vocabulary";
@@ -74,6 +82,7 @@ export const clearGuestVocabulary = () => {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(OLD_STORAGE_KEY);
   localStorage.removeItem("lingua-practice-topic");
+  void clearCachedLibrary("guest");
   invalidateVocabularyCache();
 };
 
@@ -81,8 +90,12 @@ const normalizeDeck = (deck) => ({
   id: deck.id,
   title: deck.title || "",
   tags: deck.tags || [],
+  description: deck.description || "",
   createdAt: deck.createdAt || deck.created_at || new Date().toISOString(),
   deletedAt: deck.deletedAt || null,
+  themeDeckId: deck.themeDeckId || null,
+  expectedCount: Number(deck.expectedCount) || null,
+  importStatus: deck.importStatus || "ready",
 });
 
 // ease/lapses phục vụ lịch ôn tập chung (xem `utils/srs.js`); `deletedAt` là xoá mềm (thùng rác).
@@ -208,11 +221,15 @@ const dataMethods = {
       .map(normalizeDeck);
   },
 
-  async createDeck(title) {
+  async createDeck(title, { tags = [], description = "", themeDeckId = null, expectedCount = null, importStatus = "ready" } = {}) {
     const deck = normalizeDeck({
       id: makeId("deck"),
       title,
-      tags: [],
+      tags,
+      description,
+      themeDeckId,
+      expectedCount,
+      importStatus,
       createdAt: new Date().toISOString(),
     });
     if (!currentUser()) {
@@ -224,6 +241,10 @@ const dataMethods = {
     const created = await addDoc(collection(db, "study_decks"), withUserId(omitUndefined({
       title: deck.title,
       tags: deck.tags,
+      description: deck.description,
+      themeDeckId: deck.themeDeckId,
+      expectedCount: deck.expectedCount,
+      importStatus: deck.importStatus,
       createdAt: deck.createdAt,
     })));
     invalidateVocabularyCache();
@@ -311,6 +332,10 @@ const dataMethods = {
       .then((cards) => {
         if (generation === cacheGeneration && cacheOwner() === owner) {
           allCardsCache = { owner, cards };
+          // Lưu vào IndexedDB để lần sau tải trang trong 20ms
+          void loadCachedLibrary(owner).then((cached) => {
+            void saveCachedLibrary(owner, { decks: cached?.decks || [], cards });
+          }).catch(() => {});
         }
         return cards;
       })
@@ -337,9 +362,10 @@ const dataMethods = {
   /**
    * Thêm nhiều thẻ cùng lúc (dùng khi nạp các bộ từ vựng lớn, tối đa 4.000 từ).
    * - Khách: ghi localStorage đúng một lần thay vì ghi từng thẻ.
-   * - Đã đăng nhập: gom theo batch có giới hạn đồng thời để giảm thời gian chờ.
+   * - Đã đăng nhập: gom theo batch có giới hạn đồng thời cao hơn (5) để giảm thời gian chờ.
+   * - Có callback onProgress để UI hiển thị tiến trình mượt mà.
    */
-  async addCards(cards) {
+  async addCards(cards, { onProgress } = {}) {
     const normalized = cards.map((card) => normalizeCard(card)).filter((card) => card.word && card.deckId);
     if (!normalized.length) return [];
     if (!currentUser()) {
@@ -347,11 +373,13 @@ const dataMethods = {
       const savedCards = withUniqueLocalCardIds(normalized, library);
       writeLocal({ ...library, cards: [...savedCards, ...library.cards] });
       invalidateVocabularyCache();
+      onProgress?.({ completed: savedCards.length, total: savedCards.length, percent: 100 });
       return savedCards;
     }
     const entries = normalized.map((card) => ({ card, ref: doc(collection(db, "vocabulary_cards")) }));
     const committed = await runInBatches(entries, {
-      concurrency: 3,
+      concurrency: 5,
+      onProgress,
       commit: async (entryChunk) => {
         const batch = writeBatch(db);
         entryChunk.forEach(({ card, ref }) => batch.set(ref, withUserId(omitUndefined(cardPayload(card)))));
@@ -370,23 +398,68 @@ const dataMethods = {
   },
 
   /** Tạo deck và nhập nhiều thẻ; tự xoá deck/thẻ đã ghi nếu một batch lỗi. */
-  async createDeckWithCards(title, cards) {
+  async createDeckWithCards(title, cards, { tags = [], description = "", themeDeckId = null, onProgress } = {}) {
     if (!currentUser()) {
       // Ghi deck + toàn bộ thẻ trong một localStorage write để không để lại deck rỗng khi quota lỗi.
       const library = readLocal();
-      const deck = normalizeDeck({ id: makeId("deck"), title, tags: [], createdAt: new Date().toISOString() });
+      const deck = normalizeDeck({
+        id: makeId("deck"),
+        title,
+        tags,
+        description,
+        themeDeckId,
+        expectedCount: cards.length,
+        createdAt: new Date().toISOString(),
+      });
       const candidates = cards.map((card) => ({ ...card, deckId: deck.id })).filter((card) => card.word);
       const savedCards = withUniqueLocalCardIds(candidates, library);
       writeLocal({ decks: [...library.decks, deck], cards: [...savedCards, ...library.cards] });
       invalidateVocabularyCache();
+      onProgress?.({ completed: savedCards.length, total: savedCards.length, percent: 100 });
       return { deck, cards: savedCards };
     }
 
-    const deck = await dataMethods.createDeck(title);
+    // Đánh dấu importStatus: 'importing' trước để nếu bị ngắt quãng giữa chừng,
+    // ứng dụng phát hiện được và có cơ chế nạp tiếp số thẻ còn thiếu.
+    const deck = await dataMethods.createDeck(title, {
+      tags,
+      description,
+      themeDeckId,
+      expectedCount: cards.length,
+      importStatus: "importing",
+    });
+
+    savePendingDeckImport({
+      deckId: deck.id,
+      title: deck.title,
+      themeDeckId: deck.themeDeckId,
+      expectedCount: cards.length,
+      completed: 0,
+    });
+
     try {
-      const savedCards = await dataMethods.addCards(cards.map((card) => ({ ...card, deckId: deck.id })));
+      const savedCards = await dataMethods.addCards(
+        cards.map((card) => ({ ...card, deckId: deck.id })),
+        {
+          onProgress: (progress) => {
+            updatePendingDeckImportProgress(progress.completed);
+            onProgress?.(progress);
+          },
+        }
+      );
+
+      // Khi nạp đủ 100%, cập nhật trạng thái Deck thành 'ready'
+      await updateDoc(doc(db, "study_decks", deck.id), {
+        importStatus: "ready",
+        cardCount: savedCards.length,
+      }).catch(() => {});
+      deck.importStatus = "ready";
+      deck.cardCount = savedCards.length;
+      clearPendingDeckImport();
+
       return { deck, cards: savedCards };
     } catch (error) {
+      clearPendingDeckImport();
       await dataMethods.deleteDeck(deck.id).catch(() => {});
       throw error;
     }

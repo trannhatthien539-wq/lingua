@@ -20,6 +20,7 @@ export async function runInBatches(items, {
   concurrency = 1,
   commit,
   rollback,
+  onProgress,
 } = {}) {
   if (typeof commit !== "function") throw new TypeError("Thiếu hàm commit batch.");
   if (!Number.isInteger(concurrency) || concurrency < 1) {
@@ -31,6 +32,7 @@ export async function runInBatches(items, {
   let nextChunkIndex = 0;
   let failed = false;
   let failure;
+  let completedCount = 0;
 
   const worker = async () => {
     while (!failed && nextChunkIndex < chunks.length) {
@@ -40,6 +42,16 @@ export async function runInBatches(items, {
       try {
         await commit(chunk);
         committed[chunkIndex] = chunk;
+        completedCount += chunk.length;
+        if (typeof onProgress === "function") {
+          try {
+            onProgress({
+              completed: completedCount,
+              total: items.length,
+              percent: Math.min(100, Math.round((completedCount / items.length) * 100)),
+            });
+          } catch {}
+        }
       } catch (error) {
         if (!failed) failure = error;
         failed = true;

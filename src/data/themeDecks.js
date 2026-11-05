@@ -330,7 +330,15 @@ export const createThemeDeck = async (deckId) => {
   const now = new Date().toISOString()
   const today = now.slice(0, 10)
   return {
-    deck: { id: newDeckId, title: meta.title, description: meta.description, tags: meta.tags, createdAt: now },
+    deck: {
+      id: newDeckId,
+      title: meta.title,
+      description: meta.description,
+      tags: meta.tags,
+      createdAt: now,
+      themeDeckId: deckId,
+      expectedCount: entries.length,
+    },
     cards: entries.map((entry, index) => ({
       id: `theme-card-${stamp}-${String(index + 1).padStart(3, '0')}`,
       deckId: newDeckId,

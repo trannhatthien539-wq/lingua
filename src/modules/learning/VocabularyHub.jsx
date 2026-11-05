@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   ArchiveRestore,
   ArrowLeft,
   BookOpen,
@@ -12,6 +13,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  RefreshCw,
   RotateCcw,
   Search,
   Share2,
@@ -44,7 +46,8 @@ import SafeImage from "../../components/ui/SafeImage";
 import VocabularyDeckCard from "../../components/learning/VocabularyDeckCard";
 import NewDeckModal from "../../components/learning/NewDeckModal";
 import { dateKey, isDue, isLeech } from "../../utils/srs";
-import { createThemeDeck, themeDecks } from "../../data/themeDecks";
+import { createThemeDeck, loadThemeDeckEntries, themeDecks } from "../../data/themeDecks";
+import { loadCachedLibrary, saveCachedLibrary } from "../../services/vocabularyStorage";
 
 // Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
 // (các bộ từ có thể chứa tới 4.000 mục nên không thể render hết cùng lúc).
@@ -174,6 +177,25 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   const [singleCardId, setSingleCardId] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");
   const [libraryLoading, setLibraryLoading] = useState(true);
+  const [importProgress, setImportProgress] = useState({
+    active: false,
+    title: "",
+    completed: 0,
+    total: 0,
+    percent: 0,
+    done: false,
+  });
+
+  useEffect(() => {
+    if (!importProgress.active) return;
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "Đang nạp bộ thẻ từ vựng vào hệ thống. Tải lại trang lúc này có thể làm gián đoạn tiến trình.";
+      return event.returnValue;
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [importProgress.active]);
   // 'list' = danh sách bộ thẻ (giống danh sách bài ở tab Ngữ pháp), 'deck' = đang xem một bộ.
   const [view, setView] = useState("list");
   const [speakingWord, setSpeakingWord] = useState("");
@@ -284,23 +306,29 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
   useEffect(() => {
     let active = true;
-    setLibrary({ decks: [], cards: [] });
-    setSelectedDeckId(null);
-    setStudyDeckId(null);
-    setStudyMode(null);
     setError("");
-    setLibraryLoading(true);
     const loadLibrary = async () => {
       try {
-        // Hai query song song thay vì 1 + N query theo từng bộ thẻ.
+        // 1. Nạp ngay từ IndexedDB cache để giao diện hiển thị trong 20ms (tránh gián đoạn/chờ đợi)
+        const cached = await loadCachedLibrary(user?.uid || "guest");
+        if (active && cached && (cached.decks?.length || cached.cards?.length)) {
+          const { decks: safeDecks, cards: initialCards } = repairLibrary(cached.decks, cached.cards);
+          setLibrary({ decks: safeDecks, cards: initialCards });
+          setLibraryLoading(false);
+        } else if (active) {
+          setLibraryLoading(true);
+        }
+
+        // 2. Đồng bộ ngầm từ Firestore để cập nhật dữ liệu mới nhất
         const [decks, allCards] = await Promise.all([
           dataService.getDecks(),
           dataService.getAllCards(),
         ]);
         const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, allCards);
-        // Thư viện trống: không tự tạo dữ liệu. Empty state sẽ mời người dùng chọn
-        // bộ 50 thẻ khởi đầu hoặc tự tạo bộ mới.
-        if (active) setLibrary({ decks: safeDecks, cards: initialCards });
+        if (active) {
+          setLibrary({ decks: safeDecks, cards: initialCards });
+          void saveCachedLibrary(user?.uid || "guest", { decks: safeDecks, cards: initialCards });
+        }
         // Thư viện nhỏ: tự tra ảnh tối đa 8 thẻ mỗi lần tải, tránh gọi API hàng nghìn lần.
         if (initialCards.length <= 200) {
           void Promise.all(initialCards.filter((card) => !card.imageUrl).slice(0, 8).map(async (card) => {
@@ -508,11 +536,38 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
   };
 
   const importDeck = async (title, items) => {
-    const { deck, cards: savedCards } = await dataService.createDeckWithCards(title, items);
-    const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
-    setLibrary((current) => ({ ...current, decks: [...current.decks, normalizedDeck], cards: [...savedCards, ...current.cards] }));
-    setSelectedDeckId(normalizedDeck.id);
-    setDataModal(null);
+    if (items.length > 80) {
+      setImportProgress({
+        active: true,
+        title,
+        completed: 0,
+        total: items.length,
+        percent: 0,
+        done: false,
+      });
+    }
+    try {
+      const { deck, cards: savedCards } = await dataService.createDeckWithCards(title, items, {
+        onProgress: ({ completed, total, percent }) => {
+          setImportProgress((prev) => ({ ...prev, completed, total, percent }));
+        },
+      });
+      if (items.length > 80) {
+        setImportProgress((prev) => ({ ...prev, completed: savedCards.length, percent: 100, done: true }));
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+      const normalizedDeck = { ...deck, tags: deck.tags || [], createdAt: deck.createdAt || new Date().toISOString() };
+      const updatedDecks = [...library.decks, normalizedDeck];
+      const updatedCards = [...savedCards, ...library.cards];
+      setLibrary({ decks: updatedDecks, cards: updatedCards });
+      void saveCachedLibrary(user?.uid || "guest", { decks: updatedDecks, cards: updatedCards });
+      setSelectedDeckId(normalizedDeck.id);
+      setDataModal(null);
+    } catch (err) {
+      setError(err.message || "Không thể nhập bộ thẻ.");
+    } finally {
+      setImportProgress({ active: false, title: "", completed: 0, total: 0, percent: 0, done: false });
+    }
   };
 
   const lookupWord = async () => {
@@ -655,18 +710,148 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     try {
       const created = await createThemeDeck(deckId);
       if (!created) return;
-      const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(created.deck.title, created.cards);
-      updateLibrary({
-        decks: [...library.decks, { ...targetDeck, tags: created.deck.tags, description: created.deck.description }],
-        cards: [...savedCards, ...library.cards],
-      });
-      setSelectedDeckId(targetDeck.id);
       setThemePickerOpen(false);
-      setNotice(`Đã thêm “${created.deck.title}” với ${savedCards.length} từ vựng.`);
+      setImportProgress({
+        active: true,
+        title: created.deck.title,
+        completed: 0,
+        total: created.cards.length,
+        percent: 0,
+        done: false,
+      });
+
+      const { deck: targetDeck, cards: savedCards } = await dataService.createDeckWithCards(
+        created.deck.title,
+        created.cards,
+        {
+          tags: created.deck.tags,
+          description: created.deck.description,
+          themeDeckId: deckId,
+          onProgress: ({ completed, total, percent }) => {
+            setImportProgress((prev) => ({
+              ...prev,
+              completed,
+              total,
+              percent,
+            }));
+          },
+        }
+      );
+
+      setImportProgress((prev) => ({ ...prev, completed: savedCards.length, percent: 100, done: true }));
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const updatedDecks = [...library.decks, { ...targetDeck, tags: created.deck.tags, description: created.deck.description }];
+      const updatedCards = [...savedCards, ...library.cards];
+      updateLibrary({
+        decks: updatedDecks,
+        cards: updatedCards,
+      });
+      void saveCachedLibrary(user?.uid || "guest", { decks: updatedDecks, cards: updatedCards });
+      setSelectedDeckId(targetDeck.id);
+      setNotice(`Đã thêm “${created.deck.title}” với ${savedCards.length.toLocaleString("vi-VN")} từ vựng.`);
     } catch (requestError) {
       setError(requestError.message || "Không thể thêm bộ từ theo chủ đề lúc này.");
     } finally {
       setLoading("");
+      setImportProgress({ active: false, title: "", completed: 0, total: 0, percent: 0, done: false });
+    }
+  };
+
+  const getDeckIncompleteInfo = useCallback((deck, cards) => {
+    if (!deck) return null;
+    const matchedTheme = themeDecks.find((td) => td.id === deck.themeDeckId || td.title === deck.title);
+    const expected = deck.expectedCount || (matchedTheme ? (matchedTheme.id.startsWith("essential_vocab") ? 4000 : null) : null);
+    if (!expected) return null;
+    const count = cards.filter((c) => c.deckId === deck.id).length;
+    if (count < expected) {
+      return {
+        expected,
+        actual: count,
+        missing: expected - count,
+        themeDeckId: deck.themeDeckId || matchedTheme?.id,
+      };
+    }
+    return null;
+  }, []);
+
+  const resumeIncompleteDeck = async (deck, currentDeckCards) => {
+    const incompleteInfo = getDeckIncompleteInfo(deck, library.cards);
+    if (!incompleteInfo || !incompleteInfo.themeDeckId) {
+      setError("Không xác định được nguồn từ vựng để nạp tiếp.");
+      return;
+    }
+
+    setImportProgress({
+      active: true,
+      title: deck.title,
+      completed: incompleteInfo.actual,
+      total: incompleteInfo.expected,
+      percent: Math.round((incompleteInfo.actual / incompleteInfo.expected) * 100),
+      done: false,
+    });
+
+    try {
+      const allThemeEntries = await loadThemeDeckEntries(incompleteInfo.themeDeckId);
+      const existingWordSet = new Set(currentDeckCards.map((c) => c.word.trim().toLowerCase()));
+      const missingEntries = allThemeEntries.filter((e) => !existingWordSet.has(e.word.trim().toLowerCase()));
+
+      if (!missingEntries.length) {
+        setNotice(`Bộ thẻ đã đầy đủ ${currentDeckCards.length} từ.`);
+        return;
+      }
+
+      const meta = themeDecks.find((td) => td.id === incompleteInfo.themeDeckId);
+      const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const now = new Date().toISOString();
+      const today = now.slice(0, 10);
+
+      const cardsToAdd = missingEntries.map((entry, index) => ({
+        id: `theme-card-${stamp}-${String(index + 1).padStart(3, "0")}`,
+        deckId: deck.id,
+        word: entry.word,
+        ipa: "",
+        meaning: entry.meaning,
+        example: "",
+        level: meta?.level || "B1",
+        status: "new",
+        interval: 1,
+        nextReview: now,
+        nextReviewDate: today,
+        repetition: 0,
+        reviewDate: now,
+        imageUrl: "",
+        audioUrl: "",
+      }));
+
+      const initialCount = incompleteInfo.actual;
+      const saved = await dataService.addCards(cardsToAdd, {
+        onProgress: ({ completed }) => {
+          const currentTotal = initialCount + completed;
+          setImportProgress((prev) => ({
+            ...prev,
+            completed: currentTotal,
+            percent: Math.min(100, Math.round((currentTotal / incompleteInfo.expected) * 100)),
+          }));
+        },
+      });
+
+      setImportProgress((prev) => ({
+        ...prev,
+        completed: incompleteInfo.expected,
+        percent: 100,
+        done: true,
+      }));
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      const updatedCards = [...saved, ...library.cards];
+      setLibrary((curr) => ({ ...curr, cards: updatedCards }));
+      void saveCachedLibrary(user?.uid || "guest", { decks: library.decks, cards: updatedCards });
+      setNotice(`Đã nạp bổ sung thành công ${saved.length.toLocaleString("vi-VN")} từ còn thiếu! Giờ bộ thẻ đã đủ ${incompleteInfo.expected.toLocaleString("vi-VN")} từ.`);
+    } catch (resumeError) {
+      setError(resumeError.message || "Không thể nạp tiếp từ vựng lúc này.");
+    } finally {
+      setImportProgress({ active: false, title: "", completed: 0, total: 0, percent: 0, done: false });
     }
   };
 
@@ -929,6 +1114,30 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
               <div className="relative"><button onClick={() => setActionsOpen((value) => !value)} className="icon-btn h-12 w-12 border border-ink/10 dark:border-white/15" aria-label="Thêm hành động cho bộ này" aria-expanded={actionsOpen}><MoreVertical size={19} /></button>{actionsOpen && <div className="absolute right-0 top-14 z-30 w-64 rounded-xl border border-ink/10 bg-slab p-1.5 shadow-soft dark:border-white/10 dark:bg-dark2"><p className="truncate px-3 py-2 text-xs font-bold uppercase tracking-[0.08em] text-ink/60 dark:text-white/50">{selectedDeck?.title}</p><button onClick={() => { openStudy(dueCards); setActionsOpen(false); }} disabled={!dueCards.length} className="menu-item"><Check size={16} />Ôn {sessionCount(dueCards)} từ đến hạn</button><button onClick={() => { setActionsOpen(false); renameDeck(selectedDeck); }} className="menu-item"><Pencil size={16} />Đổi tên bộ</button><button onClick={() => { shareCurrentDeck(); setActionsOpen(false); }} className="menu-item"><Share2 size={16} />Chia sẻ bộ này</button><button onClick={() => { cleanupDuplicates(); setActionsOpen(false); }} className="menu-item"><Trash2 size={16} />Dọn từ trùng</button><button onClick={() => { setThemePickerOpen(true); setActionsOpen(false); }} className="menu-item"><BookOpen size={16} />Thêm bộ từ theo chủ đề</button><button onClick={() => { openTrash(); }} className="menu-item"><ArchiveRestore size={16} />Thùng rác</button><button onClick={() => { deleteDeck(selectedDeck); setActionsOpen(false); }} className="menu-item text-danger dark:text-dangerfgdark"><Trash2 size={16} />Xoá bộ này</button></div>}</div>
             </div>
           </div>
+          {selectedDeck && (() => {
+            const incomplete = getDeckIncompleteInfo(selectedDeck, deckCards);
+            if (!incomplete) return null;
+            return (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
+                <div className="flex items-start sm:items-center gap-3">
+                  <AlertTriangle className="mt-0.5 sm:mt-0 text-amber-500 shrink-0" size={20} />
+                  <div>
+                    <p className="text-sm font-bold">Bộ thẻ chưa nạp đủ ({incomplete.actual.toLocaleString("vi-VN")}/{incomplete.expected.toLocaleString("vi-VN")} từ)</p>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-300/80">Quá trình nạp trước đó có thể đã bị ngắt quãng do tải lại trang.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => resumeIncompleteDeck(selectedDeck, deckCards)}
+                  disabled={importProgress.active}
+                  className="btn-primary shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 font-bold shadow-sm"
+                >
+                  <RefreshCw size={14} className={importProgress.active ? "animate-spin" : ""} />
+                  Nạp tiếp {incomplete.missing.toLocaleString("vi-VN")} từ còn thiếu
+                </button>
+              </div>
+            );
+          })()}
           <section className="panel overflow-hidden">
             <div className="border-b border-ink/[0.08] px-5 py-4 dark:border-white/[0.08]">
               <div className="flex flex-wrap items-center gap-3">
@@ -1232,6 +1441,45 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       {dataModal && <ImportExportModal mode={dataModal} onClose={() => setDataModal(null)} currentDeck={selectedDeck} decks={library.decks} cards={library.cards} onImport={importDeck} />}
       {sharedDeck && createPortal(<div className="fixed inset-0 z-[110] flex min-w-0 items-center justify-center overflow-y-auto bg-ink/40 p-4 backdrop-blur-sm"><section className="panel max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-md overflow-y-auto p-6"><div className="flex items-start justify-between gap-3"><div><p className="eyebrow">Chia sẻ</p><h2 className="mt-1 font-display text-xl font-bold">Bộ thẻ được chia sẻ</h2></div><button onClick={dismissSharedDeck} className="icon-btn -mr-2" aria-label="Đóng"><X size={18} /></button></div><p className="mt-4 text-sm font-bold">{sharedDeck.title}</p><p className="mt-1 text-xs text-ink/50 dark:text-white/50">{sharedDeck.cards.length} từ vựng · tiến độ học của bạn sẽ bắt đầu từ đầu</p><ul className="mt-4 max-h-40 overflow-y-auto rounded-xl bg-ink/[0.04] p-3 text-xs leading-6 dark:bg-white/[0.06]">{sharedDeck.cards.slice(0, 8).map((card) => <li key={card.word} className="break-words">• {card.word} — {card.meaning}</li>)}{sharedDeck.cards.length > 8 && <li className="text-ink/45 dark:text-white/45">...và {sharedDeck.cards.length - 8} từ khác</li>}</ul><div className="mt-5 flex justify-end gap-2"><button onClick={dismissSharedDeck} className="btn-secondary px-4">Bỏ qua</button><button onClick={importSharedDeck} className="btn-primary px-5 py-3 text-sm">Thêm vào thư viện</button></div></section></div>, document.body)}
       {manualModalOpen && <AddWordsSheet tab={addTab} onTabChange={setAddTab} draft={manualDraft} levels={levels} busy={loading.startsWith("manual-")} onChange={updateManualDraft} onSuggest={suggestManualDetails} onSave={saveManualCard} topic={topic} onTopicChange={setTopic} level={level} onLevelChange={setLevel} amount={amount} onAmountChange={setAmount} onGenerate={generateVocabulary} lookupResult={lookupResult} onLookupWord={lookupWord} onSaveLookup={saveLookupResult} manualWord={manualWord} onManualWordChange={setManualWord} lookupLoading={loading === "lookup" || loading === "lookup-save"} onClose={() => setManualModalOpen(false)} />}
+      {importProgress.active && createPortal(
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-md">
+          <section className="relative w-full max-w-md rounded-3xl border border-white/15 bg-white/95 p-6 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95">
+            <div className="flex items-center gap-4">
+              <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${importProgress.done ? "bg-emerald-500/15 text-emerald-500" : "bg-indigo-500/15 text-indigo-500"} transition-colors`}>
+                {importProgress.done ? <Check size={24} className="stroke-[2.5]" /> : <LoaderCircle size={24} className="animate-spin" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                  {importProgress.done ? "Hoàn tất nạp từ" : "Đang đồng bộ bộ thẻ"}
+                </p>
+                <h3 className="truncate font-display text-base font-bold text-slate-900 dark:text-white">
+                  {importProgress.title}
+                </h3>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <div className="flex justify-between text-xs font-medium">
+                <span className="text-slate-600 dark:text-slate-400">Tiến trình đồng bộ</span>
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                  {importProgress.completed.toLocaleString("vi-VN")} / {importProgress.total.toLocaleString("vi-VN")} từ ({importProgress.percent}%)
+                </span>
+              </div>
+              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-indigo-600 to-emerald-500 transition-all duration-300 ease-out"
+                  style={{ width: `${Math.max(5, importProgress.percent)}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="mt-4 rounded-xl bg-slate-100/70 p-3 text-xs leading-5 text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
+              🔒 <strong>Vui lòng giữ trang mở:</strong> Hệ thống đang chia thành các batch an toàn để lưu dữ liệu. Đừng đóng hoặc tải lại trang trong giây lát này.
+            </p>
+          </section>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
