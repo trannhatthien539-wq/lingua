@@ -103,7 +103,7 @@ function WidgetSummaryBridge({ streak, user }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => auth.currentUser)
   const [streak, setStreak] = useState(() => readGuestStreak())
   const [apiKey, setApiKey] = useState('')
   // Chỉ dùng để hiện skeleton ở vùng nội dung trong lúc Firebase khôi phục phiên.

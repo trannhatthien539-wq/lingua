@@ -4,6 +4,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDocsFromCache,
   getDocsFromServer,
   query,
   updateDoc,
@@ -11,6 +12,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { whenAuthSettled } from "./userDocService";
 import { isSafeImageSource } from "./imageService";
 import { trackPendingWrite } from "./syncStatus";
 import { chunkForFirestore, runInBatches } from "./firestoreBatch";
@@ -18,7 +20,6 @@ import { buildTrashView } from "./vocabularyTrash";
 import {
   clearCachedLibrary,
   clearPendingDeckImport,
-  loadCachedLibrary,
   saveCachedLibrary,
   savePendingDeckImport,
   updatePendingDeckImportProgress,
@@ -58,6 +59,7 @@ const readLocal = () => {
 
 const writeLocal = (library) => localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
 const currentUser = () => auth.currentUser;
+const ensureUser = async () => auth.currentUser || (await whenAuthSettled(2500));
 
 // Id phải duy nhất kể cả khi hai thao tác diễn ra trong cùng một mili-giây
 // (ví dụ React StrictMode chạy effect hai lần khi tạo bộ thẻ khởi tạo).
@@ -159,10 +161,29 @@ const cardPayload = (card) => ({
 });
 
 // Firestore giới hạn 500 thao tác mỗi batch; helper dùng biên 400.
+// Ưu tiên đọc từ local cache của Firestore (IndexedDB) trước để UI hiển thị trong 20ms,
+// đồng thời revalidate ngầm với máy chủ nếu có kết nối mạng.
 const getUserDocuments = async (collectionName, { serverOnly = false } = {}) => {
   const user = requireUser();
   const documentsQuery = query(collection(db, collectionName), where("userId", "==", user.uid));
-  const snapshot = serverOnly ? await getDocsFromServer(documentsQuery) : await getDocs(documentsQuery);
+  if (serverOnly) {
+    const snapshot = await getDocsFromServer(documentsQuery);
+    return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  }
+
+  try {
+    const cacheSnapshot = await getDocsFromCache(documentsQuery);
+    if (cacheSnapshot.docs.length > 0) {
+      // Đã có trong Firestore local cache -> trả về ngay lập tức!
+      // Đồng bộ ngầm với server để làm mới cache nếu có thay đổi
+      void getDocs(documentsQuery).catch(() => {});
+      return cacheSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    }
+  } catch {
+    // Cache miss hoặc môi trường chưa có cache, tiếp tục đọc qua mạng
+  }
+
+  const snapshot = await getDocs(documentsQuery);
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 };
 
@@ -191,9 +212,10 @@ export const invalidateVocabularyCache = () => {
   allCardsRequest = null;
 };
 
-const getRemoteDeckDocuments = () => {
+const getRemoteDeckDocuments = async () => {
+  await ensureUser();
   const owner = cacheOwner();
-  if (deckDocsCache?.owner === owner) return Promise.resolve(deckDocsCache.docs);
+  if (deckDocsCache?.owner === owner) return deckDocsCache.docs;
   if (deckDocsRequest?.owner === owner) return deckDocsRequest.promise;
 
   const generation = cacheGeneration;
@@ -214,11 +236,15 @@ const getRemoteDeckDocuments = () => {
 
 const dataMethods = {
   async getDecks() {
+    await ensureUser();
     if (!currentUser()) return readLocal().decks.filter((deck) => !deck.deletedAt).map(normalizeDeck);
-    return (await getRemoteDeckDocuments())
+    const decks = (await getRemoteDeckDocuments())
       .filter((deck) => !deck.deletedAt)
       .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt)))
       .map(normalizeDeck);
+    const owner = cacheOwner();
+    void saveCachedLibrary(owner, { decks });
+    return decks;
   },
 
   async createDeck(title, { tags = [], description = "", themeDeckId = null, expectedCount = null, importStatus = "ready" } = {}) {
@@ -304,6 +330,7 @@ const dataMethods = {
    * được gộp chung request với `getDecks()` đang chạy song song.
    */
   async getAllCards() {
+    await ensureUser();
     const owner = cacheOwner();
     if (allCardsCache?.owner === owner) return allCardsCache.cards;
     if (allCardsRequest?.owner === owner) return allCardsRequest.promise;
@@ -332,10 +359,8 @@ const dataMethods = {
       .then((cards) => {
         if (generation === cacheGeneration && cacheOwner() === owner) {
           allCardsCache = { owner, cards };
-          // Lưu vào IndexedDB để lần sau tải trang trong 20ms
-          void loadCachedLibrary(owner).then((cached) => {
-            void saveCachedLibrary(owner, { decks: cached?.decks || [], cards });
-          }).catch(() => {});
+          // Lưu cards vào IndexedDB cache (bảo toàn decks đã lưu)
+          void saveCachedLibrary(owner, { cards });
         }
         return cards;
       })

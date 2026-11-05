@@ -48,6 +48,7 @@ import NewDeckModal from "../../components/learning/NewDeckModal";
 import { dateKey, isDue, isLeech } from "../../utils/srs";
 import { createThemeDeck, loadThemeDeckEntries, themeDecks } from "../../data/themeDecks";
 import { loadCachedLibrary, saveCachedLibrary } from "../../services/vocabularyStorage";
+import { auth } from "../../services/firebase";
 
 // Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
 // (các bộ từ có thể chứa tới 4.000 mục nên không thể render hết cùng lúc).
@@ -132,24 +133,27 @@ const VocabularyCard = memo(function VocabularyCard({ card, speakingWord, onSpea
 
 // Bản cũ sinh id theo mili-giây nên có thể trùng (bộ trùng id, thẻ trùng id).
 // Lọc bỏ bản trùng và thẻ mồ côi để render không gặp key trùng.
-const repairLibrary = (decks, cards) => {
+const repairLibrary = (decks = [], cards = []) => {
+  const safeDecksList = Array.isArray(decks) ? decks : [];
+  const safeCardsList = Array.isArray(cards) ? cards : [];
   const seenDecks = new Set();
-  const uniqueDecks = decks.filter((deck) => {
-    if (!deck.id || seenDecks.has(deck.id)) return false;
-    seenDecks.add(deck.id);
+  const uniqueDecks = safeDecksList.filter((deck) => {
+    if (!deck?.id || seenDecks.has(String(deck.id))) return false;
+    seenDecks.add(String(deck.id));
     return true;
   });
-  const validDeckIds = new Set(uniqueDecks.map((deck) => deck.id));
+  const validDeckIds = new Set(uniqueDecks.map((deck) => String(deck.id)));
   const seenCards = new Set();
-  const uniqueCards = cards.filter((card) => {
-    if (!validDeckIds.has(card.deckId) || !card.id || seenCards.has(card.id)) return false;
-    seenCards.add(card.id);
+  const uniqueCards = safeCardsList.filter((card) => {
+    if (!validDeckIds.has(String(card?.deckId)) || !card?.id || seenCards.has(String(card.id))) return false;
+    seenCards.add(String(card.id));
     return true;
   });
   return { decks: uniqueDecks, cards: uniqueCards };
 };
 
 export default function VocabularyHub({ onStudyActivity, streak, apiKey, user }) {
+  const currentUid = user?.uid || auth.currentUser?.uid || "guest";
   const [library, setLibrary] = useState({ decks: [], cards: [] });
   const [selectedDeckId, setSelectedDeckId] = useState(null);
   const [deckInput, setDeckInput] = useState("");
@@ -310,11 +314,13 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     const loadLibrary = async () => {
       try {
         // 1. Nạp ngay từ IndexedDB cache để giao diện hiển thị trong 20ms (tránh gián đoạn/chờ đợi)
-        const cached = await loadCachedLibrary(user?.uid || "guest");
-        if (active && cached && (cached.decks?.length || cached.cards?.length)) {
-          const { decks: safeDecks, cards: initialCards } = repairLibrary(cached.decks, cached.cards);
-          setLibrary({ decks: safeDecks, cards: initialCards });
-          setLibraryLoading(false);
+        const cached = await loadCachedLibrary(currentUid);
+        if (active && cached && cached.decks?.length > 0) {
+          const { decks: safeDecks, cards: initialCards } = repairLibrary(cached.decks, cached.cards || []);
+          if (safeDecks.length > 0) {
+            setLibrary({ decks: safeDecks, cards: initialCards });
+            setLibraryLoading(false);
+          }
         } else if (active) {
           setLibraryLoading(true);
         }
@@ -327,7 +333,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         const { decks: safeDecks, cards: initialCards } = repairLibrary(decks, allCards);
         if (active) {
           setLibrary({ decks: safeDecks, cards: initialCards });
-          void saveCachedLibrary(user?.uid || "guest", { decks: safeDecks, cards: initialCards });
+          void saveCachedLibrary(currentUid, { decks: safeDecks, cards: initialCards });
         }
         // Thư viện nhỏ: tự tra ảnh tối đa 8 thẻ mỗi lần tải, tránh gọi API hàng nghìn lần.
         if (initialCards.length <= 200) {
@@ -346,7 +352,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
     };
     loadLibrary();
     return () => { active = false; };
-  }, [reloadToken, setError, setNotice, user?.uid]);
+  }, [currentUid, reloadToken, setError, setNotice]);
   useEffect(() => {
     const handleRefresh = () => {
       invalidateVocabularyCache();
@@ -560,7 +566,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
       const updatedDecks = [...library.decks, normalizedDeck];
       const updatedCards = [...savedCards, ...library.cards];
       setLibrary({ decks: updatedDecks, cards: updatedCards });
-      void saveCachedLibrary(user?.uid || "guest", { decks: updatedDecks, cards: updatedCards });
+      void saveCachedLibrary(currentUid, { decks: updatedDecks, cards: updatedCards });
       setSelectedDeckId(normalizedDeck.id);
       setDataModal(null);
     } catch (err) {
@@ -747,7 +753,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
         decks: updatedDecks,
         cards: updatedCards,
       });
-      void saveCachedLibrary(user?.uid || "guest", { decks: updatedDecks, cards: updatedCards });
+      void saveCachedLibrary(currentUid, { decks: updatedDecks, cards: updatedCards });
       setSelectedDeckId(targetDeck.id);
       setNotice(`Đã thêm “${created.deck.title}” với ${savedCards.length.toLocaleString("vi-VN")} từ vựng.`);
     } catch (requestError) {
@@ -846,7 +852,7 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
 
       const updatedCards = [...saved, ...library.cards];
       setLibrary((curr) => ({ ...curr, cards: updatedCards }));
-      void saveCachedLibrary(user?.uid || "guest", { decks: library.decks, cards: updatedCards });
+      void saveCachedLibrary(currentUid, { decks: library.decks, cards: updatedCards });
       setNotice(`Đã nạp bổ sung thành công ${saved.length.toLocaleString("vi-VN")} từ còn thiếu! Giờ bộ thẻ đã đủ ${incompleteInfo.expected.toLocaleString("vi-VN")} từ.`);
     } catch (resumeError) {
       setError(resumeError.message || "Không thể nạp tiếp từ vựng lúc này.");

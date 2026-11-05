@@ -69,8 +69,8 @@ export async function loadCachedLibrary(userId = "guest") {
   });
 }
 
-/** Lưu thư viện từ vựng vào IndexedDB theo userId. */
-export async function saveCachedLibrary(userId = "guest", { decks = [], cards = [] } = {}) {
+/** Lưu thư viện từ vựng vào IndexedDB theo userId (bảo toàn decks/cards nếu chỉ truyền 1 trong 2). */
+export async function saveCachedLibrary(userId = "guest", { decks, cards } = {}) {
   if (!isBrowser) return;
   const db = await getDb();
   if (!db) return;
@@ -79,12 +79,18 @@ export async function saveCachedLibrary(userId = "guest", { decks = [], cards = 
     try {
       const transaction = db.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-      store.put({
-        userId,
-        decks,
-        cards,
-        updatedAt: Date.now(),
-      });
+      const getReq = store.get(userId);
+      getReq.onsuccess = () => {
+        const existing = getReq.result || {};
+        const safeDecks = Array.isArray(decks) && decks.length > 0 ? decks : (existing.decks || []);
+        const safeCards = Array.isArray(cards) && cards.length > 0 ? cards : (existing.cards || []);
+        store.put({
+          userId,
+          decks: safeDecks,
+          cards: safeCards,
+          updatedAt: Date.now(),
+        });
+      };
       transaction.oncomplete = () => resolve(true);
       transaction.onerror = () => resolve(false);
     } catch {
