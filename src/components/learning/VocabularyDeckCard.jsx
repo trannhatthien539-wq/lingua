@@ -1,6 +1,5 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { BookOpen, CheckCircle2, Eye, Sparkles } from "lucide-react";
-import SafeImage from "../ui/SafeImage";
 import { getDeckCover } from "../../data/lessonCovers";
 
 const COVER_TONES = [
@@ -13,11 +12,13 @@ const COVER_TONES = [
 const percentOf = (value, total) => (total ? Math.round((value / total) * 100) : 0);
 
 export default memo(function VocabularyDeckCard({ deck, index, entry, onOpen, onStudy }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const total = entry.total || 0;
   const mastered = entry.mastered || 0;
   const due = entry.due || 0;
   const percent = percentOf(mastered, total);
-  const coverImage = entry.cards.find((card) => card.imageUrl)?.imageUrl || getDeckCover(deck, index);
+  const rawCover = entry.cards.find((card) => card.imageUrl)?.imageUrl || getDeckCover(deck, index);
+  const coverImage = !imgFailed ? rawCover : null;
   const coverTone = COVER_TONES[index % COVER_TONES.length];
   const newCount = entry.cards.filter((card) => !card.status || card.status === "new").length;
   const reviewLabel = due ? `${due} cần ôn hôm nay` : newCount ? `${newCount} từ mới` : total ? "Đã lên lịch ôn" : "Chưa có từ";
@@ -31,7 +32,14 @@ export default memo(function VocabularyDeckCard({ deck, index, entry, onOpen, on
         aria-label={`Mở bộ thẻ ${deck.title}`}
       >
         {coverImage ? (
-          <SafeImage src={coverImage} alt={deck.title} fallbackWord={deck.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+          <img
+            src={coverImage}
+            alt={deck.title}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
         ) : (
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${coverTone}`}>
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/70 shadow-sm backdrop-blur-md dark:bg-white/10">

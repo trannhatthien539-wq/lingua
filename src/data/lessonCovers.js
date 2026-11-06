@@ -14,7 +14,7 @@ export const GRAMMAR_COVERS = {
   'present-perfect-continuous': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=720&q=80', // Chạy bộ kiên trì, nỗ lực liên tục
   'past-simple': 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=720&q=80', // Đồng hồ cổ, kỷ vật quá khứ
   'past-continuous': 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=720&q=80', // Tàu hoả đang lướt đi trong hồi ức
-  'past-perfect': 'https://images.unsplash.com/photo-1507842229458-570a27e7d97e?auto=format&fit=crop&w=720&q=80', // Thư viện cổ, việc đã xong trước mốc xưa
+  'past-perfect': 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=720&q=80', // Thư viện cổ, việc đã xong trước mốc xưa
   'past-perfect-continuous': 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=720&q=80', // Nghệ nhân gốm miệt mài xoay đất
   'future-simple': 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=720&q=80', // Con đường mở ra chân trời tương lai
   'future-continuous': 'https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=720&q=80', // Tàu cao tốc rực rỡ trong đêm
@@ -42,7 +42,7 @@ export const GRAMMAR_COVERS = {
   // Cấu trúc C1
   'cleft-sentences': 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=720&q=80', // Vệt sáng spotlight nhấn mạnh sân khấu
   'inversion': 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=720&q=80', // Núi tuyết soi bóng đảo ngược trên mặt hồ
-  'participle-clauses': 'https://images.unsplash.com/photo-1528164344705-475426879c0d?auto=format&fit=crop&w=720&q=80', // Vườn thiền Nhật Bản tinh gọn, hàm súc
+  'participle-clauses': 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=720&q=80', // Vườn thiền Nhật Bản tinh gọn, hàm súc
   'nominalisation-hedging': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=720&q=80', // Toà nhà học thuật kính hiện đại trang trọng
 };
 
@@ -53,7 +53,7 @@ export const SKILL_COVERS = {
   'travel-plan': 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=720&q=80',
   'health-advice': 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=720&q=80',
   'study-tips': 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=720&q=80',
-  'city-transport': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=720&q=80',
+  'city-transport': 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=720&q=80',
   'vstep-announcement': 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=720&q=80',
   'vstep-lecture': 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=720&q=80',
 
@@ -81,18 +81,18 @@ export const SKILL_COVERS = {
   'invite-friend': 'https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&w=720&q=80',
   'apology-late': 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=720&q=80',
   'opinion-online': 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=720&q=80',
-  'opinion-city': 'https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=720&q=80',
+  'opinion-city': 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=720&q=80',
   'describe-place': 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=720&q=80',
   'report-bad-service': 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=720&q=80',
   'vstep-task1-letter': 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=720&q=80',
-  'vstep-task2-essay': 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=720&q=80',
+  'vstep-task2-essay': 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=720&q=80',
 };
 
 export const DECK_COVERS = {
   // Ba bộ 4.000 từ tiếng Anh cốt lõi
   'essential_vocab_1': 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=720&q=80', // Thư viện sách ấm áp
   'essential_vocab_2': 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=720&q=80', // Đọc sách bên đèn vàng
-  'essential_vocab_3': 'https://images.unsplash.com/photo-1507842229458-570a27e7d97e?auto=format&fit=crop&w=720&q=80', // Đại sảnh thư viện cổ kính
+  'essential_vocab_3': 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=720&q=80', // Đại sảnh thư viện cổ kính
 
   // Các chủ đề Collocation & từ vựng
   'work': 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=720&q=80',
@@ -104,7 +104,7 @@ export const DECK_COVERS = {
   'phrasal': 'https://images.unsplash.com/photo-1476820865390-c52aeebb9891?auto=format&fit=crop&w=720&q=80',
   'make_do': 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=720&q=80',
   'have_take': 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=720&q=80',
-  'give_pay_get': 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=720&q=80',
+  'give_pay_get': 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=720&q=80',
   'adverbs_collocations': 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=720&q=80',
   'murphy_phrasal_advanced': 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=720&q=80',
   'collocations_academic': 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=720&q=80',
@@ -128,7 +128,7 @@ const FALLBACK_PALETTE = [
   'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=720&q=80',
   'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=720&q=80',
   'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=720&q=80',
-  'https://images.unsplash.com/photo-1507842229458-570a27e7d97e?auto=format&fit=crop&w=720&q=80',
+  'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=720&q=80',
   'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=720&q=80',
   'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=720&q=80',
 ];
