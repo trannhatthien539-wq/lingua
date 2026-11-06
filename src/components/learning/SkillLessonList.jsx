@@ -1,5 +1,6 @@
 import { BookOpen, Check, Clock3, PlayCircle } from "lucide-react";
 import NavIcon from "../ui/NavIcon";
+import { getSkillCover } from "../../data/lessonCovers";
 
 /** Danh sách bài học dạng card dọc, dùng chung cho Nghe/Đọc/Nói/Viết. */
 export default function SkillLessonList({ icon, color = "#14d4f4", actionLabel = "Học bài", items, onOpen }) {
@@ -9,15 +10,30 @@ export default function SkillLessonList({ icon, color = "#14d4f4", actionLabel =
         const result = item.result;
         const score = result?.total ? Math.round((result.best / result.total) * 100) : 0;
         const completed = Boolean(result);
+        const coverImage = item.coverImage || getSkillCover(item.id, item.tag, item.index);
         return (
           <article key={item.id} className="panel group flex h-full flex-col overflow-hidden p-0 border border-slate-200/80 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_16px_36px_-10px_rgba(20,212,244,0.18)] dark:border-white/[0.08] dark:bg-[#111827]/70 dark:hover:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5)]">
             <button type="button" onClick={() => onOpen(item.id)} className="relative block aspect-[16/9] w-full overflow-hidden text-left" aria-label={`Mở bài ${item.title}`}>
-              <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent">
-                <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/70 shadow-md backdrop-blur-md dark:bg-white/10" style={{ color }}><NavIcon icon={icon} color={color} size="lg" /></span>
-                <span className="mt-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.tag || item.level || "Bài học"}</span>
-              </div>
-              <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-slate-900/70 px-2.5 py-1 text-[11px] font-mono font-bold text-white backdrop-blur-md">#{item.index}</span>
-              <span className="absolute bottom-3 left-3 inline-flex max-w-[82%] items-center gap-1.5 rounded-full border border-white/20 bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:text-white"><BookOpen size={12} style={{ color }} />{item.title}</span>
+              {coverImage ? (
+                <img
+                  src={coverImage}
+                  alt={item.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent">
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/70 shadow-md backdrop-blur-md dark:bg-white/10" style={{ color }}><NavIcon icon={icon} color={color} size="lg" /></span>
+                  <span className="mt-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{item.tag || item.level || "Bài học"}</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent pointer-events-none" />
+              <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-1 text-[11px] font-mono font-bold text-white shadow-sm backdrop-blur-md">#{item.index}</span>
+              <span className="absolute bottom-3 left-3 inline-flex max-w-[85%] items-center gap-1.5 rounded-full border border-white/20 bg-slate-900/80 px-3 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md">
+                <BookOpen size={12} className="text-cyan-400" />
+                <span className="truncate">{item.title}</span>
+              </span>
             </button>
             <div className="relative flex flex-1 flex-col p-4 sm:p-5">
               <p className="eyebrow" style={{ color }}>Bài {item.index}{item.level ? ` · ${item.level}` : ""}</p>

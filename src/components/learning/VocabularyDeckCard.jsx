@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { BookOpen, CheckCircle2, Eye, Sparkles } from "lucide-react";
 import SafeImage from "../ui/SafeImage";
+import { getDeckCover } from "../../data/lessonCovers";
 
 const COVER_TONES = [
   "from-indigo-500/15 via-indigo-500/5 to-transparent text-indigo-500 dark:text-indigo-400",
@@ -16,7 +17,7 @@ export default memo(function VocabularyDeckCard({ deck, index, entry, onOpen, on
   const mastered = entry.mastered || 0;
   const due = entry.due || 0;
   const percent = percentOf(mastered, total);
-  const coverImage = entry.cards.find((card) => card.imageUrl)?.imageUrl;
+  const coverImage = entry.cards.find((card) => card.imageUrl)?.imageUrl || getDeckCover(deck, index);
   const coverTone = COVER_TONES[index % COVER_TONES.length];
   const newCount = entry.cards.filter((card) => !card.status || card.status === "new").length;
   const reviewLabel = due ? `${due} cần ôn hôm nay` : newCount ? `${newCount} từ mới` : total ? "Đã lên lịch ôn" : "Chưa có từ";
@@ -38,7 +39,8 @@ export default memo(function VocabularyDeckCard({ deck, index, entry, onOpen, on
             </span>
           </div>
         )}
-        <span className="absolute bottom-2.5 left-2.5 rounded-full border border-white/20 bg-white/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700 backdrop-blur-md dark:bg-slate-900/80 dark:text-slate-200">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/15 to-transparent pointer-events-none" />
+        <span className="absolute bottom-2.5 left-2.5 rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md shadow-sm">
           {deck.level || "Từ vựng"}
         </span>
       </button>

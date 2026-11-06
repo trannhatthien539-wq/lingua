@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { BookOpen, GraduationCap, LoaderCircle, PlayCircle } from "lucide-react";
 import { bandFor } from "../../data/vstep/bands";
+import { getVstepCover } from "../../data/lessonCovers";
 
 const LEVEL_STYLES = {
   B1: {
@@ -23,6 +24,7 @@ const LEVEL_STYLES = {
 export default memo(function VstepExamCard({ exam, best, last, loading, onOpen }) {
   const theme = LEVEL_STYLES[exam.level] || LEVEL_STYLES.B1;
   const score = best?.average ? Math.max(0, Math.min(100, Math.round(best.average * 10))) : 0;
+  const coverImage = exam.coverImage || getVstepCover(exam.id, exam.level);
 
   return (
     <article className="panel group flex h-full flex-col overflow-hidden p-0 border border-slate-200/80 bg-white/70 shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_16px_36px_-10px_rgba(20,212,244,0.18)] dark:border-white/[0.08] dark:bg-[#111827]/70 dark:hover:shadow-[0_16px_36px_-10px_rgba(0,0,0,0.5)]">
@@ -33,19 +35,30 @@ export default memo(function VstepExamCard({ exam, best, last, loading, onOpen }
         className="relative block aspect-[16/9] w-full overflow-hidden text-left disabled:cursor-wait"
         aria-label={`Mở đề ${exam.title}`}
       >
-        <div className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br ${theme.cover}`}>
-          <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/70 shadow-md backdrop-blur-md dark:bg-white/10">
-            <GraduationCap size={28} strokeWidth={1.8} />
-          </span>
-          <span className="mt-2.5 max-w-[85%] truncate text-[11px] font-bold uppercase tracking-wider opacity-80">
-            VSTEP · {exam.level}
-          </span>
-        </div>
-        <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-slate-900/70 px-2.5 py-1 text-[11px] font-mono font-bold text-white backdrop-blur-md">
+        {coverImage ? (
+          <img
+            src={coverImage}
+            alt={exam.title}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-br ${theme.cover}`}>
+            <span className="grid h-14 w-14 place-items-center rounded-2xl border border-white/20 bg-white/70 shadow-md backdrop-blur-md dark:bg-white/10">
+              <GraduationCap size={28} strokeWidth={1.8} />
+            </span>
+            <span className="mt-2.5 max-w-[85%] truncate text-[11px] font-bold uppercase tracking-wider opacity-80">
+              VSTEP · {exam.level}
+            </span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent pointer-events-none" />
+        <span className="absolute right-3 top-3 rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-1 text-[11px] font-mono font-bold text-white shadow-sm backdrop-blur-md">
           {exam.level}
         </span>
-        <span className="absolute bottom-3 left-3 inline-flex max-w-[85%] items-center gap-1.5 rounded-full border border-white/20 bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-900 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:text-white">
-          <GraduationCap size={12} className={theme.accent} />
+        <span className="absolute bottom-3 left-3 inline-flex max-w-[85%] items-center gap-1.5 rounded-full border border-white/20 bg-slate-900/80 px-3 py-1 text-xs font-bold text-white shadow-sm backdrop-blur-md">
+          <GraduationCap size={13} className="text-amber-400" />
           <span className="truncate">{exam.tags.join(" · ")}</span>
         </span>
       </button>

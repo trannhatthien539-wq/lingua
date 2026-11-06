@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, BadgeCheck, CircleAlert, Lightbulb, Quote, Volum
 import GrammarQuiz from './GrammarQuiz'
 import { PASS_RATIO } from '../../data/grammarCurriculum'
 import { speakText } from '../../utils/speech'
+import { getGrammarCover } from '../../data/lessonCovers'
 
 const Section = ({ icon: Icon, title, children, hint }) => (
   <section className="panel-flat p-4 sm:p-5">
@@ -36,20 +37,34 @@ export default function GrammarLesson({ lesson, completed, onResult, onNext, onP
   return (
     <div className="space-y-4">
       <div ref={topRef} className="scroll-mt-4" />
-      <header className="panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">Bài {lesson.order} · {lesson.level}</p>
-            <h2 className="mt-1 font-display text-xl font-bold">
-              {lesson.title} <span className="text-ink/50 dark:text-white/50">· {lesson.en}</span>
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-ink/70 dark:text-white/70">{lesson.summary}</p>
+      <header className="panel relative overflow-hidden p-0">
+        <div className="relative aspect-[28/9] w-full min-h-[140px] sm:min-h-[180px]">
+          <img
+            src={lesson.coverImage || getGrammarCover(lesson.id, lesson.order)}
+            alt={lesson.title}
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white sm:bottom-5 sm:left-5 sm:right-5">
+            <div className="min-w-0">
+              <span className="inline-block rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+                Bài {lesson.order} · {lesson.level}
+              </span>
+              <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl text-white">
+                {lesson.title} <span className="text-white/70">· {lesson.en}</span>
+              </h2>
+            </div>
+            {completed?.passed && (
+              <span className="chip border border-white/20 bg-emerald-500/85 text-white shadow-sm backdrop-blur-md">
+                <BadgeCheck size={14} className="mr-1 inline" /> Đạt {completed.best}/{completed.total}
+              </span>
+            )}
           </div>
-          {completed?.passed && (
-            <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">
-              <BadgeCheck size={14} className="mr-1" /> Đạt {completed.best}/{completed.total}
-            </span>
-          )}
+        </div>
+        <div className="p-4 sm:p-5">
+          <p className="text-sm leading-relaxed text-ink/70 dark:text-white/70">{lesson.summary}</p>
         </div>
       </header>
 

@@ -1,6 +1,11 @@
 const OPENVERSE_ENDPOINT = "https://api.openverse.org/v1/images/";
 
-const isAllowedImageUrl = (value = "") => /^https:\/\/api\.openverse\.org\/v1\/images\/[\w-]+\/thumb\//i.test(value) || /^data:image\/[a-z0-9.+-]+;base64,/i.test(value);
+const isAllowedImageUrl = (value = "") =>
+  /^https:\/\/api\.openverse\.org\/v1\/images\/[\w-]+\/thumb\//i.test(value) ||
+  /^https:\/\/(images|plus)\.unsplash\.com\//i.test(value) ||
+  /^https:\/\/upload\.wikimedia\.org\//i.test(value) ||
+  /^data:image\/[a-z0-9.+-]+;base64,/i.test(value) ||
+  /^\//.test(value);
 
 export const isSafeImageSource = (value = "") => isAllowedImageUrl(value);
 

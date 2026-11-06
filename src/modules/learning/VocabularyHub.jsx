@@ -49,6 +49,7 @@ import { dateKey, isDue, isLeech } from "../../utils/srs";
 import { createThemeDeck, loadThemeDeckEntries, themeDecks } from "../../data/themeDecks";
 import { loadCachedLibrary, saveCachedLibrary } from "../../services/vocabularyStorage";
 import { auth } from "../../services/firebase";
+import { DECK_COVERS } from "../../data/lessonCovers";
 
 // Mỗi phiên học tối đa 50 thẻ, và danh sách chỉ hiển thị 60 thẻ một lần
 // (các bộ từ có thể chứa tới 4.000 mục nên không thể render hết cùng lúc).
@@ -1425,9 +1426,19 @@ export default function VocabularyHub({ onStudyActivity, streak, apiKey, user })
                       disabled={loading === `theme-${deck.id}`}
                       className="flex w-full items-start gap-3 rounded-xl border border-ink/[0.08] p-3 text-left transition hover:bg-ink/[0.03] disabled:opacity-60 dark:border-white/[0.08] dark:hover:bg-white/[0.05]"
                     >
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
-                        <BookOpen size={17} />
-                      </span>
+                      {DECK_COVERS[deck.id] ? (
+                        <img
+                          src={DECK_COVERS[deck.id]}
+                          alt={deck.title}
+                          className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-sm"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-indigo-500/20 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">
+                          <BookOpen size={17} />
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className="block break-words text-sm font-bold">{deck.title}</span>
                         <span className="mt-0.5 block break-words text-xs text-ink/60 dark:text-white/60">{deck.description}</span>

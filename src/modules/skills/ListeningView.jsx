@@ -4,6 +4,7 @@ import QuestionSet from '../grammar/GrammarQuiz'
 import SkillLessonList from '../../components/learning/SkillLessonList'
 import { listeningLessons } from '../../data/skills/listening'
 import { speakText, stopSpeech } from '../../utils/speech'
+import { getSkillCover } from '../../data/lessonCovers'
 
 const RATES = [
   { id: 0.8, label: '0.8x' },
@@ -126,15 +127,28 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
         <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Bài {lessonIndex + 1}/{listeningLessons.length}</span>
       </div>
 
-      <section className="panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="eyebrow">Nghe · {lesson.level}</p>
-            <h2 className="mt-1 font-display text-xl font-bold">{lesson.title}</h2>
-            <p className="mt-1 text-xs text-ink/60 dark:text-white/60">{lesson.topic} · khoảng {lesson.seconds} giây</p>
+      <section className="panel relative overflow-hidden p-0">
+        <div className="relative aspect-[28/9] w-full min-h-[140px] sm:min-h-[170px]">
+          <img
+            src={getSkillCover(lesson.id, lesson.topic, lessonIndex + 1)}
+            alt={lesson.title}
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white sm:bottom-5 sm:left-5 sm:right-5">
+            <div className="min-w-0">
+              <span className="inline-block rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+                Nghe · {lesson.level}
+              </span>
+              <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl text-white">{lesson.title}</h2>
+              <p className="mt-1 text-xs text-white/80">{lesson.topic} · khoảng {lesson.seconds} giây</p>
+            </div>
+            {best && <span className="chip border border-white/20 bg-emerald-500/85 text-white shadow-sm backdrop-blur-md">Điểm cao nhất {best.best}/{best.total}</span>}
           </div>
-          {best && <span className="chip bg-okbg text-ok dark:bg-okdark dark:text-okfgdark">Điểm cao nhất {best.best}/{best.total}</span>}
         </div>
+        <div className="p-4 sm:p-5">
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {playing
@@ -186,6 +200,7 @@ export default function ListeningView({ progress, onResult, onLines, focusId }) 
               </button>
             ))}
           </div>
+        </div>
         </div>
       </section>
 

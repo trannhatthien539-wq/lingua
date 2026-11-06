@@ -3,6 +3,7 @@ import { ArrowLeft, CircleStop, Mic, Quote, Volume2 } from 'lucide-react'
 import SkillLessonList from '../../components/learning/SkillLessonList'
 import { speakingTopics } from '../../data/skills/speaking'
 import { speakText, stopSpeech } from '../../utils/speech'
+import { getSkillCover } from '../../data/lessonCovers'
 import { createRecognizer, isSpeechRecognitionSupported, scoreLabel, scorePronunciation, speedLabel } from '../../utils/speechScore'
 
 const formatSeconds = (value) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
@@ -192,17 +193,33 @@ export default function SpeakingView({ focusId }) {
         <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Chủ đề {topicIndex + 1}/{speakingTopics.length}</span>
       </div>
 
-      <section className="panel p-4 sm:p-5">
-        <p className="eyebrow">Ghi âm luyện nói</p>
-        <h3 className="mt-1 font-display text-lg font-bold">{topic.title}</h3>
-        <p className="mt-1 text-xs text-ink/60 dark:text-white/60">Nói 1–2 phút, sau đó nghe lại và tự nhận xét: ngữ pháp, từ vựng, độ trôi chảy.</p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {recording
-            ? <button type="button" onClick={stopRecording} className="btn-primary px-4"><CircleStop size={16} />Dừng ({formatSeconds(seconds)})</button>
-            : <button type="button" onClick={startRecording} disabled={recStarting} className="btn-secondary px-4">{recStarting ? <><Mic size={16} />Đang xin quyền micro…</> : <><Mic size={16} />Bắt đầu ghi âm</>}</button>}
-          {audioUrl && <audio controls src={audioUrl} className="h-11 w-full max-w-sm" />}
+      <section className="panel relative overflow-hidden p-0">
+        <div className="relative aspect-[28/9] w-full min-h-[140px] sm:min-h-[170px]">
+          <img
+            src={getSkillCover(topic.id, topic.topic, topicIndex + 1)}
+            alt={topic.title}
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 text-white sm:bottom-5 sm:left-5 sm:right-5">
+            <span className="inline-block rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+              Luyện nói · {topic.topic}
+            </span>
+            <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl text-white">{topic.title}</h2>
+          </div>
         </div>
-        {recError && <p className="mt-2 text-xs text-danger dark:text-dangerfgdark">{recError}</p>}
+        <div className="p-4 sm:p-5">
+          <p className="text-xs text-ink/60 dark:text-white/60">Nói 1–2 phút, sau đó nghe lại và tự nhận xét: ngữ pháp, từ vựng, độ trôi chảy.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {recording
+              ? <button type="button" onClick={stopRecording} className="btn-primary px-4"><CircleStop size={16} />Dừng ({formatSeconds(seconds)})</button>
+              : <button type="button" onClick={startRecording} disabled={recStarting} className="btn-secondary px-4">{recStarting ? <><Mic size={16} />Đang xin quyền micro…</> : <><Mic size={16} />Bắt đầu ghi âm</>}</button>}
+            {audioUrl && <audio controls src={audioUrl} className="h-11 w-full max-w-sm" />}
+          </div>
+          {recError && <p className="mt-2 text-xs text-danger dark:text-dangerfgdark">{recError}</p>}
+        </div>
       </section>
 
       <section className="panel p-4 sm:p-5">

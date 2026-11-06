@@ -14,6 +14,7 @@ import {
 import SkillLessonList from '../../components/learning/SkillLessonList'
 import { writingTasks } from '../../data/skills/writing'
 import { speakText } from '../../utils/speech'
+import { getSkillCover } from '../../data/lessonCovers'
 import { canUseAi, normalizeProvider, parseAiJson, requestAi } from '../../services/aiService'
 import { PROVIDER_STORAGE, readApiKeyForUser } from '../../services/apiKeyStorage'
 import { toast } from '../../services/toast'
@@ -161,11 +162,27 @@ Trả về CHÍNH XÁC một JSON hợp lệ theo schema sau (không markdown, k
         <span className="text-xs font-semibold text-ink/55 dark:text-white/55">Đề {taskIndex + 1}/{writingTasks.length}</span>
       </div>
 
-      <section className="panel p-4 sm:p-5">
-        <p className="eyebrow">Đề bài · {task.type}</p>
-        <h2 className="mt-1 font-display text-xl font-bold">{task.title}</h2>
-        <p className="mt-3 text-sm leading-6 text-ink/80 dark:text-white/80">{task.situation}</p>
-        <p className="mt-3 rounded-xl bg-ink/[0.04] p-3 text-sm leading-6 dark:bg-white/[0.06]">{task.task}</p>
+      <section className="panel relative overflow-hidden p-0">
+        <div className="relative aspect-[28/9] w-full min-h-[140px] sm:min-h-[170px]">
+          <img
+            src={getSkillCover(task.id, task.type, taskIndex + 1)}
+            alt={task.title}
+            className="h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 text-white sm:bottom-5 sm:left-5 sm:right-5">
+            <span className="inline-block rounded-full border border-white/20 bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
+              Đề bài · {TYPE_LABELS[task.type] || task.type}
+            </span>
+            <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl text-white">{task.title}</h2>
+          </div>
+        </div>
+        <div className="p-4 sm:p-5">
+          <p className="text-sm leading-6 text-ink/80 dark:text-white/80">{task.situation}</p>
+          <p className="mt-3 rounded-xl bg-ink/[0.04] p-3 text-sm leading-6 dark:bg-white/[0.06]">{task.task}</p>
+        </div>
       </section>
 
       <section className="panel p-4 sm:p-5">
