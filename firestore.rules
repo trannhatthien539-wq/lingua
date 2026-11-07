@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Lingua — Firestore Security Rules
-// Nguyên tắc: mỗi người dùng chỉ đọc/ghi được dữ liệu của chính mình.
+// Nguyên tắc: mỗi người dùng chỉ đọc/ghi được dữ liệu của chính mình,
+// kèm kiểm tra kiểu dữ liệu và giới hạn kích thước cơ bản cho các trường chính.
 // Dữ liệu khách (chưa đăng nhập) chỉ nằm trên thiết bị, không lên Firestore.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -16,37 +17,73 @@ service cloud.firestore {
 
     // Người tạo/sửa phải gắn đúng uid của mình vào field userId.
     function keepsOwnership() {
-      return signedIn() && request.resource.data.userId == request.auth.uid;
+      return signedIn()
+        && request.resource.data.userId is string
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Kiểm tra cơ bản cho bộ thẻ (study_decks)
+    function validDeckData() {
+      let data = request.resource.data;
+      return data.keys().size() <= 15
+        && (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() <= 200))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 1000))
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 20));
+    }
+
+    // Kiểm tra cơ bản cho thẻ từ vựng (vocabulary_cards)
+    function validCardData() {
+      let data = request.resource.data;
+      return data.keys().size() <= 25
+        && (!('deckId' in data) || (data.deckId is string && data.deckId.size() > 0 && data.deckId.size() <= 128))
+        && (!('word' in data) || (data.word is string && data.word.size() > 0 && data.word.size() <= 300))
+        && (!('meaning' in data) || (data.meaning is string && data.meaning.size() <= 2000))
+        && (!('example' in data) || (data.example is string && data.example.size() <= 2000));
     }
 
     // Tài liệu user_state có id dạng "<uid>__<key>".
     function ownsStateDoc(docId) {
-      return signedIn() && docId.split('__')[0] == request.auth.uid;
+      let parts = docId.split('__');
+      return signedIn()
+        && parts.size() == 2
+        && parts[0] == request.auth.uid
+        && parts[1] in [
+          'planner',
+          'mindmap',
+          'grammar',
+          'writing',
+          'skills',
+          'reminder',
+          'history',
+          'goal',
+          'vstep',
+          'mistakes'
+        ];
     }
 
     // streak / thống kê cá nhân: users/{uid}
     match /users/{userId} {
       allow read: if owns(userId);
-      allow create, update: if owns(userId);
+      allow create, update: if owns(userId) && request.resource.data.keys().size() <= 20;
       allow delete: if false;
     }
 
     // Bộ thẻ từ vựng
     match /study_decks/{deckId} {
       allow read, delete: if owns(resource.data.userId);
-      allow create: if keepsOwnership();
-      allow update: if owns(resource.data.userId) && keepsOwnership();
+      allow create: if keepsOwnership() && validDeckData();
+      allow update: if owns(resource.data.userId) && keepsOwnership() && validDeckData();
     }
 
     // Thẻ từ vựng
     match /vocabulary_cards/{cardId} {
       allow read, delete: if owns(resource.data.userId);
-      allow create: if keepsOwnership();
-      allow update: if owns(resource.data.userId) && keepsOwnership();
+      allow create: if keepsOwnership() && validCardData();
+      allow update: if owns(resource.data.userId) && keepsOwnership() && validCardData();
     }
 
     // Trạng thái đồng bộ của từng module: kế hoạch học, mindmap, nháp ngữ pháp,
-    // nhắc học, lịch sử học tập (id tài liệu = "<uid>__<key>").
+    // nhắc học, lịch sử học tập, mục tiêu ngày, VSTEP, sổ tay lỗi sai (id tài liệu = "<uid>__<key>").
     match /user_state/{docId} {
       allow read, delete: if ownsStateDoc(docId) && owns(resource.data.userId);
       allow create, update: if ownsStateDoc(docId) && keepsOwnership();

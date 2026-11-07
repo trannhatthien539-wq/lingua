@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { dataService, invalidateVocabularyCache } from '../services/dataService'
+import { dataService, invalidateVocabularyCache, readGuestLibrary } from '../services/dataService'
 import { refreshRequestedEvent } from '../services/syncStatus'
 import { toast } from '../services/toast'
 import { loadCachedLibrary } from '../services/vocabularyStorage'
@@ -13,13 +13,18 @@ import { loadCachedLibrary } from '../services/vocabularyStorage'
  * trước khi revalidate từ Firestore.
  */
 export default function useVocabularyCards({ user } = {}) {
-  const [cards, setCards] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [cards, setCards] = useState(() => (!user?.uid ? readGuestLibrary().cards : []))
+  const [loading, setLoading] = useState(() => Boolean(user?.uid))
   const [error, setError] = useState(null)
   const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     let active = true
+
+    if (!user?.uid) {
+      setCards(readGuestLibrary().cards)
+      setLoading(false)
+    }
 
     // Đọc ngay từ IndexedDB để giao diện hiển thị tức thì (20ms)
     loadCachedLibrary(user?.uid || 'guest').then((cached) => {

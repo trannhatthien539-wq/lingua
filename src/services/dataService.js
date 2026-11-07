@@ -204,12 +204,14 @@ let allCardsRequest = null;
 const cacheOwner = () => currentUser()?.uid || "guest";
 
 /** Xoá bộ đệm thẻ/bộ thẻ (gọi sau create/update/delete hoặc khi đổi tài khoản). */
-export const invalidateVocabularyCache = () => {
+export const invalidateVocabularyCache = ({ clearLocal = false } = {}) => {
+  const owner = cacheOwner();
   cacheGeneration += 1;
   deckDocsCache = null;
   deckDocsRequest = null;
   allCardsCache = null;
   allCardsRequest = null;
+  if (clearLocal) void clearCachedLibrary(owner);
 };
 
 const getRemoteDeckDocuments = async () => {
@@ -237,12 +239,16 @@ const getRemoteDeckDocuments = async () => {
 const dataMethods = {
   async getDecks() {
     await ensureUser();
-    if (!currentUser()) return readLocal().decks.filter((deck) => !deck.deletedAt).map(normalizeDeck);
+    const owner = cacheOwner();
+    if (!currentUser()) {
+      const decks = readLocal().decks.filter((deck) => !deck.deletedAt).map(normalizeDeck);
+      void saveCachedLibrary(owner, { decks });
+      return decks;
+    }
     const decks = (await getRemoteDeckDocuments())
       .filter((deck) => !deck.deletedAt)
       .sort((first, second) => String(first.createdAt).localeCompare(String(second.createdAt)))
       .map(normalizeDeck);
-    const owner = cacheOwner();
     void saveCachedLibrary(owner, { decks });
     return decks;
   },
@@ -295,7 +301,7 @@ const dataMethods = {
         decks: library.decks.filter((deck) => deck.id !== id),
         cards: library.cards.filter((card) => card.deckId !== id),
       });
-      invalidateVocabularyCache();
+      invalidateVocabularyCache({ clearLocal: true });
       return;
     }
     const cards = await getDocs(query(collection(db, "vocabulary_cards"), where("userId", "==", requireUser().uid), where("deckId", "==", id)));
@@ -305,7 +311,7 @@ const dataMethods = {
       await batch.commit();
     }
     await deleteDoc(doc(db, "study_decks", id));
-    invalidateVocabularyCache();
+    invalidateVocabularyCache({ clearLocal: true });
   },
 
   async getCards(deckId) {
@@ -534,11 +540,11 @@ const dataMethods = {
     if (!currentUser()) {
       const library = readLocal();
       writeLocal({ ...library, cards: library.cards.filter((card) => card.id !== id) });
-      invalidateVocabularyCache();
+      invalidateVocabularyCache({ clearLocal: true });
       return;
     }
     await deleteDoc(doc(db, "vocabulary_cards", id));
-    invalidateVocabularyCache();
+    invalidateVocabularyCache({ clearLocal: true });
   },
 
   /**
@@ -554,13 +560,13 @@ const dataMethods = {
         ...library,
         decks: library.decks.map((deck) => (deck.id === id ? { ...deck, deletedAt } : deck)),
       });
-      invalidateVocabularyCache();
+      invalidateVocabularyCache({ clearLocal: true });
       return deletedAt;
     }
     // Chỉ đánh dấu deck là đủ để ẩn deck và toàn bộ thẻ con. Tránh 1.000 update khi
     // xoá bộ 1.000 từ; các thẻ con vẫn được giữ nguyên để khôi phục nhanh và an toàn.
     await updateDoc(doc(db, "study_decks", id), { deletedAt });
-    invalidateVocabularyCache();
+    invalidateVocabularyCache({ clearLocal: true });
     return deletedAt;
   },
 
@@ -668,7 +674,7 @@ const dataMethods = {
       });
       await batch.commit();
     }
-    invalidateVocabularyCache();
+    invalidateVocabularyCache({ clearLocal: true });
   },
 };
 

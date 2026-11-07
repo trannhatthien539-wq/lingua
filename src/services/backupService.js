@@ -26,13 +26,34 @@ const download = (content, filename, type) => {
   URL.revokeObjectURL(url);
 };
 
-/** Gộp toàn bộ dữ liệu của tài khoản (bộ thẻ, kế hoạch, mindmap, nháp ngữ pháp, nhắc học, streak). */
+/** Gộp toàn bộ dữ liệu của tài khoản (bộ thẻ, kế hoạch, mindmap, nháp ngữ pháp, nhắc học, lịch sử, VSTEP, 4 kỹ năng, sửa bài AI, mục tiêu ngày, sổ câu sai). */
 export const buildBackup = async () => {
   const decks = await dataService.getDecks();
   const cards = await dataService.getAllCards();
-  const [planner, mindmap, grammar, reminder, history] = await Promise.all(
-    [userDocKeys.planner, userDocKeys.mindmap, userDocKeys.grammar, userDocKeys.reminder, userDocKeys.history]
-      .map((key) => loadUserDoc(key).catch(() => null)),
+  const [
+    planner,
+    mindmap,
+    grammar,
+    writing,
+    skills,
+    reminder,
+    history,
+    goal,
+    vstep,
+    mistakes,
+  ] = await Promise.all(
+    [
+      userDocKeys.planner,
+      userDocKeys.mindmap,
+      userDocKeys.grammar,
+      userDocKeys.writing,
+      userDocKeys.skills,
+      userDocKeys.reminder,
+      userDocKeys.history,
+      userDocKeys.goal,
+      userDocKeys.vstep,
+      userDocKeys.mistakes,
+    ].map((key) => loadUserDoc(key).catch(() => null)),
   );
   return {
     app: "lingua",
@@ -44,8 +65,13 @@ export const buildBackup = async () => {
     planner: planner?.payload ?? null,
     mindmap: mindmap?.payload ?? null,
     grammar: grammar?.payload ?? null,
+    writing: writing?.payload ?? null,
+    skills: skills?.payload ?? null,
     reminder: reminder?.payload ?? null,
     history: history?.payload ?? null,
+    goal: goal?.payload ?? null,
+    vstep: vstep?.payload ?? null,
+    mistakes: mistakes?.payload ?? null,
   };
 };
 
@@ -117,8 +143,13 @@ export const importBackup = async (backup) => {
     [userDocKeys.planner, backup.planner],
     [userDocKeys.mindmap, backup.mindmap],
     [userDocKeys.grammar, backup.grammar],
+    [userDocKeys.writing, backup.writing],
+    [userDocKeys.skills, backup.skills],
     [userDocKeys.reminder, backup.reminder],
     [userDocKeys.history, backup.history],
+    [userDocKeys.goal, backup.goal],
+    [userDocKeys.vstep, backup.vstep],
+    [userDocKeys.mistakes, backup.mistakes],
   ];
   let restoredDocs = 0;
   for (const [key, payload] of docs) {

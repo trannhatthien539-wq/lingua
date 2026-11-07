@@ -82,8 +82,8 @@ export async function saveCachedLibrary(userId = "guest", { decks, cards } = {})
       const getReq = store.get(userId);
       getReq.onsuccess = () => {
         const existing = getReq.result || {};
-        const safeDecks = Array.isArray(decks) && decks.length > 0 ? decks : (existing.decks || []);
-        const safeCards = Array.isArray(cards) && cards.length > 0 ? cards : (existing.cards || []);
+        const safeDecks = Array.isArray(decks) ? decks : (existing.decks || []);
+        const safeCards = Array.isArray(cards) ? cards : (existing.cards || []);
         store.put({
           userId,
           decks: safeDecks,

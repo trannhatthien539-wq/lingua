@@ -82,4 +82,37 @@ describe('Hệ thống SEO, Metadata và Cấu trúc dự án', () => {
       assert.ok(item.icon, 'Phải có icon')
     }
   })
+
+  it('backupService sao lưu và khôi phục đủ toàn bộ 10 userDocKeys', () => {
+    const backupContent = fs.readFileSync(path.resolve('src/services/backupService.js'), 'utf8')
+    const expectedKeys = [
+      'planner',
+      'mindmap',
+      'grammar',
+      'writing',
+      'skills',
+      'reminder',
+      'history',
+      'goal',
+      'vstep',
+      'mistakes',
+    ]
+    for (const key of expectedKeys) {
+      assert.match(backupContent, new RegExp(`userDocKeys\\.${key}\\b`), `backupService phải xử lý userDocKeys.${key}`)
+    }
+  })
+
+  it('package.json ghim phiên bản rõ ràng, không dùng "latest"', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'))
+    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies }
+    for (const [name, version] of Object.entries(allDeps)) {
+      assert.notEqual(version, 'latest', `Dependency ${name} không được để "latest"`)
+    }
+  })
+
+  it('StudyPlanner dùng dayKeyOf theo giờ địa phương thay vì UTC toISOString', () => {
+    const plannerContent = fs.readFileSync(path.resolve('src/modules/planner/StudyPlanner.jsx'), 'utf8')
+    assert.match(plannerContent, /dayKeyOf/)
+    assert.doesNotMatch(plannerContent, /toISOString\(\)\.slice\(0,\s*10\)/)
+  })
 })

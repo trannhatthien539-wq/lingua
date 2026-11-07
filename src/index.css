@@ -77,8 +77,8 @@
 .animate-toast-in { animation: toast-in 180ms cubic-bezier(0.16, 1, 0.3, 1); }
 
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.995); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0.92; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes sheet-up {
@@ -289,10 +289,13 @@
 
 
 /*
- * Sàn tương phản cho chữ mờ (chế độ sáng): các utility text-ink/25…/55 mặc định
- * chỉ đạt ~2.4–2.9:1 (không đạt WCAG AA) nên được nâng lên ~4.8:1 trên nền sáng.
- * Chế độ tối không cần vì chữ trắng trên nền tối đã đạt chuẩn.
+ * Sàn tương phản cho chữ mờ (chế độ sáng): các utility text-ink/25…/55 và text-slate-400
+ * mặc định chỉ đạt ~2.4–2.9:1 (không đạt WCAG AA) nên được nâng lên ≥ 4.5:1 trên nền sáng.
+ * Chế độ tối không cần vì chữ trắng/xám sáng trên nền tối đã đạt chuẩn.
  */
+html:not(.dark) .text-slate-400 {
+  color: #64748B;
+}
 .text-ink\/25,
 .text-ink\/30,
 .text-ink\/35,

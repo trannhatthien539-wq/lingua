@@ -502,7 +502,7 @@ function StudyDrawer({ node, onClose, onSaveNotes, onPractice }) {
   );
 }
 
-export default function StudyMindmap({ apiKey }) {
+export default function StudyMindmap({ apiKey, onNavigate }) {
   const saved = readMap();
   const [mapName, setMapName] = useState(
     saved.name || "English Fluency Roadmap",
@@ -867,9 +867,16 @@ export default function StudyMindmap({ apiKey }) {
             );
             setStatus("Đã lưu ghi chú.");
           }}
-          onPractice={(label) =>
-            setStatus(`Mở luyện tập chủ điểm: ${label}`)
-          }
+          onPractice={(label) => {
+            if (label?.trim()) {
+              localStorage.setItem("lingua-practice-topic", label.trim());
+            }
+            if (onNavigate) {
+              onNavigate("vocabulary");
+            } else {
+              window.dispatchEvent(new Event("lingua:open-practice"));
+            }
+          }}
         />
       )}
     </div>

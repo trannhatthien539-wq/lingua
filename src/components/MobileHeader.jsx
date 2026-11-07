@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LogIn, LogOut, Moon, Search, Sun, X } from 'lucide-react';
 import AppMark from './AppMark';
 import NotificationBell from './NotificationBell';
@@ -7,6 +7,15 @@ import SyncStatusBadge from './ui/SyncStatusBadge';
 export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, theme, onToggleTheme, onOpenSearch }) {
   const [open, setOpen] = useState(false);
   const initials = (user?.displayName || user?.email || 'Guest').trim().slice(0, 1).toUpperCase();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   return (
     <>
@@ -44,6 +53,7 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
           {user ? (
             <button
               onClick={() => setOpen((value) => !value)}
+              aria-expanded={open}
               className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-black text-white shadow-inner transition hover:scale-105"
               style={{ background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))' }}
               aria-label="Mở tài khoản"
@@ -63,28 +73,42 @@ export default function MobileHeader({ user, streak, onOpenAuth, onSignOut, them
         </div>
       </header>
       {user && open && (
-        <div className="fixed inset-x-4 top-16 z-[60] rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#111827]/95">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-black text-white shadow-inner" style={{ background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))' }}>
-                {initials}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user.displayName || 'Tài khoản Google'}</p>
-                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+        <>
+          <div
+            className="fixed inset-0 z-[55] bg-black/20 backdrop-blur-[1px] md:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-label="Tài khoản"
+            className="fixed inset-x-4 top-16 z-[60] rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#111827]/95 md:hidden"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-black text-white shadow-inner" style={{ background: 'linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-2)))' }}>
+                  {initials}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user.displayName || 'Tài khoản Google'}</p>
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+                </div>
               </div>
+              <button onClick={() => setOpen(false)} className="icon-btn -mr-2" aria-label="Đóng">
+                <X size={18} />
+              </button>
             </div>
-            <button onClick={() => setOpen(false)} className="icon-btn -mr-2" aria-label="Đóng">
-              <X size={18} />
+            <button
+              onClick={() => {
+                setOpen(false);
+                onSignOut?.();
+              }}
+              className="mt-4 flex min-h-[44px] w-full items-center gap-2 rounded-xl bg-rose-50 px-3.5 py-3 text-left text-sm font-bold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+            >
+              <LogOut size={16} />Đăng xuất
             </button>
           </div>
-          <button
-            onClick={onSignOut}
-            className="mt-4 flex min-h-[44px] w-full items-center gap-2 rounded-xl bg-rose-50 px-3.5 py-3 text-left text-sm font-bold text-rose-600 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
-          >
-            <LogOut size={16} />Đăng xuất
-          </button>
-        </div>
+        </>
       )}
     </>
   );

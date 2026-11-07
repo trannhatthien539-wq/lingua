@@ -26,16 +26,17 @@ import MobileHeader from './components/MobileHeader'
 import Toaster from './components/ui/Toaster'
 import PageSkeleton from './components/ui/PageSkeleton'
 import AppBootSkeleton from './components/ui/AppBootSkeleton'
+import HomeHub from './modules/home/HomeHub'
 import { lazyWithPreload, preload } from './lib/lazyWithPreload'
 import { toast } from './services/toast'
 
 /**
  * Các module được tách chunk theo tab và có thể nạp trước khi người dùng rê chuột
  * hoặc chạm vào mục điều hướng. Nhờ vậy lần đầu mở app không phải tải toàn bộ
- * 10 tab, nhưng chuyển tab vẫn gần như tức thì.
+ * 10 tab, nhưng chuyển tab vẫn gần như tức thì. Riêng HomeHub được nạp sẵn để
+ * trang đích mặc định (/home) hiển thị ngay không chờ tải chunk phụ.
  */
 const VocabularyHub = lazyWithPreload(() => import('./modules/learning/VocabularyHub'))
-const HomeHub = lazyWithPreload(() => import('./modules/home/HomeHub'))
 const WritingChecker = lazyWithPreload(() => import('./modules/learning/GrammarAndVocabulary').then((module) => ({ default: module.WritingChecker })))
 const GrammarHub = lazyWithPreload(() => import('./modules/grammar/GrammarHub'))
 const SkillsHub = lazyWithPreload(() => import('./modules/skills/SkillsHub'))
@@ -372,7 +373,7 @@ export default function App() {
               onPrefetchTutor={() => preload(AiTutorPanel)}
               streak={streak}
             />
-            {!authResolved ? (
+            {!authResolved && activeTab !== 'home' ? (
               <PageSkeleton />
             ) : activeTab === 'settings' ? (
               <div className="max-w-3xl animate-rise space-y-4">

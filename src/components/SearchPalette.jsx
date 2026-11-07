@@ -33,7 +33,9 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef(null)
+  const listRef = useRef(null)
 
   // Tìm async (có index từ thông dụng nạp lười) + debounce nhẹ.
   useEffect(() => {
@@ -75,10 +77,16 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
     return [...commands, ...mapped]
   }, [query, results])
 
-  // Giữ ref cho danh sách kết quả + callback (App truyền arrow inline) để phím Enter
-  // luôn mở item mới nhất mà không phải gắn lại listener mỗi render.
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [items])
+
+  // Giữ ref cho danh sách kết quả + callback (App truyền arrow inline) để phím Enter / mũi tên
+  // luôn mở item đang chọn mà không phải gắn lại listener mỗi render.
   const itemsRef = useRef(items)
   itemsRef.current = items
+  const activeIndexRef = useRef(activeIndex)
+  activeIndexRef.current = activeIndex
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
   const onOpenTutorRef = useRef(onOpenTutor)
@@ -86,13 +94,29 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Enter mở kết quả đầu tiên (khớp gợi ý ở footer); bỏ qua khi đang gõ bằng IME.
-      if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-        const first = itemsRef.current[0]
-        if (first) {
+      if (event.nativeEvent.isComposing) return
+      const currentItems = itemsRef.current
+      if (!currentItems.length) return
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setActiveIndex((prev) => {
+          const next = (prev + 1) % currentItems.length
+          listRef.current?.querySelector(`[data-search-index="${next}"]`)?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setActiveIndex((prev) => {
+          const next = (prev - 1 + currentItems.length) % currentItems.length
+          listRef.current?.querySelector(`[data-search-index="${next}"]`)?.scrollIntoView({ block: 'nearest' })
+          return next
+        })
+      } else if (event.key === 'Enter') {
+        const selected = currentItems[activeIndexRef.current] || currentItems[0]
+        if (selected) {
           event.preventDefault()
-          if (first.isCommand) onOpenTutorRef.current?.()
-          else onSelectRef.current?.(first)
+          if (selected.isCommand) onOpenTutorRef.current?.()
+          else onSelectRef.current?.(selected)
         }
       }
     }
@@ -107,17 +131,31 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
         <input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm từ vựng, ngữ pháp, bài học, đề thi..." className="h-14 min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500" />
         <button onClick={onClose} className="icon-btn h-9 w-9 rounded-lg" aria-label="Đóng tìm kiếm"><X size={16} /></button>
       </div>
-      <div className="max-h-[min(55vh,360px)] overflow-y-auto p-2">
-        {items.length ? items.map((item) => {
-          const Icon = item.icon;
+      <div ref={listRef} className="max-h-[min(55vh,360px)] overflow-y-auto p-2" role="listbox" aria-label="Kết quả tìm kiếm">
+        {items.length ? items.map((item, index) => {
+          const Icon = item.icon
+          const isActive = index === activeIndex
           return (
-            <button key={item.id} onClick={() => (item.isCommand ? onOpenTutor?.() : onSelect(item))} className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-all hover:bg-indigo-50/80 dark:hover:bg-white/[0.06] group">
+            <button
+              key={item.id}
+              type="button"
+              role="option"
+              aria-selected={isActive}
+              data-search-index={index}
+              onMouseEnter={() => setActiveIndex(index)}
+              onClick={() => (item.isCommand ? onOpenTutor?.() : onSelect(item))}
+              className={`group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-all ${
+                isActive
+                  ? 'bg-indigo-50/90 dark:bg-white/[0.08]'
+                  : 'hover:bg-indigo-50/80 dark:hover:bg-white/[0.06]'
+              }`}
+            >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200/60 bg-white/80 text-indigo-600 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.05] dark:text-indigo-400"><Icon size={18} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-slate-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">{item.label}</span>
+                <span className={`block text-sm font-bold ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400'}`}>{item.label}</span>
                 <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
               </span>
-              <ArrowRight size={15} className="text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-indigo-500 dark:text-slate-600" />
+              <ArrowRight size={15} className={`transition-transform ${isActive ? 'translate-x-1 text-indigo-500' : 'text-slate-300 group-hover:translate-x-1 group-hover:text-indigo-500 dark:text-slate-600'}`} />
             </button>
           )
         }) : (
@@ -125,8 +163,8 @@ export default function SearchPalette({ onClose, onSelect, onOpenTutor }) {
         )}
       </div>
       <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-2.5 text-[11px] font-medium text-slate-500 backdrop-blur-md dark:border-white/[0.05] dark:bg-white/[0.02] dark:text-slate-400">
-        <span>Nhấn <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] shadow-sm dark:border-white/10 dark:bg-white/[0.05]">Enter</kbd> để mở kết quả</span>
+        <span>Dùng <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] shadow-sm dark:border-white/10 dark:bg-white/[0.05]">↑↓</kbd> di chuyển · <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] shadow-sm dark:border-white/10 dark:bg-white/[0.05]">Enter</kbd> để mở</span>
       </div>
     </Dialog>
-  );
+  )
 }

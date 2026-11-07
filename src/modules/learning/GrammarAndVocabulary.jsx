@@ -269,7 +269,15 @@ export function WritingChecker({ apiKey }) {
                 history.map((item) => (
                   <div
                     key={item.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => loadFromHistory(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        loadFromHistory(item)
+                      }
+                    }}
                     className="group relative flex cursor-pointer items-start justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/70 p-3.5 shadow-xs transition hover:border-indigo-500/40 hover:bg-white dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-indigo-400/30 dark:hover:bg-white/[0.06]"
                   >
                     <div className="min-w-0 flex-1">
@@ -296,7 +304,8 @@ export function WritingChecker({ apiKey }) {
                     <button
                       type="button"
                       onClick={(e) => deleteHistoryItem(item.id, e)}
-                      className="rounded-lg p-1.5 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
+                      aria-label="Xoá bản ghi này"
+                      className="rounded-lg p-1.5 text-slate-400 opacity-100 transition hover:bg-rose-50 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
                       title="Xoá bản ghi này"
                     >
                       <Trash2 size={14} />

@@ -24,7 +24,6 @@ import useVocabularyCards from "../../hooks/useVocabularyCards";
 import { openItem } from "../../services/deepLink";
 import { getHistoryDays, historyChangedEvent, loadHistory } from "../../services/historyService";
 import { computeStats } from "../../services/gamification";
-import { createStarterPackDeck } from "../../services/starterPackService";
 import { toast } from "../../services/toast";
 
 const CEFR_LEVELS = [
@@ -267,6 +266,7 @@ export default function HomeHub({ user, streak, onNavigate }) {
     if (starterBusy) return;
     setStarterBusy(true);
     try {
+      const { createStarterPackDeck } = await import("../../services/starterPackService");
       const result = await createStarterPackDeck();
       toast.success(result.existing
         ? "Bộ từ khởi đầu đã có trong thư viện của bạn."

@@ -3,7 +3,6 @@ import {
   Check,
   Clock3,
   Maximize2,
-  Music2,
   Pause,
   Play,
   Plus,
@@ -11,16 +10,25 @@ import {
   Settings2,
   Target,
   Trash2,
-  Upload,
   Volume2,
-  VolumeX,
-  X,
 } from "lucide-react";
 import ProgressBar from "../../components/ui/ProgressBar";
 import useCloudDoc from "../../hooks/useCloudDoc";
 import { toast as notify } from "../../services/toast";
 import { userDocKeys } from "../../services/userDocService";
+import { dayKeyOf } from "../../utils/day";
+import {
+  AudioSettingsModal,
+  FocusAudio,
+  ZenFocus,
+  audioOptions,
+  fetchMediaTitle,
+  formatTime,
+  playChime,
+} from "./PlannerAudio";
 import YouTubeAudio from "./YouTubeAudio";
+
+export { fetchMediaTitle };
 
 const STORAGE_KEY = "lingua-study-planner";
 const AUDIO_STORAGE_KEY = "lingua-pomodoro-audio";
@@ -50,20 +58,10 @@ const defaultAudio = {
   customBackground: null,
   customAlarm: null,
 };
-const audioOptions = [
-  { id: "rain", label: "🌧️ Tiếng mưa rơi" },
-  { id: "coffee", label: "☕ Không gian quán cà phê" },
-  { id: "lofi", label: "🎵 Lofi Chill Beat" },
-  { id: "mute", label: "🔇 Tắt âm thanh" },
-];
-const alarmOptions = [
-  { id: "chime", label: "🔔 Chuông ngân (Chime)" },
-  { id: "beep", label: "📟 Kỹ thuật số (Beep)" },
-  { id: "bell", label: "🕰️ Chuông đồng hồ (Bell)" },
-];
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-const plannerStorageKey = (user) => user ? `${STORAGE_KEY}-${user.uid}` : `${STORAGE_KEY}-guest`;
+const todayKey = () => dayKeyOf();
+const plannerStorageKey = (user) =>
+  user ? `${STORAGE_KEY}-${user.uid}` : `${STORAGE_KEY}-guest`;
 const readPlanner = (user) => {
   try {
     const stored = JSON.parse(localStorage.getItem(plannerStorageKey(user)));
@@ -82,404 +80,14 @@ const readAudio = () => {
     return {
       ...defaultAudio,
       ...stored,
-      volume: Number.isFinite(volume) ? Math.max(0, Math.min(100, volume)) : defaultAudio.volume,
+      volume: Number.isFinite(volume)
+        ? Math.max(0, Math.min(100, volume))
+        : defaultAudio.volume,
     };
   } catch {
     return defaultAudio;
   }
 };
-const formatTime = (seconds) =>
-  `${Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
-
-export async function fetchMediaTitle(url) {
-  const cleanUrl = url.trim();
-  const isYoutube = /youtube\.com|youtu\.be/i.test(cleanUrl);
-  const shortUrl = cleanUrl.length > 42 ? `${cleanUrl.slice(0, 39)}...` : cleanUrl;
-  if (isYoutube) {
-    try {
-      const response = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(cleanUrl)}`);
-      if (!response.ok) throw new Error("Metadata unavailable");
-      const data = await response.json();
-      return { title: data.title || shortUrl, thumbnail: data.thumbnail_url || "", type: "youtube" };
-    } catch {
-      return { title: shortUrl, thumbnail: "", type: "youtube" };
-    }
-  }
-  try {
-    const filename = decodeURIComponent(new URL(cleanUrl).pathname.split("/").pop() || "").replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ").trim();
-    return { title: filename || "Custom Audio Stream", thumbnail: "", type: "stream" };
-  } catch {
-    return { title: shortUrl || "Custom Audio Stream", thumbnail: "", type: "stream" };
-  }
-}
-
-function playChime(audioElement, alarm = "chime", customSource = "", volume = 35, backgroundSource = "", resumeBackground = false) {
-  if (!audioElement) return;
-  if (customSource) {
-    audioElement.pause();
-    audioElement.currentTime = 0;
-    audioElement.src = customSource;
-    audioElement.loop = false;
-    audioElement.volume = volume / 100;
-    audioElement.onended = () => {
-      if (!resumeBackground || !backgroundSource) return;
-      audioElement.src = backgroundSource;
-      audioElement.loop = true;
-      audioElement.play().catch(() => {});
-    };
-    audioElement.play().catch(() => {});
-    return;
-  }
-  try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return undefined;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type =
-      alarm === "beep" ? "square" : alarm === "bell" ? "triangle" : "sine";
-    oscillator.frequency.setValueAtTime(
-      alarm === "beep" ? 1000 : 660,
-      context.currentTime,
-    );
-    oscillator.frequency.setValueAtTime(
-      alarm === "bell" ? 520 : 880,
-      context.currentTime + 0.18,
-    );
-    gain.gain.setValueAtTime(0.08, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.8);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.8);
-  } catch {
-    /* Audio can be unavailable in restricted browsers. */
-  }
-}
-
-function FocusAudio({ sound, volume, active, customSource }) {
-  const contextRef = useRef(null);
-  const gainRef = useRef(null);
-  const nodesRef = useRef([]);
-  // Âm lượng đọc qua ref: effect khởi tạo AudioContext không phụ thuộc `volume`,
-  // nên kéo thanh âm lượng không làm audio bị tạo lại (giật tiếng).
-  const volumeRef = useRef(volume);
-  useEffect(() => {
-    if (!active || sound === "mute") return undefined;
-    if (customSource) return undefined;
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return undefined;
-    let context;
-    try {
-      context = new AudioContextClass();
-    } catch {
-      return undefined;
-    }
-    const gain = context.createGain();
-    gain.gain.value = (volumeRef.current / 100) * 0.12;
-    gain.connect(context.destination);
-    gainRef.current = gain;
-    const nodes = [];
-    if (sound === "rain") {
-      const buffer = context.createBuffer(
-        1,
-        context.sampleRate * 2,
-        context.sampleRate,
-      );
-      const data = buffer.getChannelData(0);
-      for (let index = 0; index < data.length; index += 1)
-        data[index] = (Math.random() * 2 - 1) * 0.3;
-      const source = context.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gain);
-      source.start();
-      nodes.push(source);
-    } else {
-      const oscillator = context.createOscillator();
-      oscillator.type = sound === "lofi" ? "sine" : "triangle";
-      oscillator.frequency.value = sound === "lofi" ? 174 : 96;
-      oscillator.connect(gain);
-      oscillator.start();
-      nodes.push(oscillator);
-    }
-    contextRef.current = context;
-    nodesRef.current = nodes;
-    return () => {
-      nodes.forEach((node) => node.stop?.());
-      context.close();
-      contextRef.current = null;
-      gainRef.current = null;
-      nodesRef.current = [];
-    };
-  }, [active, sound, customSource]);
-  useEffect(() => {
-    volumeRef.current = volume;
-    if (gainRef.current) gainRef.current.gain.value = (volume / 100) * 0.12;
-  }, [volume]);
-  return null;
-}
-
-function AudioSettingsModal({ audio, setAudio, onClose, onReset, onPreview }) {
-  const [tab, setTab] = useState("background");
-  const [metadataLoading, setMetadataLoading] = useState(false);
-  const [backgroundUrl, setBackgroundUrl] = useState(
-    audio.customBackground?.sourceType === "url"
-      ? audio.customBackground.dataUrl
-      : "",
-  );
-  const readFile = (event, key) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const dataUrl = URL.createObjectURL(file);
-    setAudio((current) => ({
-      ...current,
-      [key]: { name: file.name, title: file.name, thumbnail: "", type: file.type, mediaType: file.type.startsWith("video/") ? "video" : "audio", dataUrl, sourceType: "file" },
-      ...(key === "customBackground" ? { sound: "custom" } : {}),
-    }));
-    event.target.value = "";
-  };
-  const applyUrl = async () => {
-    if (backgroundUrl.trim()) {
-      setMetadataLoading(true);
-      const metadata = await fetchMediaTitle(backgroundUrl);
-      setAudio((current) => ({
-        ...current,
-        sound: "custom",
-        customBackground: {
-          name: metadata.title,
-          title: metadata.title,
-          thumbnail: metadata.thumbnail,
-          type: metadata.type,
-          dataUrl: backgroundUrl.trim(),
-          sourceType: "url",
-        },
-      }));
-      setMetadataLoading(false);
-    }
-  };
-  return (
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <section className="panel w-full max-w-md rounded-3xl p-6 shadow-soft">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Music2 className="text-indigo-600 dark:text-indigo-400" size={20} />
-            <div>
-              <p className="eyebrow">Âm thanh</p>
-              <h2 className="mt-1 font-display text-xl font-bold">
-                Cài đặt âm thanh
-              </h2>
-            </div>
-          </div>
-          <button onClick={onClose} aria-label="Đóng">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="mt-6 flex gap-1 rounded-xl bg-ink/[0.06] p-1 dark:bg-white/[0.08]">
-          <button onClick={() => setTab("background")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${tab === "background" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}>Nhạc nền tập trung</button>
-          <button onClick={() => setTab("alarm")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold ${tab === "alarm" ? "bg-slab shadow-raised dark:bg-dark3" : "text-ink/60 dark:text-white/60"}`}>Chuông báo hết giờ</button>
-        </div>
-        <div className="mt-5">
-          {tab === "background" && <div>
-            <p className="text-sm font-bold">Nhạc nền tập trung</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {audioOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() =>
-                    setAudio((current) => ({ ...current, sound: option.id }))
-                  }
-                  className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${audio.sound === option.id ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" : "border-ink/10 dark:border-white/15"}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink/20 px-3 py-3 text-sm font-semibold dark:border-white/20">
-              <Upload size={15} />
-              Tải file từ máy
-              <input
-                type="file"
-                accept=".mp3,.wav,.aac,.mp4,audio/*,video/mp4"
-                className="hidden"
-                onChange={(event) => readFile(event, "customBackground")}
-              />
-            </label>
-            <div className="mt-3 flex gap-2">
-              <input
-                value={backgroundUrl}
-                onChange={(event) => setBackgroundUrl(event.target.value)}
-                placeholder="Dán link YouTube / MP3 trực tuyến"
-                className="min-w-0 flex-1 rounded-lg border border-ink/[0.1] bg-transparent px-3 py-2 text-xs dark:border-white/[0.1]"
-              />
-              <button
-                onClick={applyUrl}
-                disabled={metadataLoading}
-                className="btn-primary rounded-lg px-3 text-xs disabled:opacity-50"
-              >
-                {metadataLoading ? "Đang lấy thông tin..." : "Áp dụng"}
-              </button>
-            </div>
-            {audio.customBackground && (
-              <div className="flex items-center gap-3 rounded-xl bg-slab2 px-3 py-2.5 dark:bg-dark3">
-                {audio.customBackground.thumbnail ? <img src={audio.customBackground.thumbnail} alt="" className="h-10 w-14 rounded-md object-cover" /> : <Music2 className="shrink-0 animate-pulse text-indigo-500" size={20} />}
-                <div className="min-w-0 flex-1"><p className="line-clamp-1 text-sm font-medium text-ink dark:text-white">{audio.customBackground.title || audio.customBackground.name}</p><p className="text-xs text-ink/60 dark:text-white/55">{audio.customBackground.type === "youtube" ? "Âm thanh YouTube" : "Âm thanh trực tuyến"}</p></div>
-                <button onClick={() => setAudio((current) => ({ ...current, sound: "custom" }))} className="text-indigo-600 dark:text-indigo-400" aria-label="Chọn làm nhạc nền">◉</button>
-                <button
-                  onClick={() =>
-                    setAudio((current) => ({
-                      ...current,
-                      customBackground: null,
-                      sound: "mute",
-                    }))
-                  }
-                  className="text-red-500"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            )}
-            {audio.customBackground?.mediaType === "video" && (
-              <button
-                onClick={() => setAudio((current) => ({ ...current, customBackground: null, sound: "mute" }))}
-                className="mt-2 text-xs font-bold text-red-500"
-              >
-                Xóa video nền
-              </button>
-            )}
-          </div>}
-          {tab === "alarm" && <div>
-            <p className="text-sm font-bold">Chuông báo hết giờ</p>
-            <div className="mt-3 grid gap-2">
-              {alarmOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() =>
-                    setAudio((current) => ({ ...current, alarm: option.id }))
-                  }
-                  className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold ${audio.alarm === option.id ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" : "border-ink/[0.1] dark:border-white/[0.1]"}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink/20 px-3 py-3 text-sm font-semibold dark:border-white/20">
-              <Upload size={15} />
-              Tải chuông riêng
-              <input
-                type="file"
-                accept=".mp3,.wav,.aac,audio/*"
-                className="hidden"
-                onChange={(event) => readFile(event, "customAlarm")}
-              />
-            </label>
-            {audio.customAlarm && (
-              <div className="flex items-center justify-between rounded-lg bg-mist px-3 py-2 text-xs dark:bg-dark3">
-                <span className="max-w-[180px] truncate">
-                  {audio.customAlarm.name}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onPreview(audio.customAlarm.dataUrl)}
-                    className="font-bold text-indigo-600 dark:text-indigo-400"
-                  >
-                    ▶ Nghe thử
-                  </button>
-                  <button
-                    onClick={() =>
-                      setAudio((current) => ({ ...current, customAlarm: null }))
-                    }
-                    className="text-red-500"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>}
-        </div>
-        <div className="mt-6 flex justify-between border-t border-ink/[0.08] pt-4 dark:border-white/[0.08]">
-          <button onClick={onReset} className="btn-ghost text-danger dark:text-dangerfgdark">
-            Khôi phục mặc định
-          </button>
-          <button
-            onClick={onClose}
-            className="btn-primary px-5"
-          >
-            Xong
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ZenFocus({
-  timer,
-  progress,
-  audio,
-  onToggle,
-  onMute,
-  onExit,
-}) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0B0F17] text-white">
-      <div className="w-full max-w-2xl px-8 text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-white/40">
-          {timer.mode === "focus"
-            ? `Phiên học tập #${timer.sessions + 1}`
-            : "Nghỉ giải lao"}
-        </p>
-        <p className="mt-5 font-mono text-8xl font-bold tracking-tight text-indigo-400 sm:text-[10rem]">
-          {formatTime(timer.secondsLeft)}
-        </p>
-        <div className="mx-auto mt-10 max-w-md">
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${progress}%`, background: 'linear-gradient(90deg, rgb(var(--accent)), rgb(var(--accent-2)))' }}
-            />
-          </div>
-        </div>
-        <div className="mt-10 flex items-center justify-center gap-3">
-          <button
-            onClick={onToggle}
-            className="btn-primary grid h-12 w-12 place-items-center rounded-full p-0 text-white"
-            aria-label={timer.isRunning ? "Tạm dừng" : "Bắt đầu"}
-          >
-            {timer.isRunning ? <Pause size={19} /> : <Play size={19} />}
-          </button>
-          <button
-            onClick={onMute}
-            className="grid h-12 w-12 place-items-center rounded-full border border-white/20 text-white/70"
-            aria-label="Bật tắt âm thanh"
-          >
-            {audio.sound === "mute" || audio.volume === 0 ? (
-              <VolumeX size={18} />
-            ) : (
-              <Volume2 size={18} />
-            )}
-          </button>
-          <button
-            onClick={onExit}
-            className="grid h-12 w-12 place-items-center rounded-full border border-white/20 text-white/70"
-            aria-label="Thoát chế độ tập trung"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <p className="mt-8 text-xs text-white/35">
-          Âm thanh:{" "}
-          {audioOptions.find((item) => item.id === audio.sound)?.label}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const normalizePlanner = (payload) => ({
   days: payload?.days && typeof payload.days === "object" ? payload.days : {},
@@ -497,29 +105,42 @@ const mergePlanner = (payload, current) => {
   const local = current || { days: {}, timer: defaultTimer };
   if (!payload) return local;
   return {
-    days: payload.days && typeof payload.days === "object" ? payload.days : local.days,
+    days:
+      payload.days && typeof payload.days === "object"
+        ? payload.days
+        : local.days,
     timer: {
       ...normalizePlanner(local).timer,
-      sessions: Math.max(Number(local.timer?.sessions) || 0, Number(payload.timerSessions) || 0),
+      sessions: Math.max(
+        Number(local.timer?.sessions) || 0,
+        Number(payload.timerSessions) || 0,
+      ),
     },
   };
 };
 
 export default function StudyPlanner({ onStudyActivity, user }) {
-  const { value: planner, setValue: setPlanner } = useCloudDoc(userDocKeys.planner, {
-    initial: readPlanner(user),
-    select: selectPlannerForCloud,
-    normalize: mergePlanner,
-  });
+  const { value: planner, setValue: setPlanner } = useCloudDoc(
+    userDocKeys.planner,
+    {
+      initial: readPlanner(user),
+      select: selectPlannerForCloud,
+      normalize: mergePlanner,
+    },
+  );
   const [taskInput, setTaskInput] = useState("");
   const audioRef = useRef(null);
   const [audio, setAudio] = useState(readAudio);
   const [isZen, setIsZen] = useState(false);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
   // Thông báo dùng hệ thống toast chung; giữ tên hàm để không phải sửa các chỗ gọi.
-  const setToast = (message) => { if (message) notify.info(message); };
+  const setToast = (message) => {
+    if (message) notify.info(message);
+  };
   const date = todayKey();
-  const tasks = Array.isArray(planner.days[date]) ? planner.days[date] : defaultTasks;
+  const tasks = Array.isArray(planner.days[date])
+    ? planner.days[date]
+    : defaultTasks;
   const timer = planner.timer || defaultTimer;
   const completedCount = tasks.filter((task) => task.completed).length;
   const taskProgress = tasks.length
@@ -536,15 +157,26 @@ export default function StudyPlanner({ onStudyActivity, user }) {
   useEffect(() => {
     const persistedAudio = {
       ...audio,
-      sound: audio.sound === "custom" && audio.customBackground?.sourceType === "file" ? "mute" : audio.sound,
-      customBackground: audio.customBackground?.sourceType === "file" ? null : audio.customBackground,
-      customAlarm: audio.customAlarm?.sourceType === "file" ? null : audio.customAlarm,
+      sound:
+        audio.sound === "custom" &&
+        audio.customBackground?.sourceType === "file"
+          ? "mute"
+          : audio.sound,
+      customBackground:
+        audio.customBackground?.sourceType === "file"
+          ? null
+          : audio.customBackground,
+      customAlarm:
+        audio.customAlarm?.sourceType === "file" ? null : audio.customAlarm,
     };
     localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(persistedAudio));
   }, [audio]);
 
   useEffect(() => {
-    const objectUrls = [audio.customBackground?.dataUrl, audio.customAlarm?.dataUrl];
+    const objectUrls = [
+      audio.customBackground?.dataUrl,
+      audio.customAlarm?.dataUrl,
+    ];
     return () => {
       objectUrls.forEach((url) => {
         if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
@@ -556,9 +188,10 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     const audioElement = audioRef.current;
     if (!audioElement) return undefined;
     const customBackground = audio.customBackground;
-    const source = audio.sound === "custom" && customBackground?.type !== "youtube"
-      ? customBackground?.dataUrl
-      : "";
+    const source =
+      audio.sound === "custom" && customBackground?.type !== "youtube"
+        ? customBackground?.dataUrl
+        : "";
     audioElement.pause();
     audioElement.currentTime = 0;
     audioElement.src = source || "";
@@ -569,10 +202,17 @@ export default function StudyPlanner({ onStudyActivity, user }) {
       audioElement.play().catch(() => {});
     }
     return () => audioElement.pause();
-  }, [audio.sound, audio.customBackground, audio.volume, timer.isRunning, timer.mode]);
+  }, [
+    audio.sound,
+    audio.customBackground,
+    audio.volume,
+    timer.isRunning,
+    timer.mode,
+  ]);
 
   useEffect(
-    () => localStorage.setItem(plannerStorageKey(user), JSON.stringify(planner)),
+    () =>
+      localStorage.setItem(plannerStorageKey(user), JSON.stringify(planner)),
     [planner, user],
   );
   useEffect(() => {
@@ -601,14 +241,17 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     const nextMode = timer.mode === "focus" ? "break" : "focus";
     setPlanner((current) => ({
       ...current,
-      days: timer.mode === "focus" && timer.focusTaskId
-        ? {
-            ...current.days,
-            [date]: (current.days[date] || defaultTasks).map((task) =>
-              task.id === timer.focusTaskId ? { ...task, completed: true } : task,
-            ),
-          }
-        : current.days,
+      days:
+        timer.mode === "focus" && timer.focusTaskId
+          ? {
+              ...current.days,
+              [date]: (current.days[date] || defaultTasks).map((task) =>
+                task.id === timer.focusTaskId
+                  ? { ...task, completed: true }
+                  : task,
+              ),
+            }
+          : current.days,
       timer: {
         ...defaultTimer,
         mode: nextMode,
@@ -619,9 +262,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
     }));
     if (timer.mode === "focus") {
       onStudyActivity?.();
-      setToast(timer.focusTaskId
-        ? "Hết 25 phút học. Đã tick task mục tiêu, nghỉ 5 phút nhé!"
-        : "Hết 25 phút học. Nghỉ 5 phút nhé!");
+      setToast(
+        timer.focusTaskId
+          ? "Hết 25 phút học. Đã tick task mục tiêu, nghỉ 5 phút nhé!"
+          : "Hết 25 phút học. Nghỉ 5 phút nhé!",
+      );
     } else {
       setToast("Hết giờ nghỉ. Sẵn sàng học tiếp chưa?");
     }
@@ -696,7 +341,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
   const focusTask = (id) => {
     setTimer({ ...timer, mode: "focus", focusTaskId: id });
     const task = tasks.find((item) => item.id === id);
-    setToast(task ? `Đã chọn mục tiêu: ${task.title}` : "Đã chọn mục tiêu phiên học.");
+    setToast(
+      task
+        ? `Đã chọn mục tiêu: ${task.title}`
+        : "Đã chọn mục tiêu phiên học.",
+    );
   };
   const removeTask = (id) =>
     updateTasks(tasks.filter((task) => task.id !== id));
@@ -750,26 +399,29 @@ export default function StudyPlanner({ onStudyActivity, user }) {
         active={timer.isRunning}
       />
       <audio ref={audioRef} preload="auto" aria-hidden="true" />
-      {audio.sound === "custom" && audio.customBackground?.type === "youtube" && (
-        <YouTubeAudio
-          url={audio.customBackground.dataUrl}
-          playing={timer.isRunning}
-          volume={audio.volume}
-        />
-      )}
+      {audio.sound === "custom" &&
+        audio.customBackground?.type === "youtube" && (
+          <YouTubeAudio
+            url={audio.customBackground.dataUrl}
+            playing={timer.isRunning}
+            volume={audio.volume}
+          />
+        )}
       <div className="space-y-6">
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="panel relative isolate overflow-hidden p-5">
-            {audio.sound === "custom" && audio.customBackground?.mediaType === "video" && audio.customBackground.dataUrl && (
-              <video
-                src={audio.customBackground.dataUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="absolute inset-0 w-full h-full object-cover -z-10"
-              />
-            )}
+            {audio.sound === "custom" &&
+              audio.customBackground?.mediaType === "video" &&
+              audio.customBackground.dataUrl && (
+                <video
+                  src={audio.customBackground.dataUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 -z-10 h-full w-full object-cover"
+                />
+              )}
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">
@@ -795,7 +447,10 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                 placeholder="Thêm task học tập..."
                 className="min-w-0 flex-1 rounded-xl border border-ink/[0.1] bg-transparent px-3 py-3 text-sm outline-none dark:border-white/[0.1]"
               />
-              <button className="btn-primary grid h-11 w-11 shrink-0 place-items-center rounded-xl p-0">
+              <button
+                className="btn-primary grid h-11 w-11 shrink-0 place-items-center rounded-xl p-0"
+                aria-label="Thêm task"
+              >
                 <Plus size={17} />
               </button>
             </form>
@@ -811,16 +466,37 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                     aria-label={`${task.completed ? "Bỏ đánh dấu" : "Đánh dấu hoàn thành"}: ${task.title}`}
                     className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink/70 transition hover:bg-ink/[0.06] dark:text-white/70 dark:hover:bg-white/10"
                   >
-                    <span className={`grid h-6 w-6 place-items-center rounded-md border ${task.completed ? "border-emerald-500 bg-emerald-500 text-white" : "border-ink/25 dark:border-white/30"}`}>
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-md border ${
+                        task.completed
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-ink/25 dark:border-white/30"
+                      }`}
+                    >
                       {task.completed && <Check size={14} />}
                     </span>
                   </button>
                   <span
-                    className={`flex-1 text-sm font-semibold ${task.completed ? "text-ink/60 line-through dark:text-white/45" : ""}`}
+                    className={`flex-1 text-sm font-semibold ${
+                      task.completed
+                        ? "text-ink/60 line-through dark:text-white/45"
+                        : ""
+                    }`}
                   >
                     {task.title}
                   </span>
-                  <button onClick={() => focusTask(task.id)} className={`grid h-11 w-11 place-items-center rounded-xl transition ${timer.focusTaskId === task.id ? "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30" : "text-ink/60 hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"}`} aria-label={`Đặt ${task.title} làm mục tiêu phiên tập trung`} title="Đặt làm mục tiêu Pomodoro"><Target size={17} /></button>
+                  <button
+                    onClick={() => focusTask(task.id)}
+                    className={`grid h-11 w-11 place-items-center rounded-xl transition ${
+                      timer.focusTaskId === task.id
+                        ? "border border-indigo-500/30 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+                        : "text-ink/60 hover:bg-ink/[0.06] hover:text-ink dark:text-white/60 dark:hover:bg-white/10 dark:hover:text-white"
+                    }`}
+                    aria-label={`Đặt ${task.title} làm mục tiêu phiên tập trung`}
+                    title="Đặt làm mục tiêu Pomodoro"
+                  >
+                    <Target size={17} />
+                  </button>
                   <button
                     onClick={() => removeTask(task.id)}
                     aria-label={`Xoá task: ${task.title}`}
@@ -858,7 +534,11 @@ export default function StudyPlanner({ onStudyActivity, user }) {
               </div>
             </div>
             <div className="mt-6 text-center">
-              <p className="mb-4 min-h-5 text-xs font-bold text-indigo-600 dark:text-indigo-400">{timer.focusTaskId ? `Mục tiêu: ${tasks.find((task) => task.id === timer.focusTaskId)?.title || "Phiên học hiện tại"}` : "Chưa chọn mục tiêu phiên"}</p>
+              <p className="mb-4 min-h-5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                {timer.focusTaskId
+                  ? `Mục tiêu: ${tasks.find((task) => task.id === timer.focusTaskId)?.title || "Phiên học hiện tại"}`
+                  : "Chưa chọn mục tiêu phiên"}
+              </p>
               <div
                 className="mx-auto grid h-52 w-52 place-items-center rounded-full"
                 style={{
@@ -880,14 +560,22 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                 <button
                   onClick={() => switchTimerMode("focus")}
                   aria-pressed={timer.mode === "focus"}
-                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${timer.mode === "focus" ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"}`}
+                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${
+                    timer.mode === "focus"
+                      ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                  }`}
                 >
                   Học 25 phút
                 </button>
                 <button
                   onClick={() => switchTimerMode("break")}
                   aria-pressed={timer.mode === "break"}
-                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${timer.mode === "break" ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"}`}
+                  className={`min-h-[44px] rounded-xl px-4 text-sm font-bold transition ${
+                    timer.mode === "break"
+                      ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                  }`}
                 >
                   Nghỉ 5 phút
                 </button>
@@ -898,6 +586,7 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                   onChange={(event) =>
                     setAudio({ ...audio, sound: event.target.value })
                   }
+                  aria-label="Chọn âm thanh nền"
                   className="w-full min-w-0 rounded-xl border border-ink/10 bg-transparent px-2.5 py-2.5 text-sm dark:border-white/15 sm:flex-1"
                 >
                   {audioOptions.map((option) => (
@@ -907,7 +596,9 @@ export default function StudyPlanner({ onStudyActivity, user }) {
                   ))}
                   {audio.customBackground && (
                     <option value="custom">
-                      🎵 {audio.customBackground.title || audio.customBackground.name}
+                      🎵{" "}
+                      {audio.customBackground.title ||
+                        audio.customBackground.name}
                     </option>
                   )}
                 </select>
